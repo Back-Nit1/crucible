@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+data/raw/
+checkpoints/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+node_modules/
+.next/
+graphify-out/cache/
