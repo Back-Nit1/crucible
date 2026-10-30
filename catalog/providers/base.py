@@ -1,5 +1,5 @@
 """CatalogProvider interface + core entities (spec 7.1, section 9)."""
-from datetime import date, datetime
+import datetime as dt
 from decimal import Decimal
 from typing import Protocol
 
@@ -16,7 +16,7 @@ class Product(BaseModel):
     variants: dict[str, int] = Field(default_factory=dict)  # variant -> units in stock
     attributes: dict = Field(default_factory=dict)
     source: str  # e.g. "amazon2023", "channel3"; shown in the UI
-    as_of: datetime  # snapshot / fetch time; shown in the UI
+    as_of: dt.datetime  # snapshot / fetch time; shown in the UI
 
 
 class Review(BaseModel):
@@ -24,7 +24,7 @@ class Review(BaseModel):
     product_id: str
     rating: float
     text: str
-    date: date | None = None
+    date: dt.date | None = None
     helpful_votes: int = 0
     verified: bool = False
     reviewer_context: dict = Field(default_factory=dict)
