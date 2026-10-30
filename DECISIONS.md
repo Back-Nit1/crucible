@@ -19,3 +19,4 @@ Log every non-obvious choice, doc-vs-spec conflict, fallback, and Day-1 provider
 ## Day-1 kill-checks (spec 15): NOT RUN
 All 10 need real credentials or network access (PayPal sandbox, KERNEL, Channel3, Best Buy,
 Elastic, Modal GPU, Astropods). Awaiting keys. Results go here and in `config/providers.yaml`.
+- Graphify built via `graphify update .` (code-only, no LLM); report + graph copied to docs/graph/. Doc-semantic pass (`/graphify` skill) not run.
