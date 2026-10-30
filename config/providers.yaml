@@ -1,0 +1,4 @@
+# Written by the Day-1 catalog check (spec 15.4). Nothing verified yet.
+status: pending
+live_chat: elastic_snapshot   # safe default until Channel3 / Best Buy terms are checked
+training_eval: elastic_snapshot
