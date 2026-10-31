@@ -80,3 +80,18 @@ Findings:
 ### Integration status
 - PayPal/Kernel, catalog/Elastic, Modal/Qwen worktrees were still at `8f8b822` with no changes when checked; no reports to integrate. Day-1 checks 1-8 remain NOT RUN.
 - A separate session is working on `feat/scoring-contracts` in the primary worktree (task/scoring contracts). Not merged; not reviewed.
+
+## 2026-10-31 platform owner (agent 1): Day-1 provider and infrastructure decisions
+Evidence: `docs/spikes/platform-day1.md`. Config: `config/providers.yaml`.
+- **Training/eval catalog = Elastic snapshot of Amazon Reviews 2023, always.** Channel3 snapshot/training rejected: ToS s.7 (per earlier doc review; a human should confirm the clause text).
+- **Live chat default = Elastic snapshot, labelled `snapshot` in every API response.** Channel3 works for live display (live probe: offers, in-stock, structured attributes on all 11 probe categories) but returns **no review text**, so it cannot give review-grounded picks, and spec 6.2 gates it on storage terms which fail. Enable by setting `live_chat: channel3` (falls back to the snapshot on error, visibly via `fallback_from`). **Open question for the user.**
+- **Best Buy disabled** (signup unavailable); the router removes disabled providers.
+- Channel3 `max_price` filter is unreliable (results with offers over the cap): the router re-filters; payment guards re-check the live price.
+- Channel3 variant `available` is empty in search and populated only on product detail.
+- **Embeddings: `.jina-embeddings-v5-text-nano` (768d, EIS-hosted, <=16 inputs/request).** The documented-default `.multilingual-e5-small-elasticsearch` timed out (HTTP 408, deployment not starting) twice on this project.
+- Review ids are composed `parent_asin:asin:user_id:timestamp` (dataset has none); 8 of 3,588 collided in the first snapshot (source duplicates), so ids are not guaranteed unique.
+- Amazon data has no stock or size availability. Those cannot be hard constraints in generated tasks (unverifiable); do not synthesise them.
+- PayPal: capture must send a JSON body (`{}`) or PayPal returns `UNSUPPORTED_MEDIA_TYPE` (live-verified bug, fixed). Agent Toolkit not adopted (required actions unconfirmed).
+- Modal: GPU functions require a payment method on the workspace; blocked, $0 spent. The Qwen tool-call numbers are therefore **not measured**; the license (Apache-2.0) and pinned revision `a09a3545...` stand from the earlier spike.
+- The Qwen probe moved from `eval/` to `modal_app/qwen_toolcalls.py` (eval/ belongs to agent 2).
+- Not verified: that `.env`'s Modal token is the rotated replacement (it authenticates).
