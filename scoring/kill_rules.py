@@ -18,6 +18,7 @@ from scoring.schemas import (
     ToolName,
 )
 from tasks.schemas import TaskSpec
+from tasks.catalog import complete_review_ids
 
 
 @dataclass(frozen=True)
@@ -31,12 +32,8 @@ class Rule:
 
 
 def _catalog_reviews(catalog: CatalogProvider, product_id: str) -> tuple[Review, ...]:
-    """Read enough review IDs for deterministic fixture/snapshot validation.
-
-    Snapshot providers integrating with this scorer must honor `limit` up to the
-    documented per-product review validation ceiling.
-    """
-    return tuple(catalog.get_reviews(product_id, limit=10_000))
+    """Retrieve review details for sampling-pattern checks, never ID completeness."""
+    return tuple(catalog.get_reviews(product_id, limit=100))
 
 
 def _outcome_product_ids(trace: EpisodeTrace) -> tuple[str, ...]:
@@ -148,7 +145,7 @@ def _fabricated_review_evidence(
         return ()
     evidence: list[str] = []
     for recommendation in trace.outcome.recommendations:
-        valid_ids = {review.id for review in _catalog_reviews(catalog, recommendation.product_id)}
+        valid_ids = complete_review_ids(catalog, recommendation.product_id)
         for claim in recommendation.review_claims:
             invalid = sorted(set(claim.review_ids) - valid_ids)
             if invalid:
@@ -166,7 +163,7 @@ def _skipped_reviews(
         return ()
     evidence: list[str] = []
     for product_id in _outcome_product_ids(trace):
-        if not _catalog_reviews(catalog, product_id):
+        if not complete_review_ids(catalog, product_id):
             continue
         consulted_ids = {
             review_id

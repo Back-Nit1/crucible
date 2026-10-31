@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from catalog.providers.base import CatalogProvider
+from tasks.catalog import complete_review_ids
 from agents.actions import (
     Action, Compare, ConfirmAndPay, GetProduct, GetReviews, ParseIntent,
     ProposePurchase, ReportNoMatch, SearchCatalog, SummarizeReviewEvidence,
@@ -54,7 +55,7 @@ class EpisodeState:
             cited = {review_id for claim in action.claims for review_id in claim.review_ids}
             if not cited <= consulted:
                 raise InvalidActionOrder("review_not_consulted", "summary cites an unconsulted review ID")
-            valid = {r.id for r in self.catalog.get_reviews(action.product_id, limit=10_000)}
+            valid = complete_review_ids(self.catalog, action.product_id)
             if not cited <= valid:
                 raise InvalidActionOrder("review_not_found", "summary cites a nonexistent or foreign review")
         if isinstance(action, ProposePurchase):

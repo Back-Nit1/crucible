@@ -20,6 +20,9 @@ class InMemoryCatalog:
     """Deterministic `CatalogProvider` implementation with no external I/O."""
 
     def __init__(self):
+        self.snapshot_id = "snapshot-test-v1"
+        self.manifest_hash = "a" * 64
+        self.is_frozen_training_provider = True
         as_of = datetime(2023, 9, 1, tzinfo=timezone.utc)
         self.products = {
             "shoe-a": Product(
@@ -121,6 +124,15 @@ class InMemoryCatalog:
         self, product_id: str, focus: str | None = None, limit: int = 10
     ) -> list[Review]:
         return list(self.reviews.get(product_id, ()))[:limit]
+
+    def categories(self) -> tuple[str, ...]:
+        return tuple(sorted({product.category for product in self.products.values()}))
+
+    def enumerate_products(self, category: str) -> tuple[Product, ...]:
+        return tuple(product for product in self.products.values() if product.category == category)
+
+    def complete_review_ids(self, product_id: str) -> frozenset[str]:
+        return frozenset(review.id for review in self.reviews.get(product_id, ()))
 
 
 def feasible_task(**changes) -> TaskSpec:
