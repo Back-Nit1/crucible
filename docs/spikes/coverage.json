@@ -1,0 +1,266 @@
+{
+ "params": {
+  "meta_mb": 25,
+  "review_mb": 50,
+  "windows": 4,
+  "cache": "data/raw",
+  "only": null
+ },
+ "categories": {
+  "Clothing_Shoes_and_Jewelry": {
+   "meta_records": 41128,
+   "review_records": 455763,
+   "all": {
+    "products": 41128,
+    "reviews_joined": 20835,
+    "price": 10860,
+    "declared>=min": 30641,
+    "sample>=min": 688,
+    "usable": 629,
+    "features": 37294
+   },
+   "segments": {
+    "running shoes": {
+     "products": 1706,
+     "reviews_joined": 743,
+     "price": 284,
+     "declared>=min": 1395,
+     "sample>=min": 48,
+     "usable": 36,
+     "features": 1510
+    },
+    "clothing": {
+     "products": 10468,
+     "reviews_joined": 8803,
+     "price": 3113,
+     "declared>=min": 7812,
+     "sample>=min": 243,
+     "usable": 231,
+     "features": 9703
+    }
+   },
+   "running_shoe_attribute_probe": {
+    "products": 1706,
+    "top_detail_keys": [
+     [
+      "Date First Available",
+      1631
+     ],
+     [
+      "Department",
+      1480
+     ],
+     [
+      "Item model number",
+      980
+     ],
+     [
+      "Package Dimensions",
+      860
+     ],
+     [
+      "Manufacturer",
+      776
+     ],
+     [
+      "Is Discontinued By Manufacturer",
+      484
+     ],
+     [
+      "Product Dimensions",
+      483
+     ],
+     [
+      "Item Weight",
+      73
+     ],
+     [
+      "Color",
+      44
+     ],
+     [
+      "Brand Name",
+      34
+     ],
+     [
+      "Size",
+      33
+     ],
+     [
+      "Item Package Dimensions L x W x H",
+      32
+     ]
+    ],
+    "products_with_detail_key": {
+     "size": 33,
+     "width": 1,
+     "weight": 93,
+     "stock/inventory": 13
+    },
+    "products_with_features": 1510
+   }
+  },
+  "Sports_and_Outdoors": {
+   "meta_records": 39064,
+   "review_records": 417767,
+   "all": {
+    "products": 39064,
+    "reviews_joined": 18461,
+    "price": 13857,
+    "declared>=min": 28412,
+    "sample>=min": 736,
+    "usable": 627,
+    "features": 32590
+   },
+   "segments": {
+    "hiking/outdoor": {
+     "products": 3874,
+     "reviews_joined": 2592,
+     "price": 1090,
+     "declared>=min": 3099,
+     "sample>=min": 115,
+     "usable": 97,
+     "features": 3201
+    },
+    "water bottles": {
+     "products": 1088,
+     "reviews_joined": 1318,
+     "price": 293,
+     "declared>=min": 895,
+     "sample>=min": 53,
+     "usable": 38,
+     "features": 848
+    }
+   }
+  },
+  "Electronics": {
+   "meta_records": 30644,
+   "review_records": 382180,
+   "all": {
+    "products": 30644,
+    "reviews_joined": 9483,
+    "price": 10780,
+    "declared>=min": 22996,
+    "sample>=min": 367,
+    "usable": 271,
+    "features": 22793
+   },
+   "segments": {
+    "headphones": {
+     "products": 2376,
+     "reviews_joined": 922,
+     "price": 700,
+     "declared>=min": 1933,
+     "sample>=min": 41,
+     "usable": 31,
+     "features": 1773
+    },
+    "PC components": {
+     "products": 2433,
+     "reviews_joined": 713,
+     "price": 1095,
+     "declared>=min": 1630,
+     "sample>=min": 29,
+     "usable": 16,
+     "features": 1951
+    }
+   }
+  },
+  "Video_Games": {
+   "meta_records": 31651,
+   "review_records": 349101,
+   "all": {
+    "products": 31651,
+    "reviews_joined": 102792,
+    "price": 15000,
+    "declared>=min": 26075,
+    "sample>=min": 3471,
+    "usable": 2445,
+    "features": 22909
+   },
+   "segments": {
+    "video games": {
+     "products": 31651,
+     "reviews_joined": 102792,
+     "price": 15000,
+     "declared>=min": 26075,
+     "sample>=min": 3471,
+     "usable": 2445,
+     "features": 22909
+    }
+   }
+  },
+  "Office_Products": {
+   "meta_records": 33126,
+   "review_records": 443212,
+   "all": {
+    "products": 33126,
+    "reviews_joined": 29351,
+    "price": 14334,
+    "declared>=min": 24898,
+    "sample>=min": 1105,
+    "usable": 881,
+    "features": 25971
+   },
+   "segments": {
+    "desks/office": {
+     "products": 4871,
+     "reviews_joined": 5175,
+     "price": 1857,
+     "declared>=min": 3653,
+     "sample>=min": 195,
+     "usable": 152,
+     "features": 3860
+    }
+   }
+  },
+  "Books": {
+   "meta_records": 29509,
+   "review_records": 250404,
+   "all": {
+    "products": 29509,
+    "reviews_joined": 2125,
+    "price": 24717,
+    "declared>=min": 22616,
+    "sample>=min": 34,
+    "usable": 27,
+    "features": 26356
+   },
+   "segments": {
+    "textbooks/study": {
+     "products": 1199,
+     "reviews_joined": 46,
+     "price": 1137,
+     "declared>=min": 930,
+     "sample>=min": 0,
+     "usable": 0,
+     "features": 1152
+    }
+   }
+  },
+  "Home_and_Kitchen": {
+   "meta_records": 31585,
+   "review_records": 419397,
+   "all": {
+    "products": 31585,
+    "reviews_joined": 9509,
+    "price": 12028,
+    "declared>=min": 23479,
+    "sample>=min": 255,
+    "usable": 232,
+    "features": 24171
+   },
+   "segments": {
+    "furniture": {
+     "products": 2387,
+     "reviews_joined": 526,
+     "price": 806,
+     "declared>=min": 1723,
+     "sample>=min": 27,
+     "usable": 25,
+     "features": 2128
+    }
+   }
+  }
+ }
+}

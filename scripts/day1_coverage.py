@@ -13,7 +13,7 @@ from catalog.sources.amazon2023 import iter_jsonl, meta_url, review_url
 
 # dataset category -> spec use-case segments (keyword matched against categories path + title)
 SEGMENTS = {
-    "Clothing_Shoes_and_Jewelry": {"running shoes": r"running", "clothing": r"clothing"},
+    "Clothing_Shoes_and_Jewelry": {"running shoes": r"running", "clothing": r"\b(shirt|jacket|pants|dress|hoodie|jeans|sweater)\b"},
     "Sports_and_Outdoors": {"hiking/outdoor": r"hiking|camping", "water bottles": r"water bottle"},
     "Electronics": {"headphones": r"headphone|earbud", "PC components": r"computer components|graphics card|motherboard|\bssd\b"},
     "Video_Games": {"video games": r"."},
@@ -21,7 +21,9 @@ SEGMENTS = {
     "Books": {"textbooks/study": r"textbook|study"},
     "Home_and_Kitchen": {"furniture": r"furniture"},
 }
-SIZE_KEYS = re.compile(r"size|width|weight|stock|inventor|availab", re.I)
+PROBE = {  # exact-ish key buckets; "Date First Available" and "Is Discontinued..." are NOT stock
+    "size": re.compile(r"^(shoe |item )?size$|^size ", re.I), "width": re.compile(r"width", re.I),
+    "weight": re.compile(r"weight", re.I), "stock/inventory": re.compile(r"stock|inventor|quantity", re.I)}
 
 
 def size_of(url: str) -> int:
@@ -40,13 +42,15 @@ def seg_text(m: dict) -> str:
 
 
 def attr_probe(metas) -> dict:
-    keys, size_like = Counter(), 0
+    keys, hit = Counter(), Counter()
     for m in metas:
-        d = m.get("details") or {}
-        keys.update(d.keys() if isinstance(d, dict) else [])
-        size_like += any(SIZE_KEYS.search(k) for k in d)
+        d = m.get("details")
+        d = d if isinstance(d, dict) else {}
+        keys.update(d.keys())
+        for name, rx in PROBE.items():
+            hit[name] += any(rx.search(k) for k in d)
     return {"products": len(metas), "top_detail_keys": keys.most_common(12),
-            "products_with_size/width/weight/stock-like detail key": size_like,
+            "products_with_detail_key": {n: hit[n] for n in PROBE},
             "products_with_features": sum(bool(m.get("features")) for m in metas)}
 
 
