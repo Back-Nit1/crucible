@@ -192,3 +192,22 @@ erDiagram
   PAYMENT { string paypal_order_id string capture_id float amount string status string idempotency_key }
   KILL_RULE { string id int version string description datetime added_at int kills }
 ```
+
+## Platform implementation status (milestones 1-3, agent 1)
+```mermaid
+flowchart LR
+  api[api.main FastAPI] --> router[catalog.router ProviderRouter]
+  api --> guards[payments.guards GuardedPayments]
+  router -->|training / eval / default live| es[ElasticCatalogProvider]
+  router -.->|opt-in live, fallback to snapshot| c3[Channel3Provider<br/>no reviews]
+  router -. disabled .-> bb[BestBuy]
+  es --> elastic[(Elastic Serverless<br/>products, reviews, traces)]
+  guards --> mock[MockPayments]
+  guards --> sbx[SandboxPayments<br/>PayPal Orders v2]
+  sbx -.blocked: no buyer account.-> kern[KernelApprover]
+  mem[memory.TraceRepository] --> elastic
+  snap[scripts.build_snapshot<br/>Amazon Reviews 2023 stream] --> elastic
+```
+Implemented: provider interface + router (source/as_of/snapshot stamps), Elastic hybrid retrieval, Channel3 live provider,
+PayPal sandbox backend with guards and mock parity, memory retrieval with test-split exclusion, typed API.
+Not yet: Kernel approval run, Modal world/train/serve, Render deploy, web UI, Astropods, Zapier.
