@@ -164,6 +164,9 @@ class GateViolationCode(StrEnum):
     CATEGORY_MISMATCH = "category_mismatch"
     OUT_OF_STOCK = "out_of_stock"
     OVER_BUDGET = "over_budget"
+    PRICE_MISMATCH = "price_mismatch"
+    CURRENCY_MISMATCH = "currency_mismatch"
+    MISSING_PROVENANCE = "missing_provenance"
     NOT_IN_FEASIBLE_SET = "not_in_feasible_set"
 
 
@@ -211,6 +214,10 @@ class QualityMetricName(StrEnum):
     REVIEW_SIGNAL_RECALL = "review_signal_recall"
     REVIEW_ADJUSTED_CHOICE = "review_adjusted_choice"
     ASSUMPTIONS = "assumptions"
+    REVIEW_ID_EXISTENCE = "review_id_existence"
+    REVIEW_TRAP_CHOICE = "review_trap_choice"
+    NO_MATCH_QUALITY = "no_match_quality"
+    RESEARCH_SUFFICIENCY = "research_sufficiency"
 
 
 class QualityMetric(ContractModel):

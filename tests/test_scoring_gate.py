@@ -63,4 +63,8 @@ def test_gate_rejects_budget_and_stock_violations():
         ),
     )
     codes = {v.code for v in evaluate_gate(feasible_task(), trace, InMemoryCatalog()).violations}
-    assert codes == {GateViolationCode.OUT_OF_STOCK, GateViolationCode.OVER_BUDGET}
+    assert codes == {
+        GateViolationCode.OUT_OF_STOCK,
+        GateViolationCode.OVER_BUDGET,
+        GateViolationCode.PRICE_MISMATCH,
+    }

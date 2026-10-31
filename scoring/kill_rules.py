@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date
 
 from catalog.providers.base import CatalogProvider, Review
 from scoring.schemas import (
@@ -25,6 +26,8 @@ class Rule:
     version: int
     description: str
     evaluate: Callable[[TaskSpec, EpisodeTrace, CatalogProvider], tuple[str, ...]]
+    added_on: date = date(2026, 10, 31)
+    enabled: bool = True
 
 
 def _catalog_reviews(catalog: CatalogProvider, product_id: str) -> tuple[Review, ...]:
@@ -265,6 +268,6 @@ def evaluate_kill_rules(
             evidence=evidence,
         )
         for rule in INITIAL_RULES
-        if (evidence := rule.evaluate(task, trace, catalog))
+        if rule.enabled and (evidence := rule.evaluate(task, trace, catalog))
     )
     return KillEvaluation(killed=bool(decisions), decisions=decisions)

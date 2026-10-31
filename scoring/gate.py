@@ -55,6 +55,21 @@ def evaluate_gate(task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider)
                     detail=f"expected category {task.hard_constraints.category}, got {product.category}",
                 )
             )
+        if not product.source or product.as_of is None:
+            violations.append(
+                GateViolation(code=GateViolationCode.MISSING_PROVENANCE, product_id=product.id,
+                              detail="product lacks source or as-of provenance")
+            )
+        if recommendation.currency != task.hard_constraints.currency or product.currency != recommendation.currency:
+            violations.append(
+                GateViolation(code=GateViolationCode.CURRENCY_MISMATCH, product_id=product.id,
+                              detail="recommendation, task, and catalog currency differ")
+            )
+        if recommendation.expected_total != product.price:
+            violations.append(
+                GateViolation(code=GateViolationCode.PRICE_MISMATCH, product_id=product.id,
+                              detail=f"expected {recommendation.expected_total}, catalog lists {product.price}")
+            )
         if product.variants.get(recommendation.variant, 0) <= 0:
             violations.append(
                 GateViolation(
@@ -63,7 +78,7 @@ def evaluate_gate(task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider)
                     detail=f"variant {recommendation.variant!r} is not in stock",
                 )
             )
-        if recommendation.expected_total > task.hard_constraints.max_total:
+        if recommendation.expected_total > task.hard_constraints.max_total or product.price > task.hard_constraints.max_total:
             violations.append(
                 GateViolation(
                     code=GateViolationCode.OVER_BUDGET,
