@@ -31,6 +31,26 @@ class ConstraintOperator(StrEnum):
     LTE = "lte"
 
 
+class ReviewPolarity(StrEnum):
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    MIXED = "mixed"
+
+
+class ConstraintEvidence(ContractModel):
+    """Whether and where a frozen catalog can verify a constraint."""
+
+    checkable: bool
+    source_field: str | None = Field(default=None, min_length=1)
+    provenance: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def checkable_constraints_need_a_field(self) -> ConstraintEvidence:
+        if self.checkable and self.source_field is None:
+            raise ValueError("checkable constraints require source_field")
+        return self
+
+
 class Difficulty(StrEnum):
     EASY = "easy"
     MEDIUM = "medium"
@@ -48,6 +68,13 @@ class AttributeConstraint(ContractModel):
     attribute: Identifier
     operator: ConstraintOperator
     values: tuple[Scalar, ...] = Field(min_length=1)
+    evidence: ConstraintEvidence = Field(
+        default_factory=lambda: ConstraintEvidence(
+            checkable=True,
+            source_field="attributes",
+            provenance="catalog product attribute",
+        )
+    )
 
     @model_validator(mode="after")
     def validate_operator_arity(self) -> AttributeConstraint:
@@ -62,6 +89,21 @@ class HardConstraints(ContractModel):
     currency: str = Field(default="USD", pattern=r"^[A-Z]{3}$")
     required_variant: str | None = Field(default=None, min_length=1)
     attributes: tuple[AttributeConstraint, ...] = ()
+    category_evidence: ConstraintEvidence = Field(
+        default_factory=lambda: ConstraintEvidence(
+            checkable=True, source_field="category", provenance="catalog product category"
+        )
+    )
+    price_evidence: ConstraintEvidence = Field(
+        default_factory=lambda: ConstraintEvidence(
+            checkable=True, source_field="price", provenance="catalog listed price"
+        )
+    )
+    variant_evidence: ConstraintEvidence = Field(
+        default_factory=lambda: ConstraintEvidence(
+            checkable=True, source_field="variants", provenance="catalog variant inventory"
+        )
+    )
 
     @model_validator(mode="after")
     def reject_duplicate_attributes(self) -> HardConstraints:
@@ -101,6 +143,10 @@ class ReviewSignal(ContractModel):
     product_id: Identifier
     claim: str = Field(min_length=1)
     supporting_review_ids: tuple[Identifier, ...] = Field(min_length=1)
+    persona_relevance: str = Field(default="general shopper", min_length=1)
+    polarity: ReviewPolarity = ReviewPolarity.MIXED
+    confidence: Decimal = Field(default=Decimal("1"), ge=0, le=1)
+    extraction_provenance: str = Field(default="verified fixture", min_length=1)
 
     @model_validator(mode="after")
     def review_ids_must_be_unique(self) -> ReviewSignal:
@@ -133,6 +179,11 @@ class TaskSpec(ContractModel):
     review_adjusted_best: Identifier | None = None
     is_review_trap: bool = False
     split: TaskSplit
+    held_out_category: bool = False
+    catalog_manifest_hash: str = Field(default="legacy-test-manifest", min_length=1)
+    seed: int = Field(default=0, ge=0)
+    suitable_for_deterministic_training: bool = True
+    unsuitable_reasons: tuple[str, ...] = ()
     research_requirements: ResearchRequirements = Field(default_factory=ResearchRequirements)
 
     @model_validator(mode="after")
@@ -157,4 +208,27 @@ class TaskSpec(ContractModel):
             or not self.review_signals
         ):
             raise ValueError("review traps require signals and a distinct review-adjusted best")
+        if self.held_out_category != (self.split is TaskSplit.HELD_OUT_CATEGORY):
+            raise ValueError("held_out_category must match the held-out split")
+        unchecked = []
+        checks = (
+            ("category", self.hard_constraints.category_evidence),
+            ("price", self.hard_constraints.price_evidence),
+        )
+        for name, evidence in checks:
+            if not evidence.checkable:
+                unchecked.append(name)
+        if self.hard_constraints.required_variant and not self.hard_constraints.variant_evidence.checkable:
+            unchecked.append("variant")
+        unchecked.extend(
+            constraint.attribute
+            for constraint in self.hard_constraints.attributes
+            if not constraint.evidence.checkable
+        )
+        if bool(unchecked) == self.suitable_for_deterministic_training:
+            raise ValueError("training suitability must reflect uncheckable hard constraints")
+        if unchecked and not self.unsuitable_reasons:
+            raise ValueError("uncheckable hard constraints require unsuitable_reasons")
+        if not unchecked and self.unsuitable_reasons:
+            raise ValueError("suitable tasks cannot have unsuitable_reasons")
         return self
