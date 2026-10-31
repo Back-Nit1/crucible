@@ -8,7 +8,9 @@ import hashlib
 import json
 import urllib.request
 
-from catalog.indexing import product_doc, review_doc
+from collections import Counter
+
+from catalog.indexing import product_doc, review_doc, review_id
 from catalog.sources.amazon2023 import meta_url, parse_price, review_url
 
 DATASET_API = "https://huggingface.co/api/datasets/McAuley-Lab/Amazon-Reviews-2023"
@@ -50,7 +52,13 @@ def build(category: str, meta_stream, review_stream, top_n=300, per_product=30, 
             h.append(r)
     keep = [p for p in cands if len(held[p]) >= min_reviews]
     products = [product_doc(cands[p], category, len(held[p])) for p in keep]
-    reviews = [review_doc(r) for p in keep for r in held[p]]
+    seen_ids: Counter = Counter()  # byte-identical source duplicates get an occurrence suffix, not an id collision
+    reviews = []
+    for p in keep:
+        for r in held[p]:
+            k = (p, review_id(r))
+            reviews.append(review_doc(r, seen_ids[k]))
+            seen_ids[k] += 1
     digest = hashlib.sha256("\n".join(sorted(d["product_id"] for d in products) + sorted(d["review_id"] for d in reviews)).encode()).hexdigest()
     manifest = {
         "source": "amazon2023", "citation": "Hou et al. 2024, arXiv:2403.03952", "category": category,

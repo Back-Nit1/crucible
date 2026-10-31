@@ -41,3 +41,12 @@ def test_stream_jsonl_drops_partial_last_line():
         def __enter__(s): return s
         def __exit__(s, *a): pass
     assert list(stream_jsonl("http://x", 10, opener=lambda req, timeout: R())) == [{"a": 1}, {"a": 2}]
+
+
+def test_identical_source_reviews_get_distinct_canonical_ids_and_keep_the_original():
+    metas = [meta(1, n=90)]
+    revs = [rev("P1", 1)] * 6 + [rev("P1", 2)]  # byte-identical duplicates: the 17-collision pattern
+    _, reviews, m = build("Cat", iter(metas), iter(revs), min_reviews=5)
+    ids = [r["review_id"] for r in reviews]
+    assert len(ids) == len(set(ids)) == 7 == m["reviews"]
+    assert len({r["source_review_id"] for r in reviews}) == 2  # provenance still shows the shared source id
