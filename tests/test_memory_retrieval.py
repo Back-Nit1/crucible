@@ -27,6 +27,12 @@ def test_most_similar_first_and_k_respected():
     assert [t.episode_id for t in got] == ["ok"]
 
 
+def test_held_out_category_traces_are_also_never_retrieved():
+    r = InMemoryTraceRepository()
+    r.add(tr("ho", split="held_out_category"))
+    assert r.similar("running shoes", k=5) == []
+
+
 def test_add_is_idempotent_per_episode():
     r = InMemoryTraceRepository()
     r.add(tr("x")); r.add(tr("x", fitness=0.95))
@@ -35,7 +41,7 @@ def test_add_is_idempotent_per_episode():
 
 def test_elastic_query_carries_leakage_filter():
     f = similar_query([0.1], 3, 0.5)["knn"]["filter"]["bool"]
-    assert {"term": {"split": "test"}} in f["must_not"]
+    assert {"terms": {"split": ["held_out_category", "test"]}} in f["must_not"]
     assert {"term": {"killed": False}} in f["filter"] and {"range": {"fitness": {"gte": 0.5}}} in f["filter"]
 
 

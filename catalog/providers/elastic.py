@@ -40,6 +40,8 @@ def mappings(dims: int = DIMS) -> dict[str, dict]:
             "episode_id": kw, "task_id": kw, "agent_id": kw, "generation": {"type": "integer"},
             "kill_reason": kw, "killed": {"type": "boolean"}, "fitness": {"type": "float"},
             "category": kw, "split": kw, "created_at": dte, "task_text": {"type": "text"}, "embedding": _vec(dims),
+            "generation_id": kw, "termination": kw, "seed": {"type": "long"}, "catalog_snapshot_id": kw,
+            "catalog_manifest_hash": kw, "kill_rule_ids": kw, "calls": kw, "provenance": {"type": "flattened"},
             "episode": {"type": "object", "enabled": False}}},  # full episode JSON, not indexed
         "kill_rules": {"properties": {
             "rule_id": kw, "version": {"type": "integer"}, "description": {"type": "text"},
