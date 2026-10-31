@@ -2,7 +2,7 @@
 
 Branch: `feat/model-training-product`
 
-Base: Agent 1's verified integration head `9e01481` (the shared `main` ref was still stale at branch creation). Baseline: `200 passed, 2 live deselected`. Latest deterministic phase gate before this handoff: `229 passed, 2 live deselected`.
+Base: Agent 1's verified integration head `9e01481` (the shared `main` ref was still stale at branch creation). Baseline: `200 passed, 2 live deselected`. Final deterministic phase gate: `231 passed, 2 live deselected, 1 existing Starlette/httpx deprecation warning`.
 
 No secret value was read or printed. No paid API, Modal GPU, PayPal sandbox capture, model training, model weight, or checkpoint was created. World runs construct `MockPayments` internally.
 
