@@ -26,7 +26,7 @@ def test_keeps_only_priced_products_with_enough_real_reviews():
 
 def test_per_product_cap_and_provenance():
     _, reviews, m = run(min_reviews=5, per_product=6)
-    assert len(reviews) == 6 and all(r["source"] == "amazon2023" and r["review_id"].startswith("P1:P1:") for r in reviews)
+    assert len(reviews) == 6 and all(r["source"] == "amazon2023" and r["review_id"].startswith("amazon2023:P1:P1:") for r in reviews)
     assert m["sample_rule"]["per_product"] == 6 and m["review_records_scanned"] == 22
 
 
@@ -41,3 +41,12 @@ def test_stream_jsonl_drops_partial_last_line():
         def __enter__(s): return s
         def __exit__(s, *a): pass
     assert list(stream_jsonl("http://x", 10, opener=lambda req, timeout: R())) == [{"a": 1}, {"a": 2}]
+
+
+def test_duplicate_source_rows_stay_distinct_in_a_snapshot():
+    dup = rev("P1", 1)
+    metas, revs = [meta(1)], [rev("P1", 0), dup, dup, rev("P1", 2), rev("P1", 3), rev("P1", 4)]
+    _, reviews, m = build("Cat", iter(metas), iter(revs), now=dt.datetime(2026, 1, 1, tzinfo=dt.UTC))
+    ids = [r["review_id"] for r in reviews]
+    assert len(ids) == len(set(ids)) == 6 and m["reviews"] == 6
+    assert sum(r["source_review_key"].endswith(":1600000000001") for r in reviews) == 2

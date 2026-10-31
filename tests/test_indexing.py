@@ -7,7 +7,9 @@ R = {"rating": 2.0, "title": "t", "text": "flat", "asin": "C1", "parent_asin": "
 
 def test_review_doc_keeps_original_ids_and_provenance():
     d = review_doc(R)
-    assert d["review_id"] == review_id(R) == "P1:C1:U1:1608186804795"
+    assert d["review_id"] == review_id(R) == "amazon2023:P1:C1:U1:1608186804795"
+    assert d["source_review_key"] == "P1:C1:U1:1608186804795" and d["source_ordinal"] == 0
+    assert len(d["source_record_sha256"]) == 64
     assert d["product_id"] == "P1" and d["date"] == "2020-12-17" and d["source"] == "amazon2023" and d["as_of"]
 
 
@@ -23,3 +25,12 @@ def test_join_and_stats():
     assert sorted(join(metas, revs)) == ["P1", "P2"]
     s = sample_stats(metas, revs)
     assert (s["products"], s["reviews_joined"], s["sample>=min"], s["usable"]) == (2, 6, 1, 1)
+
+
+def test_duplicate_source_rows_get_distinct_stable_ids_and_keep_the_original_key():
+    import re
+    first, second = review_doc(R, 0), review_doc(R, 1)
+    assert first["review_id"] != second["review_id"] and second["review_id"].endswith(":1")
+    assert first["source_review_key"] == second["source_review_key"]  # original id preserved separately
+    assert first["source_record_sha256"] == second["source_record_sha256"]  # provably identical rows
+    assert re.match(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$", second["review_id"])  # tasks/scoring Identifier pattern
