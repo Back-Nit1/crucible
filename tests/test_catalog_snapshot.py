@@ -26,7 +26,7 @@ def test_keeps_only_priced_products_with_enough_real_reviews():
 
 def test_per_product_cap_and_provenance():
     _, reviews, m = run(min_reviews=5, per_product=6)
-    assert len(reviews) == 6 and all(r["source"] == "amazon2023" and r["review_id"].startswith("P1:P1:") for r in reviews)
+    assert len(reviews) == 6 and all(r["source"] == "amazon2023" and r["source_review_id"].startswith("P1:P1:") for r in reviews)
     assert m["sample_rule"]["per_product"] == 6 and m["review_records_scanned"] == 22
 
 
