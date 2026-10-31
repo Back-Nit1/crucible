@@ -114,6 +114,18 @@ class InMemoryCatalog:
             and (category is None or product.category == category)
         ]
 
+    def iter_products(self, category: str):
+        yield from sorted(
+            (product for product in self.products.values() if product.category == category),
+            key=lambda product: product.id,
+        )
+
+    def review_ids(self, product_id: str) -> frozenset[str]:
+        return frozenset(review.id for review in self.reviews.get(product_id, ()))
+
+    def review_count(self, product_id: str) -> int:
+        return len(self.reviews.get(product_id, ()))
+
     def get_product(self, product_id: str) -> Product | None:
         return self.products.get(product_id)
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Iterable
 
-from catalog.providers.base import CatalogProvider, Product
+from catalog.providers.base import CatalogProvider, Product, SnapshotCatalog
 from tasks.schemas import (
     Ambiguity,
     ConstraintOperator,
@@ -17,6 +17,7 @@ from tasks.schemas import (
     HardConstraints,
     ImpliedNeed,
     ReviewSignal,
+    SignalVerification,
     TaskSpec,
     TaskSplit,
 )
@@ -248,14 +249,19 @@ def build_task_from_products(
     )
 
 
-def build_review_trap(task: TaskSpec, review_adjusted_best: str, catalog: CatalogProvider) -> TaskSpec:
+def build_review_trap(task: TaskSpec, review_adjusted_best: str, catalog: SnapshotCatalog) -> TaskSpec:
     """Create a trap only from product-scoped, existing review evidence."""
     if review_adjusted_best not in task.feasible_set or review_adjusted_best == task.best_value_reference:
         raise ValueError("review-adjusted best must be a distinct feasible product")
     if not task.review_signals:
         raise ValueError("ratings alone cannot create a review trap")
     for signal in task.review_signals:
-        existing = {review.id for review in catalog.get_reviews(signal.product_id, limit=10_000)}
+        if signal.verification_status not in {
+            SignalVerification.AUTOMATED,
+            SignalVerification.HUMAN_APPROVED,
+        }:
+            raise ValueError("review traps require verified signals")
+        existing = catalog.review_ids(signal.product_id)
         if not set(signal.supporting_review_ids) <= existing:
             raise ValueError("review signal cites missing or misattributed review IDs")
     return task.model_copy(update={"is_review_trap": True, "review_adjusted_best": review_adjusted_best})

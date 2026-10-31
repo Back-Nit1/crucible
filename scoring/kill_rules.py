@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from catalog.providers.base import CatalogProvider, Review
+from agents.grounding import complete_review_ids
 from scoring.schemas import (
     EpisodeTrace,
     KillDecision,
@@ -148,7 +149,7 @@ def _fabricated_review_evidence(
         return ()
     evidence: list[str] = []
     for recommendation in trace.outcome.recommendations:
-        valid_ids = {review.id for review in _catalog_reviews(catalog, recommendation.product_id)}
+        valid_ids = complete_review_ids(catalog, recommendation.product_id)
         for claim in recommendation.review_claims:
             invalid = sorted(set(claim.review_ids) - valid_ids)
             if invalid:

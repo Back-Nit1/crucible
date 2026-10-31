@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict, Field
 
 from agents.actions import EpisodeRecord, SummarizeReviewEvidence
+from agents.grounding import complete_review_ids
 from catalog.providers.base import CatalogProvider
 from tasks.schemas import TaskSpec, TaskSplit
 
@@ -63,7 +64,7 @@ def _reviews_valid(episode: EpisodeRecord, catalog: CatalogProvider) -> bool:
     for call in episode.tool_calls:
         if not isinstance(call.action, SummarizeReviewEvidence):
             continue
-        valid = {review.id for review in catalog.get_reviews(call.action.product_id, limit=10_000)}
+        valid = complete_review_ids(catalog, call.action.product_id)
         cited = {review_id for claim in call.action.claims for review_id in claim.review_ids}
         if not cited or not cited <= valid:
             return False
