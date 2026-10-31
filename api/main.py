@@ -13,8 +13,9 @@ from pydantic import BaseModel, Field
 from catalog.router import ProductResult, ProviderRouter, ProviderUnavailable, ReviewsResult, SearchResult
 from payments.errors import PaymentError
 from payments.guards import (BudgetViolation, GuardedPayments, GuardViolation, NotConfirmed, OutOfStock,
-                             PriceMismatch)
+                             PriceMismatch, QuoteNotVerified, QuoteStale)
 from payments.mock import MockPayments
+from payments.quote import Quote
 
 log = logging.getLogger("crucible.api")
 
@@ -35,6 +36,7 @@ class ProposeResponse(BaseModel):
     currency: str
     status: str
     approval_url: str | None = None  # sandbox buyer approval link; None for the mock
+    quote: Quote | None = None  # the all-in quote the order was created from (subtotal, tax, shipping, total, basis)
 
 
 class ConfirmRequest(BaseModel):
@@ -110,7 +112,8 @@ def create_app(router: ProviderRouter | None = None, backend=None) -> FastAPI:
     def get_payments() -> GuardedPayments:
         if "payments" not in state:
             state["backend"] = backend or default_backend()
-            state["payments"] = GuardedPayments(state["backend"], _RouterCatalog(get_router()))
+            state["payments"] = GuardedPayments(state["backend"], _RouterCatalog(get_router()),
+                                                 require_verified=os.environ.get("REQUIRE_VERIFIED_QUOTES") == "1")
         return state["payments"]
 
     @app.exception_handler(RequestValidationError)
@@ -124,7 +127,8 @@ def create_app(router: ProviderRouter | None = None, backend=None) -> FastAPI:
     @app.exception_handler(GuardViolation)
     async def _guard(_: Request, e: GuardViolation):
         code = {BudgetViolation: "budget_exceeded", PriceMismatch: "price_mismatch", OutOfStock: "out_of_stock",
-                NotConfirmed: "confirmation_required"}.get(type(e), "guard_violation")
+                NotConfirmed: "confirmation_required", QuoteNotVerified: "quote_not_verified",
+                QuoteStale: "quote_stale"}.get(type(e), "guard_violation")
         return _err(409 if code != "confirmation_required" else 428, code, str(e))
 
     @app.exception_handler(PaymentError)
@@ -167,7 +171,7 @@ def create_app(router: ProviderRouter | None = None, backend=None) -> FastAPI:
         p = g.propose_purchase(req.task_id, req.agent_id, req.product_id, req.variant, req.expected_total, req.budget_cap)
         b = state["backend"]
         return ProposeResponse(pending_order_id=p.id, product_id=p.product_id, total=p.total, currency=p.currency,
-                               status=b.get_status(p.order_id), approval_url=b.approval_url(p.order_id) if hasattr(b, "approval_url") else None)
+                               status=b.get_status(p.order_id), quote=p.quote, approval_url=b.approval_url(p.order_id) if hasattr(b, "approval_url") else None)
 
     @app.post("/purchase/confirm", response_model=ConfirmResponse, responses={428: {"model": ErrorResponse}, **errs})
     def confirm(req: ConfirmRequest):

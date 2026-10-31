@@ -92,3 +92,14 @@ def test_unhandled_error_hides_internals():
     c = TestClient(create_app(ProviderRouter({"elastic_snapshot": Boom()}, CFG), MockPayments()), raise_server_exceptions=False)
     r = c.get("/catalog/search", params={"q": "x"})
     assert r.status_code == 500 and "secret-token-123" not in r.text
+
+
+def test_propose_returns_the_all_in_quote_and_discloses_its_basis():
+    p = client().post("/purchase/propose", json=PROPOSE).json()
+    assert p["quote"]["basis"] == "snapshot_declared" and p["quote"]["total"] == "80.00" and p["quote"]["tax"] == "0.00"
+
+
+def test_verified_quotes_can_be_required(monkeypatch):
+    monkeypatch.setenv("REQUIRE_VERIFIED_QUOTES", "1")
+    r = client().post("/purchase/propose", json=PROPOSE)
+    assert r.status_code == 409 and r.json()["error"]["code"] == "quote_not_verified"
