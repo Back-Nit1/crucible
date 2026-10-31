@@ -6,7 +6,7 @@ import datetime as dt
 from decimal import Decimal
 from typing import Callable
 
-from catalog.providers.base import CatalogProvider
+from catalog.providers.base import FrozenCatalogProvider
 from payments.guards import GuardedPayments, GuardViolation
 from agents.actions import (
     Action, Compare, ConfirmAndPay, GetProduct, GetReviews, ParseIntent,
@@ -18,7 +18,7 @@ from agents.state import EpisodeState
 
 class InMemoryToolExecutor:
     def __init__(
-        self, catalog: CatalogProvider, payments: GuardedPayments, *, task_id: str,
+        self, catalog: FrozenCatalogProvider, payments: GuardedPayments, *, task_id: str,
         agent_id: str, budget_cap: Decimal, min_candidates: int = 2,
         clock: Callable[[], dt.datetime] | None = None,
     ) -> None:

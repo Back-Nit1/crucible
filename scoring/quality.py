@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from catalog.providers.base import CatalogProvider
+from catalog.providers.base import FrozenCatalogProvider
 from scoring.schemas import (
     EpisodeTrace, NoMatchOutcome, QualityAssessment, QualityMetric, QualityMetricName,
     RecommendationOutcome, ToolName,
@@ -24,7 +24,7 @@ def _metric(name: QualityMetricName, value: Decimal, evidence: str,
 
 
 def assess_quality(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider, *,
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider, *,
     intent_accuracy: Decimal = Decimal("1"), assumption_accuracy: Decimal | None = None,
     weights: dict[QualityMetricName, Decimal] | None = None,
 ) -> QualityAssessment:
@@ -75,7 +75,7 @@ def assess_quality(
 
     cited_pairs = [(item.product_id, rid) for item in recommendations
                    for claim in item.review_claims for rid in claim.review_ids]
-    valid_pairs = {(pid, review.id) for pid in selected_ids for review in catalog.get_reviews(pid, limit=10_000)}
+    valid_pairs = {(pid, rid) for pid in selected_ids for rid in catalog.get_review_ids(pid).ids}
     grounded = Decimal(sum(pair in valid_pairs for pair in cited_pairs)) / Decimal(len(cited_pairs)) if cited_pairs else Decimal(1)
     metrics.append(_metric(QualityMetricName.REVIEW_GROUNDING, grounded,
                            "review citations checked against product-scoped IDs", weights))

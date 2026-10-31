@@ -1,6 +1,6 @@
 """Deterministic hard-constraint gate (G in the scoring specification)."""
 
-from catalog.providers.base import CatalogProvider
+from catalog.providers.base import FrozenCatalogProvider
 from scoring.schemas import (
     EpisodeTrace,
     GateResult,
@@ -11,7 +11,7 @@ from scoring.schemas import (
 from tasks.schemas import TaskSpec
 
 
-def evaluate_gate(task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider) -> GateResult:
+def evaluate_gate(task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider) -> GateResult:
     """Return G without judges, network calls, heuristics, or mutable state."""
     if trace.task_id != task.id or trace.catalog_snapshot_id != task.catalog_snapshot_id:
         raise ValueError("trace and task must reference the same task and catalog snapshot")

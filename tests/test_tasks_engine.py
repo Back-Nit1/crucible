@@ -9,7 +9,7 @@ from tasks.engine import (
     render_request,
 )
 from tasks.schemas import ConstraintEvidence, HardConstraints, ReviewSignal, TaskSplit
-from tests.fixtures.scoring import InMemoryCatalog
+from tests.fixtures.scoring import FIXTURE_MANIFEST, InMemoryCatalog
 
 
 def constraints(**changes):
@@ -22,9 +22,9 @@ def test_feasible_set_and_task_generation_are_seeded_and_stable():
     catalog = InMemoryCatalog()
     result = compute_feasible_set(catalog.search("", {"category": "running-shoes"}), constraints())
     assert result.product_ids == ("shoe-a",)
-    first = build_task(task_id="generated-1", catalog_snapshot_id="snap-1", catalog=catalog,
+    first = build_task(task_id="generated-1", catalog_snapshot_id="snap-1", catalog=catalog, manifest_hash=FIXTURE_MANIFEST,
                        constraints=constraints(), seed=42)
-    second = build_task(task_id="generated-1", catalog_snapshot_id="snap-1", catalog=catalog,
+    second = build_task(task_id="generated-1", catalog_snapshot_id="snap-1", catalog=catalog, manifest_hash=FIXTURE_MANIFEST,
                         constraints=constraints(), seed=42)
     assert first == second
     assert first.catalog_manifest_hash == second.catalog_manifest_hash
@@ -37,7 +37,7 @@ def test_uncheckable_required_variant_is_unsuitable_not_guessed():
     result = compute_feasible_set(InMemoryCatalog().products.values(), hard)
     assert result.product_ids == ()
     assert not result.suitable_for_training
-    task = build_task(task_id="uncheckable", catalog_snapshot_id="snap", catalog=InMemoryCatalog(),
+    task = build_task(task_id="uncheckable", catalog_snapshot_id="snap", catalog=InMemoryCatalog(), manifest_hash=FIXTURE_MANIFEST,
                       constraints=hard, seed=4)
     assert not task.is_impossible and not task.suitable_for_deterministic_training
 
@@ -45,14 +45,14 @@ def test_uncheckable_required_variant_is_unsuitable_not_guessed():
 def test_seeded_renderer_and_split_are_reproducible():
     assert render_request(constraints(), (), (), 9) == render_request(constraints(), (), (), 9)
     config = SplitConfig(held_out_categories=frozenset({"running-shoes"}))
-    task = build_task(task_id="held-1", catalog_snapshot_id="snap-1", catalog=InMemoryCatalog(),
+    task = build_task(task_id="held-1", catalog_snapshot_id="snap-1", catalog=InMemoryCatalog(), manifest_hash=FIXTURE_MANIFEST,
                       constraints=constraints(), seed=9, split_config=config)
     assert task.split is TaskSplit.HELD_OUT_CATEGORY and task.held_out_category
 
 
 def test_review_traps_require_real_product_scoped_review_ids():
     catalog = InMemoryCatalog()
-    task = build_task(task_id="trap-1", catalog_snapshot_id="snap-1", catalog=catalog,
+    task = build_task(task_id="trap-1", catalog_snapshot_id="snap-1", catalog=catalog, manifest_hash=FIXTURE_MANIFEST,
                       constraints=constraints(max_total=Decimal("100.00")), seed=2,
                       review_signals=(ReviewSignal(
                           concern="cushioning", product_id="shoe-a", claim="supportive",
@@ -63,7 +63,7 @@ def test_review_traps_require_real_product_scoped_review_ids():
 
 def test_leakage_guard_protects_test_products():
     catalog = InMemoryCatalog()
-    one = build_task(task_id="one", catalog_snapshot_id="snap", catalog=catalog,
+    one = build_task(task_id="one", catalog_snapshot_id="snap", catalog=catalog, manifest_hash=FIXTURE_MANIFEST,
                      constraints=constraints(), seed=1)
     two = one.model_copy(update={"id": "two", "split": TaskSplit.TEST})
     guard = LeakageGuard()
@@ -72,3 +72,11 @@ def test_leakage_guard_protects_test_products():
         import pytest
         with pytest.raises(ValueError, match="leakage"):
             guard.register(two)
+
+
+def test_task_building_requires_the_pinned_snapshot_and_never_uses_search_ordering():
+    import pytest
+    from catalog.providers.base import SnapshotMismatch
+    with pytest.raises(SnapshotMismatch):
+        build_task(task_id="t", catalog_snapshot_id="s", catalog=InMemoryCatalog(), manifest_hash="stale",
+                   constraints=constraints(), seed=1)

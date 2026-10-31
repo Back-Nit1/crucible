@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict, Field
 
 from agents.actions import EpisodeRecord, SummarizeReviewEvidence
-from catalog.providers.base import CatalogProvider
+from catalog.providers.base import FrozenCatalogProvider
 from tasks.schemas import TaskSpec, TaskSplit
 
 
@@ -59,11 +59,11 @@ def _grounded(episode: EpisodeRecord) -> bool:
     return bool(grounding) and all(metric.get("value") in (1, "1", "1.0") for metric in grounding)
 
 
-def _reviews_valid(episode: EpisodeRecord, catalog: CatalogProvider) -> bool:
+def _reviews_valid(episode: EpisodeRecord, catalog: FrozenCatalogProvider) -> bool:
     for call in episode.tool_calls:
         if not isinstance(call.action, SummarizeReviewEvidence):
             continue
-        valid = {review.id for review in catalog.get_reviews(call.action.product_id, limit=10_000)}
+        valid = catalog.get_review_ids(call.action.product_id).ids
         cited = {review_id for claim in call.action.claims for review_id in claim.review_ids}
         if not cited or not cited <= valid:
             return False
@@ -89,7 +89,7 @@ def _record(episode: EpisodeRecord, task: TaskSpec) -> SFTRecord:
 
 
 def curate_survivors(
-    episodes: tuple[EpisodeRecord, ...], tasks: dict[str, TaskSpec], catalog: CatalogProvider, *,
+    episodes: tuple[EpisodeRecord, ...], tasks: dict[str, TaskSpec], catalog: FrozenCatalogProvider, *,
     catalog_hash: str, task_version: str, rule_version: str, created_at: dt.datetime,
 ) -> CurationResult:
     records: list[SFTRecord] = []

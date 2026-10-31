@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Iterable
 
-from catalog.providers.base import CatalogProvider, Product
+from catalog.providers.base import FrozenCatalogProvider, Product
 from tasks.schemas import (
     Ambiguity,
     ConstraintOperator,
@@ -179,12 +179,12 @@ def render_request(
 
 
 def build_task(
-    *, task_id: str, catalog_snapshot_id: str, catalog: CatalogProvider,
+    *, task_id: str, catalog_snapshot_id: str, catalog: FrozenCatalogProvider, manifest_hash: str,
     constraints: HardConstraints, seed: int, split_config: SplitConfig = SplitConfig(),
     implied_needs: tuple[ImpliedNeed, ...] = (), ambiguities: tuple[Ambiguity, ...] = (),
     review_signals: tuple[ReviewSignal, ...] = (), difficulty: Difficulty = Difficulty.MEDIUM,
 ) -> TaskSpec:
-    products = tuple(catalog.search("", {"category": constraints.category}))
+    products = tuple(catalog.iter_products(constraints.category, manifest_hash))
     feasibility = compute_feasible_set(products, constraints)
     feasible = feasibility.product_ids
     best = select_best_value(products, feasible, constraints.max_total, implied_needs)
@@ -212,14 +212,14 @@ def build_task(
     )
 
 
-def build_review_trap(task: TaskSpec, review_adjusted_best: str, catalog: CatalogProvider) -> TaskSpec:
+def build_review_trap(task: TaskSpec, review_adjusted_best: str, catalog: FrozenCatalogProvider) -> TaskSpec:
     """Create a trap only from product-scoped, existing review evidence."""
     if review_adjusted_best not in task.feasible_set or review_adjusted_best == task.best_value_reference:
         raise ValueError("review-adjusted best must be a distinct feasible product")
     if not task.review_signals:
         raise ValueError("ratings alone cannot create a review trap")
     for signal in task.review_signals:
-        existing = {review.id for review in catalog.get_reviews(signal.product_id, limit=10_000)}
+        existing = catalog.get_review_ids(signal.product_id).ids
         if not set(signal.supporting_review_ids) <= existing:
             raise ValueError("review signal cites missing or misattributed review IDs")
     return task.model_copy(update={"is_review_trap": True, "review_adjusted_best": review_adjusted_best})

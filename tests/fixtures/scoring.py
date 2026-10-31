@@ -3,7 +3,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from catalog.providers.base import Product, Review
+from catalog.providers.base import Product, Review, ReviewIds, SnapshotMismatch
 from scoring.schemas import (
     EpisodeTrace,
     Recommendation,
@@ -14,6 +14,9 @@ from scoring.schemas import (
     ToolName,
 )
 from tasks.schemas import Difficulty, HardConstraints, TaskSpec, TaskSplit
+
+
+FIXTURE_MANIFEST = "fixture-manifest"
 
 
 class InMemoryCatalog:
@@ -113,6 +116,16 @@ class InMemoryCatalog:
             if query.casefold() in product.title.casefold()
             and (category is None or product.category == category)
         ]
+
+    def iter_products(self, category: str, manifest_hash: str):
+        if manifest_hash != FIXTURE_MANIFEST:
+            raise SnapshotMismatch(manifest_hash)
+        yield from sorted((p for p in self.products.values() if p.category == category), key=lambda p: p.id)
+
+    def get_review_ids(self, product_id: str) -> ReviewIds:
+        if product_id not in self.products:
+            return ReviewIds(product_found=False)
+        return ReviewIds(True, frozenset(r.id for r in self.reviews.get(product_id, ())))
 
     def get_product(self, product_id: str) -> Product | None:
         return self.products.get(product_id)

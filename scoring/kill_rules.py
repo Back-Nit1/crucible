@@ -7,7 +7,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
-from catalog.providers.base import CatalogProvider, Review
+from catalog.providers.base import FrozenCatalogProvider, Review
 from scoring.schemas import (
     EpisodeTrace,
     KillDecision,
@@ -25,17 +25,13 @@ class Rule:
     id: str
     version: int
     description: str
-    evaluate: Callable[[TaskSpec, EpisodeTrace, CatalogProvider], tuple[str, ...]]
+    evaluate: Callable[[TaskSpec, EpisodeTrace, FrozenCatalogProvider], tuple[str, ...]]
     added_on: date = date(2026, 10, 31)
     enabled: bool = True
 
 
-def _catalog_reviews(catalog: CatalogProvider, product_id: str) -> tuple[Review, ...]:
-    """Read enough review IDs for deterministic fixture/snapshot validation.
-
-    Snapshot providers integrating with this scorer must honor `limit` up to the
-    documented per-product review validation ceiling.
-    """
+def _catalog_reviews(catalog: FrozenCatalogProvider, product_id: str) -> tuple[Review, ...]:
+    """Review bodies (ratings/text) for pattern rules; ID validity uses `get_review_ids`, never this."""
     return tuple(catalog.get_reviews(product_id, limit=10_000))
 
 
@@ -46,7 +42,7 @@ def _outcome_product_ids(trace: EpisodeTrace) -> tuple[str, ...]:
 
 
 def _hallucinated_product(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     referenced = set(_outcome_product_ids(trace))
     referenced.update(
@@ -59,7 +55,7 @@ def _hallucinated_product(
 
 
 def _wrong_refusal(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     if isinstance(trace.outcome, NoMatchOutcome) and task.feasible_set:
         return (f"refused despite feasible products: {', '.join(task.feasible_set)}",)
@@ -67,7 +63,7 @@ def _wrong_refusal(
 
 
 def _budget_violation(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     cap = task.hard_constraints.max_total
     evidence: list[str] = []
@@ -93,7 +89,7 @@ def _budget_violation(
 
 
 def _insufficient_research(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     opened = {
         call.product_id
@@ -118,7 +114,7 @@ def _insufficient_research(
 
 
 def _duplicate_payment(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     captures_by_purchase: dict[tuple[str, str], set[str]] = defaultdict(set)
     captures_by_key: dict[str, set[str]] = defaultdict(set)
@@ -142,13 +138,13 @@ def _duplicate_payment(
 
 
 def _fabricated_review_evidence(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     if not isinstance(trace.outcome, RecommendationOutcome):
         return ()
     evidence: list[str] = []
     for recommendation in trace.outcome.recommendations:
-        valid_ids = {review.id for review in _catalog_reviews(catalog, recommendation.product_id)}
+        valid_ids = catalog.get_review_ids(recommendation.product_id).ids
         for claim in recommendation.review_claims:
             invalid = sorted(set(claim.review_ids) - valid_ids)
             if invalid:
@@ -160,7 +156,7 @@ def _fabricated_review_evidence(
 
 
 def _skipped_reviews(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     if isinstance(trace.outcome, NoMatchOutcome):
         return ()
@@ -188,7 +184,7 @@ _GENERIC_CLAIMS = {
 
 
 def _review_gaming(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> tuple[str, ...]:
     if not isinstance(trace.outcome, RecommendationOutcome):
         return ()
@@ -257,7 +253,7 @@ INITIAL_RULES: tuple[Rule, ...] = (
 
 
 def evaluate_kill_rules(
-    task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
+    task: TaskSpec, trace: EpisodeTrace, catalog: FrozenCatalogProvider
 ) -> KillEvaluation:
     """Evaluate every initial rule in stable registry order for complete audit data."""
     if trace.task_id != task.id or trace.catalog_snapshot_id != task.catalog_snapshot_id:

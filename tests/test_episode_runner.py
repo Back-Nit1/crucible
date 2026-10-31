@@ -12,7 +12,7 @@ from payments.mock import MockPayments
 from scoring.schemas import ReviewClaim, ReviewSort
 from tasks.schemas import HardConstraints
 from tasks.engine import build_task
-from tests.fixtures.scoring import InMemoryCatalog, feasible_task
+from tests.fixtures.scoring import FIXTURE_MANIFEST, InMemoryCatalog, feasible_task
 
 
 NOW = datetime(2026, 10, 31, tzinfo=timezone.utc)
@@ -50,7 +50,7 @@ def test_end_to_end_purchase_captures_and_scores():
 
 def test_impossible_task_reports_no_match_correctly():
     catalog = InMemoryCatalog()
-    task = build_task(task_id="impossible-1", catalog_snapshot_id="snap", catalog=catalog,
+    task = build_task(task_id="impossible-1", catalog_snapshot_id="snap", catalog=catalog, manifest_hash=FIXTURE_MANIFEST,
                       constraints=HardConstraints(category="running-shoes", max_total=Decimal("10")), seed=3)
     backend, executor = make_executor(task)
     policy = ScriptedPolicy([
