@@ -86,7 +86,7 @@ class ScriptedModelAdapter:
         self.cost_per_call = cost_per_call
 
     def complete(self, request: ModelRequest) -> ModelOutput | None:
-        script = self.scripts.get(request.task.id, ())
+        script = self.scripts.get(request.request_id, self.scripts.get(request.task.id, ()))
         index = len(request.history)
         if index >= len(script):
             return None
