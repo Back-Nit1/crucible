@@ -133,8 +133,11 @@ def run_episode(
     failure = "model returned no terminal action"
     pre_kill: tuple[dict[str, object], ...] = ()
     if memory is not None:
-        memory.retrieve(RetrievalRequest(task.id, task.split, task.hard_constraints.category,
-                                         task.raw_message, 3, 0))
+        examples = memory.retrieve(RetrievalRequest(task.id, task.split, task.hard_constraints.category,
+                                                     task.raw_message, 3, 0))
+        accept_memory = getattr(policy, "accept_memory", None)
+        if callable(accept_memory):
+            accept_memory(examples)
     for attempt in range(config.max_tool_calls):
         retry = 0
         step = None

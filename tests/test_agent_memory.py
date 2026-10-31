@@ -25,3 +25,12 @@ def test_memory_enforces_split_kill_threshold_k_and_stable_ties():
     request = RetrievalRequest("new", TaskSplit.TRAIN, "shoes", "query", 1, .5)
     assert [item.episode_id for item in memory.retrieve(request)] == ["a"]
     assert memory.retrieve(RetrievalRequest("test", TaskSplit.TEST, "shoes", "q", 3, 0)) == ()
+
+
+def test_memory_excludes_held_out_category_in_both_directions():
+    memory = InMemoryMemoryProvider()
+    memory.store(episode("held"), split=TaskSplit.HELD_OUT_CATEGORY, category="shoes", fitness=1)
+    assert memory.retrieve(RetrievalRequest("train", TaskSplit.TRAIN, "shoes", "q", 3, 0)) == ()
+    assert memory.retrieve(
+        RetrievalRequest("held", TaskSplit.HELD_OUT_CATEGORY, "shoes", "q", 3, 0)
+    ) == ()

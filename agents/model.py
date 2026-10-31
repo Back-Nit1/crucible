@@ -233,9 +233,29 @@ class AdapterPolicy(ActionPolicy):
         self.adapter = adapter
         self.system_prompt = system_prompt
         self.seed = seed
+        self.memory_examples = ()
+
+    def accept_memory(self, episodes: tuple) -> None:
+        self.memory_examples = episodes
 
     def next_step(self, task: TaskSpec, history: tuple, attempt: int) -> ModelStep | None:
-        messages: list[Message] = [Message(role="user", content=task.raw_message)]
+        messages: list[Message] = []
+        for episode in self.memory_examples:
+            messages.append(
+                Message(
+                    role="assistant",
+                    content=json.dumps(
+                        {
+                            "retrieved_episode_id": episode.episode_id,
+                            "recommended_products": episode.recommended_products,
+                            "termination": episode.termination,
+                            "final_answer": episode.final_answer,
+                        },
+                        sort_keys=True,
+                    ),
+                )
+            )
+        messages.append(Message(role="user", content=task.raw_message))
         for record in history:
             messages.append(
                 Message(
