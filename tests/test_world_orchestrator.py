@@ -6,6 +6,8 @@ from agents.actions import (
     ReportNoMatch, SearchCatalog,
 )
 from agents.model import ScriptedModelAdapter
+from agents.memory import TraceRepositoryMemoryProvider
+from memory import InMemoryTraceRepository
 from payments.guards import idempotency_key
 from tasks.batch import BatchConfig, ReviewTrapTemplate, generate_batch
 from tasks.engine import SplitConfig
@@ -78,22 +80,25 @@ def scripts(tasks, genomes, catalog, generation_id):
     return result
 
 
-def test_seeded_generation_resume_curation_and_reports_are_end_to_end():
+def test_seeded_generation_resume_curation_and_reports_are_end_to_end(tmp_path):
     catalog = snapshot(); task_batch = batch(catalog)
     assert (task_batch.feasible_count, task_batch.impossible_count,
             task_batch.review_trap_count) == (7, 3, 1)
     genomes = initialize_population(2, 9)
     adapter = ScriptedModelAdapter(scripts(task_batch.tasks, genomes, catalog, "gen-1"))
+    repository = InMemoryTraceRepository()
+    memory = TraceRepositoryMemoryProvider(repository)
     partial = run_generation(
         generation_id="gen-1", seed=9, tasks=task_batch.tasks, genomes=genomes,
-        catalog=catalog, model=adapter, max_new_episodes=3, clock=lambda: NOW, created_at=NOW)
+        catalog=catalog, model=adapter, memory=memory, max_new_episodes=3,
+        clock=lambda: NOW, created_at=NOW)
     assert partial.checkpoint.status == "running"
     assert len(partial.checkpoint.completed_episode_keys) == 3
 
     resumed = run_generation(
         generation_id="gen-1", seed=9, tasks=task_batch.tasks, genomes=genomes,
         catalog=catalog, model=adapter, checkpoint=partial.checkpoint,
-        existing_episodes=partial.episodes, clock=lambda: NOW, created_at=NOW)
+        existing_episodes=partial.episodes, memory=memory, clock=lambda: NOW, created_at=NOW)
     assert resumed.checkpoint.status == "complete"
     assert len(resumed.episodes) == 20
     assert len(set(resumed.checkpoint.completed_episode_keys)) == 20
@@ -112,6 +117,14 @@ def test_seeded_generation_resume_curation_and_reports_are_end_to_end():
     assert resumed.evaluation.metrics["success_rate"].value == Decimal("1")
     assert '"success_rate"' in resumed.evaluation_json
     assert "| success_rate |" in resumed.evaluation_markdown
+    assert len(repository.traces) == 20
+    capture_refs = [ref for episode in resumed.episodes for call in episode.tool_calls
+                    if call.action.type == "confirm_and_pay" for ref in call.result_references]
+    assert capture_refs and all(ref.startswith("MOCK-") for ref in capture_refs)
+    written = resumed.write(tmp_path / "generation")
+    assert {"checkpoint", "summary", "evaluation_json", "evaluation_markdown",
+            "training_manifest"} == set(written)
+    assert all(path.exists() for path in written.values())
 
 
 def test_resume_rejects_checkpoint_without_persisted_episode_records():

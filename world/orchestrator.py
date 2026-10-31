@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 from collections import Counter, defaultdict
 from decimal import Decimal
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -51,6 +52,24 @@ class GenerationArtifacts:
         self.curation = curation
         self.evaluation_json = evaluation.to_json()
         self.evaluation_markdown = evaluation.to_markdown()
+
+    def write(self, output_dir: Path) -> dict[str, Path]:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        files = {
+            "checkpoint": output_dir / "checkpoint.json",
+            "summary": output_dir / "generation-summary.json",
+            "evaluation_json": output_dir / "evaluation.json",
+            "evaluation_markdown": output_dir / "evaluation.md",
+        }
+        files["checkpoint"].write_text(self.checkpoint.model_dump_json(indent=2) + "\n")
+        files["summary"].write_text(self.summary.model_dump_json(indent=2) + "\n")
+        files["evaluation_json"].write_text(self.evaluation_json + "\n")
+        files["evaluation_markdown"].write_text(self.evaluation_markdown)
+        if self.curation is not None:
+            files["training_manifest"] = output_dir / "training-manifest.json"
+            files["training_manifest"].write_text(
+                self.curation.manifest.model_dump_json(indent=2) + "\n")
+        return files
 
 
 def _episode_key(agent_id: str, task_id: str) -> str:
@@ -122,7 +141,7 @@ def run_generation(
         )
         episodes[key] = episode
         memory.store(episode, split=task.split, category=task.hard_constraints.category,
-                     fitness=float(_fitness(episode)))
+                     fitness=float(_fitness(episode)), task_text=task.raw_message)
 
     ordered_episodes = tuple(episodes[key] for key in sorted(episodes))
     completed = tuple(sorted(episodes))

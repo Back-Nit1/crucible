@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 
 from agents.actions import EpisodeRecord
-from agents.memory import InMemoryMemoryProvider, RetrievalRequest
+from agents.memory import InMemoryMemoryProvider, RetrievalRequest, TraceRepositoryMemoryProvider
+from memory import InMemoryTraceRepository
 from tasks.schemas import TaskSplit
 
 
@@ -25,3 +26,14 @@ def test_memory_enforces_split_kill_threshold_k_and_stable_ties():
     request = RetrievalRequest("new", TaskSplit.TRAIN, "shoes", "query", 1, .5)
     assert [item.episode_id for item in memory.retrieve(request)] == ["a"]
     assert memory.retrieve(RetrievalRequest("test", TaskSplit.TEST, "shoes", "q", 3, 0)) == ()
+
+
+def test_platform_trace_repository_adapter_preserves_episode_and_blocks_test():
+    repository = InMemoryTraceRepository()
+    memory = TraceRepositoryMemoryProvider(repository)
+    stored = episode("stored")
+    memory.store(stored, split=TaskSplit.TRAIN, category="shoes", fitness=.8)
+    memory.store(episode("test"), split=TaskSplit.TEST, category="shoes", fitness=1)
+    found = memory.retrieve(RetrievalRequest("new", TaskSplit.TRAIN, "shoes", "fixture", 3, .5))
+    assert found == (stored,)
+    assert memory.retrieve(RetrievalRequest("test", TaskSplit.TEST, "shoes", "fixture", 3, 0)) == ()
