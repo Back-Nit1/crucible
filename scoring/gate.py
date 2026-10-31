@@ -70,7 +70,9 @@ def evaluate_gate(task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider)
                 GateViolation(code=GateViolationCode.PRICE_MISMATCH, product_id=product.id,
                               detail=f"expected {recommendation.expected_total}, catalog lists {product.price}")
             )
-        if product.variants.get(recommendation.variant, 0) <= 0:
+        # A source with no inventory data (empty `variants`, e.g. Amazon Reviews 2023) has unverifiable stock: nothing
+        # to check, and none is synthesised. Stock is enforced only where the source actually provides it.
+        if product.variants and product.variants.get(recommendation.variant, 0) <= 0:
             violations.append(
                 GateViolation(
                     code=GateViolationCode.OUT_OF_STOCK,
