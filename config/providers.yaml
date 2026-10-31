@@ -16,3 +16,15 @@ providers:
   bestbuy:
     enabled: false
     note: Disabled. Developer signup unavailable (email restriction); not bypassed.
+
+# Integration/runtime facts (measured 2026-11-01; evidence in docs/handoffs/integration-runtime.md)
+snapshot:
+  embedding_inference_id: .jina-embeddings-v5-text-nano   # 768d, EIS-hosted; e5-small cold start times out
+  enumeration: iter_products(category)   # search_after paging, id-ordered, no cap; an empty search query is rejected
+  review_ids: review_ids(product_id)     # complete, never truncated; get_reviews without focus pages past 10,000
+  review_id_scheme: "amazon2023:parent_asin:asin:user_id:timestamp[:n]"   # source key kept in source_review_key
+  stock_and_size: unverifiable            # Amazon Reviews 2023 has none; never generated
+  tax_and_shipping: not_in_source         # snapshot quotes are basis=snapshot_declared (list price defined as all-in)
+payments:
+  bulk_runs: mock                         # world/generation runs never touch PayPal
+  require_verified_quotes_env: REQUIRE_VERIFIED_QUOTES   # =1 rejects snapshot_declared quotes at propose time
