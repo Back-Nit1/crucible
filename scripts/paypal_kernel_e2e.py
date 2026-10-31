@@ -1,17 +1,17 @@
 """Day-1 checks 1+3: create -> Kernel buyer approval -> capture, with latency. Sandbox only.
-usage: paypal_kernel_e2e.py MAIN_ENV BUYER_ENV N   (BUYER_ENV holds PAYPAL_BUYER_EMAIL/PASSWORD)
+usage: paypal_kernel_e2e.py MAIN_ENV BUYER_ENV N   (BUYER_ENV holds PAYPAL_SANDBOX_BUYER_EMAIL/PASSWORD)
 Prints sanitized fields only; stops at the first blocked approval."""
 import os, sys, time, uuid
 sys.path.insert(0, "scripts")
 from decimal import Decimal
 from _env import load
 load(sys.argv[1], {"PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "PAYPAL_ENV", "KERNEL_API_KEY"})
-load(sys.argv[2], {"PAYPAL_BUYER_EMAIL", "PAYPAL_BUYER_PASSWORD"})
+load(sys.argv[2], {"PAYPAL_SANDBOX_BUYER_EMAIL", "PAYPAL_SANDBOX_BUYER_PASSWORD"})
 from payments.kernel_approver import ApprovalBlocked, KernelApprover
 from payments.sandbox import SandboxPayments
 
 sb = SandboxPayments()
-ap = KernelApprover(sb, os.environ["PAYPAL_BUYER_EMAIL"], os.environ["PAYPAL_BUYER_PASSWORD"])
+ap = KernelApprover(sb, os.environ["PAYPAL_SANDBOX_BUYER_EMAIL"], os.environ["PAYPAL_SANDBOX_BUYER_PASSWORD"])
 for i in range(int(sys.argv[3])):
     t0 = time.perf_counter()
     oid = sb.create_order(Decimal("1.00"), "USD", uuid.uuid4().hex)
