@@ -4,6 +4,7 @@ import json
 import urllib.request
 from collections import Counter
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
 BASE = "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw"
 
@@ -16,12 +17,21 @@ def review_url(category: str) -> str:
     return f"{BASE}/review_categories/{category}.jsonl"
 
 
-def iter_jsonl(url: str, max_bytes: int):
-    """Yield records from the first `max_bytes` of a remote JSONL (last partial line dropped)."""
-    req = urllib.request.Request(url, headers={"Range": f"bytes=0-{max_bytes - 1}"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        lines = r.read().split(b"\n")[:-1]
-    for line in lines:
+def iter_jsonl(url: str, max_bytes: int, offset: int = 0, cache_dir: str | None = None):
+    """Yield records from `max_bytes` of a remote JSONL starting at byte `offset`.
+    Partial first (offset>0) and last lines are dropped. `cache_dir` keeps the raw window on disk."""
+    path = Path(cache_dir) / f"{url.rsplit('/', 1)[1]}@{offset}+{max_bytes}" if cache_dir else None
+    if path and path.exists():
+        data = path.read_bytes()
+    else:
+        req = urllib.request.Request(url, headers={"Range": f"bytes={offset}-{offset + max_bytes - 1}"})
+        with urllib.request.urlopen(req, timeout=300) as r:
+            data = r.read()
+        if path:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+    lines = data.split(b"\n")[:-1]
+    for line in lines[1:] if offset else lines:
         yield json.loads(line)
 
 
