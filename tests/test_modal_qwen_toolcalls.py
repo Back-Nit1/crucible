@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from eval.day1_tool_calling import (
+from modal_app.qwen_toolcalls import (
     MODEL_REVISION,
     ParsedToolCall,
     arguments_are_schema_valid,

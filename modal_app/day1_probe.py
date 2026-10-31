@@ -21,7 +21,7 @@ from typing import Any
 
 import modal
 
-from eval.day1_tool_calling import (
+from modal_app.qwen_toolcalls import (
     MODEL_ID,
     MODEL_REVISION,
     SEED,
@@ -38,8 +38,8 @@ MODEL_PATH = f"/models/{MODEL_ID.rsplit('/', 1)[-1]}-{MODEL_REVISION[:7]}"
 CHECKPOINT_ROOT = Path("/checkpoints/day1-resume")
 MAX_GPU_SECONDS = 45 * 60
 MAX_EXPERIMENT_SPEND_USD = 5.0
-DEFAULT_TOOL_RESULT = "eval/results/day1_qwen_tool_calls.json"
-DEFAULT_RESUME_RESULT = "eval/results/day1_modal_resume.json"
+DEFAULT_TOOL_RESULT = "docs/spikes/results/day1_qwen_tool_calls.json"
+DEFAULT_RESUME_RESULT = "docs/spikes/results/day1_modal_resume.json"
 L4_PROBE_ENABLED = os.environ.get("CRUCIBLE_ENABLE_L4_PROBE") == "1"
 
 
@@ -66,14 +66,14 @@ model_image = (
         "torch==2.6.0",
         "transformers==4.49.0",
     )
-    .add_local_python_source("eval", copy=True)
+    .add_local_python_source("modal_app", copy=True)
     .run_function(_download_model, timeout=30 * 60)
 )
 
 cpu_image = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install("jsonschema==4.23.0")
-    .add_local_python_source("eval", copy=True)
+    .add_local_python_source("modal_app", copy=True)
 )
 checkpoint_volume = modal.Volume.from_name(
     "crucible-day1-checkpoints-v2", create_if_missing=True, version=2

@@ -24,9 +24,9 @@ not train a model and does not claim fine-tuning success.
 | Resume wall time | `13.901644s` across stop, inspection, resume, and final inspection |
 
 Raw sanitized results are in
-[`eval/results/day1_qwen_tool_calls.json`](../../eval/results/day1_qwen_tool_calls.json)
+[`docs/spikes/results/day1_qwen_tool_calls.json`](results/day1_qwen_tool_calls.json)
 and
-[`eval/results/day1_modal_resume.json`](../../eval/results/day1_modal_resume.json).
+[`docs/spikes/results/day1_modal_resume.json`](results/day1_modal_resume.json).
 
 ## Model and license verification
 
@@ -61,7 +61,7 @@ schema-invalid arguments can occur, which is why those are separate metrics.
 ## Tool contract
 
 The executable schemas live in
-[`eval/day1_tool_calling.py`](../../eval/day1_tool_calling.py). Every input object
+[`modal_app/qwen_toolcalls.py`](../../modal_app/qwen_toolcalls.py). Every input object
 uses `additionalProperties: false`; identifiers and user text must be non-empty;
 prices are non-negative; review sort is an enum; and comparison requires at least
 two unique products.
