@@ -104,7 +104,7 @@ class SandboxPayments:
     def capture(self, order_id: str) -> Capture:
         try:  # stable request id => retries replay the same capture
             order = self._call("POST", f"/v2/checkout/orders/{order_id}/capture",
-                               request_id=f"capture-{order_id}")
+                               request_id=f"capture-{order_id}", json={})  # PayPal 415s a body-less capture (live-verified)
         except PaymentError as e:
             if e.code != "ORDER_ALREADY_CAPTURED":
                 raise
