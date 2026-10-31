@@ -18,5 +18,8 @@
   "candidates": 150,
   "products": 147,
   "reviews": 3620,
-  "sha256": "9050d59e5a6263e7553461204936bc6023befdf10b14a44cce8c6b4348e20de1"
+  "sha256": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4",
+  "legacy_sha256": "9050d59e5a6263e7553461204936bc6023befdf10b14a44cce8c6b4348e20de1",
+  "review_id_scheme": "v2: amazon2023:parent_asin:asin:user_id:timestamp[:n]; source key kept in source_review_key",
+  "duplicate_source_rows": 3
 }

@@ -1,0 +1,4083 @@
+{
+ "category_manifests": {
+  "Clothing_Shoes_and_Jewelry": "25a7b78a6526fd026aeb92d46c8653284e2cb30193873474518d99b8878689e5",
+  "Electronics": "9050d59e5a6263e7553461204936bc6023befdf10b14a44cce8c6b4348e20de1",
+  "Office_Products": "c2c6a780b9f25b745720ab3a8ce6691339149563a9ea039e9abfbe8b83e3d359",
+  "Sports_and_Outdoors": "3751f161a225aa6881b087d8e244f1646a955ef089497feebd586265c3efe092"
+ },
+ "counts": {
+  "by_split": {
+   "test": 7,
+   "train": 34,
+   "val": 7
+  },
+  "impossible": 26,
+  "tasks": 48,
+  "unsuitable": 0
+ },
+ "seed": 20261101,
+ "snapshot_id": "amazon2023-81d66c638123",
+ "tasks": [
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B09ZJ6K3R5",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Industrial & Scientific"
+      ]
+     }
+    ],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "15.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-000",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Sports_and_Outdoors under $15.00 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 186411670,
+   "split": "val",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B08ZKJLSPN",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Health & Personal Care"
+      ]
+     }
+    ],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "3.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-001",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Sports_and_Outdoors under $3.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 538059478,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0B1MY439W",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "3.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-002",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Sports_and_Outdoors under $3.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 2098288902,
+   "split": "val",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0B1MY439W",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "3.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-003",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Sports_and_Outdoors under $3.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 5791818,
+   "split": "val",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0B7J8Y581",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "All Electronics"
+      ]
+     }
+    ],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "21.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-004",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Sports_and_Outdoors under $21.99 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 29309521,
+   "split": "test",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B0B1MY439W",
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00GSNG02K",
+    "B00JULWJNQ",
+    "B00PUDI2Z2",
+    "B017V088TG",
+    "B01C9I1ZNQ",
+    "B01LZN0HUW",
+    "B07DQZFRW8",
+    "B07FGS4BQC",
+    "B07N29QLTD",
+    "B07VCPT32Q",
+    "B07YZ4SMGR",
+    "B07ZTHY62V",
+    "B08695FJXP",
+    "B08YFLVDMJ",
+    "B08ZKJLSPN",
+    "B094Q69QHZ",
+    "B0998QVNLF",
+    "B09HJWTTFZ",
+    "B09LWFFRRG",
+    "B09R1S688D",
+    "B09S6SLYSZ",
+    "B09YM1NBL5",
+    "B0B19BM3WZ",
+    "B0B1MY439W",
+    "B0B6R8N6WQ",
+    "B0B8SWT79R",
+    "B0BFPRQS49",
+    "B0BHX74B31",
+    "B0BKX3RTNC",
+    "B0BL269N8C",
+    "B0BL9TRHRF",
+    "B0BM9LLNGP",
+    "B0BTNZ41Y7",
+    "B0BXT2HTWT",
+    "B0BYFLBC89",
+    "B0BZVCXY4R",
+    "B0C15J77JL"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "15.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-005",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Sports_and_Outdoors under $15.00 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1417368224,
+   "split": "test",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B0BYCBLSPT",
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "hard",
+   "feasible_set": [
+    "B0BYCBLSPT"
+   ],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Computers"
+      ]
+     }
+    ],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "21.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-006",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Sports_and_Outdoors under $21.99 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 125305429,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0BYCBLSPT",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Computers"
+      ]
+     }
+    ],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "3.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-007",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Sports_and_Outdoors under $3.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1464241886,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0B1MY439W",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "3.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-008",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Sports_and_Outdoors under $3.98 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1754350113,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B0B1MY439W",
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00C6OUDX2",
+    "B00GSNG02K",
+    "B00JULWJNQ",
+    "B00PUDI2Z2",
+    "B017V088TG",
+    "B01C9I1ZNQ",
+    "B01FL444JW",
+    "B01LZN0HUW",
+    "B0793KLSC6",
+    "B07CLG9294",
+    "B07DQZFRW8",
+    "B07FGS4BQC",
+    "B07N29QLTD",
+    "B07Q29SMHY",
+    "B07QCWNPR4",
+    "B07R3J5SYG",
+    "B07R4YH79N",
+    "B07SK8Z9L3",
+    "B07SNR4P4B",
+    "B07VCPT32Q",
+    "B07WGX2VZV",
+    "B07YZ4SMGR",
+    "B07ZQ9WVH7",
+    "B07ZTHY62V",
+    "B082D21GY9",
+    "B083F3JJ4X",
+    "B08695FJXP",
+    "B086PFQ1CL",
+    "B0877ZXMZB",
+    "B0878CT6MF",
+    "B0879DQDJX",
+    "B08P6CDN3J",
+    "B08QZ5YQ5D",
+    "B08YFLVDMJ",
+    "B08ZKJLSPN",
+    "B094Q69QHZ",
+    "B0976XCLGB",
+    "B0998QVNLF",
+    "B09HCJZZCJ",
+    "B09HJWTTFZ",
+    "B09KQCZ4YV",
+    "B09LT8PYFX",
+    "B09LWFFRRG",
+    "B09LZV87M7",
+    "B09R1S688D",
+    "B09S6SLYSZ",
+    "B09T371VK5",
+    "B09W8G4XCJ",
+    "B09XV43K48",
+    "B09YM1NBL5",
+    "B0B19BM3WZ",
+    "B0B1MY439W",
+    "B0B6R8N6WQ",
+    "B0B8DK52J1",
+    "B0B8SWT79R",
+    "B0BF62XLVW",
+    "B0BFPRQS49",
+    "B0BHX74B31",
+    "B0BKX3RTNC",
+    "B0BL269N8C",
+    "B0BL9TRHRF",
+    "B0BM9LLNGP",
+    "B0BS4B6HJQ",
+    "B0BTD9Y5HT",
+    "B0BTNZ41Y7",
+    "B0BWFK1MKG",
+    "B0BXT2HTWT",
+    "B0BYCBLSPT",
+    "B0BYFLBC89",
+    "B0BZVCXY4R",
+    "B0C15J77JL",
+    "B0C2PH3M98",
+    "B0C32PSZJN",
+    "B0C4198MBG",
+    "B0C5XW2T2N"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "21.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-009",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Sports_and_Outdoors under $21.99 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1907981839,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0B1MY439W",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "3.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-010",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Sports_and_Outdoors under $3.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 791979748,
+   "split": "val",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "2353eabe9c48537eb2ef80afa6e6524217cb89d70efdf738109bfa10a2729447",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B09ZJ6K3R5",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Industrial & Scientific"
+      ]
+     }
+    ],
+    "category": "Sports_and_Outdoors",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "15.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "sports_and_outdoors-s20261101-011",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Sports_and_Outdoors under $15.00 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 2092924019,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B07L4B5DCT",
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00F0DD0I6",
+    "B00PFQPX5Q",
+    "B00QUG4XL0",
+    "B00WUOB3X2",
+    "B015ILEN80",
+    "B01KT301YC",
+    "B06XRTFG29",
+    "B07121TS59",
+    "B071HVYGNJ",
+    "B071K5BQPF",
+    "B0732QMQTC",
+    "B074W2JMS6",
+    "B077TPFXZV",
+    "B077V2BF3C",
+    "B077XGL4PG",
+    "B078RGL8SB",
+    "B078XDLDNM",
+    "B0797LQT4V",
+    "B07BTLS3R8",
+    "B07DCPJBC3",
+    "B07FTSFGXH",
+    "B07FW38SF8",
+    "B07GK3LQVC",
+    "B07H4HXW14",
+    "B07HC1LSL6",
+    "B07J38VMPN",
+    "B07J3FMTJ4",
+    "B07K7ZZJ21",
+    "B07KG7BLFD",
+    "B07L412K4Q",
+    "B07L4B5DCT",
+    "B07LG5WBTS",
+    "B07N83RDMJ",
+    "B07NL2S9QW",
+    "B07Q12TXD8",
+    "B07RBBN3X3",
+    "B07RYNFR2B",
+    "B07S4KJV6W",
+    "B07S764D9V",
+    "B07S8F43Y6",
+    "B07SK6NJWP",
+    "B07TJLM1YM",
+    "B07V48GCZ7",
+    "B07V6CGGW2",
+    "B07W36NHV8",
+    "B07WMB4XS4",
+    "B07WV7LKNQ",
+    "B07XCGYYVF",
+    "B07Y887RM3",
+    "B07YZ77KTJ",
+    "B07ZCSL46C",
+    "B0819N8RP8",
+    "B081H6S2WG",
+    "B081J3BB63",
+    "B0829KDY9X",
+    "B082T7HDGT",
+    "B082YB9888",
+    "B086KSZWTW",
+    "B08JPHJX5S",
+    "B08JQ42WFN",
+    "B08KXL9PTV",
+    "B08MBX4FNC",
+    "B08MVYQTRR",
+    "B08W5G45PR",
+    "B091JB6HQ7",
+    "B091K4WYD1",
+    "B094ZNRZMD",
+    "B096GT8CJH",
+    "B09CDNM3VW",
+    "B09D41HQVZ",
+    "B09FYWWVB8",
+    "B09GLQ2PFV",
+    "B09KNJ518H",
+    "B09RZDNN93",
+    "B09W4DTMQX",
+    "B09XYMSZLL",
+    "B09Y54MQWT",
+    "B09YDHLYRL",
+    "B09ZQ4GHM8",
+    "B09ZTC6LGP",
+    "B0B2LMCJRL",
+    "B0B5V5TG95",
+    "B0B6HR2RKV",
+    "B0B8CPMS4T",
+    "B0BBR71NCL",
+    "B0BCL54L82",
+    "B0BD1TRBS7",
+    "B0BF59V2F7",
+    "B0BHJXCFXW",
+    "B0BHWYQ47Y",
+    "B0BJCYP6H5",
+    "B0BJFLRMR2",
+    "B0BJW2XLMR",
+    "B0BLVJWGCC",
+    "B0BLVYRWTX",
+    "B0BMQJYLQV",
+    "B0BNC1QBH6",
+    "B0BPMJ6FKN",
+    "B0BQ5H62TT",
+    "B0BSF17PM2",
+    "B0BTT1Z16D",
+    "B0BV2YBX3Q",
+    "B0BV3NWX67",
+    "B0BXM1MVWN",
+    "B0BXM4RTZ4",
+    "B0BXZ4D1C2",
+    "B0BYDKWZQY",
+    "B0BZ49NHW2",
+    "B0C3ZV9NNY",
+    "B0C49KQRX4",
+    "B0C58RXBPQ"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "65.78",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-000",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Electronics under $65.78 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 17444229,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B07L4B5DCT",
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00F0DD0I6",
+    "B00PFQPX5Q",
+    "B00QUG4XL0",
+    "B00WUOB3X2",
+    "B015ILEN80",
+    "B01KT301YC",
+    "B06XRTFG29",
+    "B07121TS59",
+    "B071HVYGNJ",
+    "B071K5BQPF",
+    "B0732QMQTC",
+    "B074W2JMS6",
+    "B077TPFXZV",
+    "B077V2BF3C",
+    "B077XGL4PG",
+    "B078RGL8SB",
+    "B078XDLDNM",
+    "B0797LQT4V",
+    "B07BTLS3R8",
+    "B07DCPJBC3",
+    "B07FTSFGXH",
+    "B07FW38SF8",
+    "B07GK3LQVC",
+    "B07H4HXW14",
+    "B07HC1LSL6",
+    "B07J38VMPN",
+    "B07J3FMTJ4",
+    "B07K7ZZJ21",
+    "B07KG7BLFD",
+    "B07L412K4Q",
+    "B07L4B5DCT",
+    "B07LG5WBTS",
+    "B07N83RDMJ",
+    "B07NL2S9QW",
+    "B07Q12TXD8",
+    "B07RBBN3X3",
+    "B07RYNFR2B",
+    "B07S4KJV6W",
+    "B07S764D9V",
+    "B07S8F43Y6",
+    "B07SK6NJWP",
+    "B07TJLM1YM",
+    "B07V48GCZ7",
+    "B07V6CGGW2",
+    "B07W36NHV8",
+    "B07WMB4XS4",
+    "B07WV7LKNQ",
+    "B07XCGYYVF",
+    "B07Y887RM3",
+    "B07YZ77KTJ",
+    "B07ZCSL46C",
+    "B0819N8RP8",
+    "B081H6S2WG",
+    "B081J3BB63",
+    "B0829KDY9X",
+    "B082T7HDGT",
+    "B082YB9888",
+    "B086KSZWTW",
+    "B08JPHJX5S",
+    "B08JQ42WFN",
+    "B08KXL9PTV",
+    "B08MBX4FNC",
+    "B08MVYQTRR",
+    "B08W5G45PR",
+    "B091JB6HQ7",
+    "B091K4WYD1",
+    "B094ZNRZMD",
+    "B096GT8CJH",
+    "B09CDNM3VW",
+    "B09D41HQVZ",
+    "B09FYWWVB8",
+    "B09GLQ2PFV",
+    "B09KNJ518H",
+    "B09RZDNN93",
+    "B09W4DTMQX",
+    "B09XYMSZLL",
+    "B09Y54MQWT",
+    "B09YDHLYRL",
+    "B09ZQ4GHM8",
+    "B09ZTC6LGP",
+    "B0B2LMCJRL",
+    "B0B5V5TG95",
+    "B0B6HR2RKV",
+    "B0B8CPMS4T",
+    "B0BBR71NCL",
+    "B0BCL54L82",
+    "B0BD1TRBS7",
+    "B0BF59V2F7",
+    "B0BHJXCFXW",
+    "B0BHWYQ47Y",
+    "B0BJCYP6H5",
+    "B0BJFLRMR2",
+    "B0BJW2XLMR",
+    "B0BLVJWGCC",
+    "B0BLVYRWTX",
+    "B0BMQJYLQV",
+    "B0BNC1QBH6",
+    "B0BPMJ6FKN",
+    "B0BQ5H62TT",
+    "B0BSF17PM2",
+    "B0BTT1Z16D",
+    "B0BV2YBX3Q",
+    "B0BV3NWX67",
+    "B0BXM1MVWN",
+    "B0BXM4RTZ4",
+    "B0BXZ4D1C2",
+    "B0BYDKWZQY",
+    "B0BZ49NHW2",
+    "B0C3ZV9NNY",
+    "B0C49KQRX4",
+    "B0C58RXBPQ"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "65.78",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-001",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Electronics under $65.78 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 640478557,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B07L4B5DCT",
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00PFQPX5Q",
+    "B071HVYGNJ",
+    "B071K5BQPF",
+    "B077XGL4PG",
+    "B07BTLS3R8",
+    "B07FTSFGXH",
+    "B07FW38SF8",
+    "B07L4B5DCT",
+    "B07LG5WBTS",
+    "B07NL2S9QW",
+    "B07Q12TXD8",
+    "B07RYNFR2B",
+    "B07V6CGGW2",
+    "B07WMB4XS4",
+    "B07WV7LKNQ",
+    "B07ZCSL46C",
+    "B081H6S2WG",
+    "B081J3BB63",
+    "B082T7HDGT",
+    "B082YB9888",
+    "B08JQ42WFN",
+    "B08W5G45PR",
+    "B09FYWWVB8",
+    "B09RZDNN93",
+    "B0B2LMCJRL",
+    "B0B6HR2RKV",
+    "B0B8CPMS4T",
+    "B0BHJXCFXW",
+    "B0BJCYP6H5",
+    "B0BJW2XLMR",
+    "B0BLVJWGCC",
+    "B0BLVYRWTX",
+    "B0BMQJYLQV",
+    "B0BPMJ6FKN",
+    "B0BQ5H62TT",
+    "B0BSF17PM2",
+    "B0BV3NWX67",
+    "B0C3ZV9NNY"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "11.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-002",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Electronics under $11.99 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 2077461124,
+   "split": "test",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B07L4B5DCT",
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00F0DD0I6",
+    "B00PFQPX5Q",
+    "B00QUG4XL0",
+    "B00WUOB3X2",
+    "B015ILEN80",
+    "B01KT301YC",
+    "B06XRTFG29",
+    "B07121TS59",
+    "B071HVYGNJ",
+    "B071K5BQPF",
+    "B0732QMQTC",
+    "B074W2JMS6",
+    "B077TPFXZV",
+    "B077V2BF3C",
+    "B077XGL4PG",
+    "B078RGL8SB",
+    "B078XDLDNM",
+    "B0797LQT4V",
+    "B07BTLS3R8",
+    "B07DCPJBC3",
+    "B07FTSFGXH",
+    "B07FW38SF8",
+    "B07GK3LQVC",
+    "B07H4HXW14",
+    "B07HC1LSL6",
+    "B07J38VMPN",
+    "B07J3FMTJ4",
+    "B07K7ZZJ21",
+    "B07KG7BLFD",
+    "B07L412K4Q",
+    "B07L4B5DCT",
+    "B07LG5WBTS",
+    "B07N83RDMJ",
+    "B07NL2S9QW",
+    "B07Q12TXD8",
+    "B07RBBN3X3",
+    "B07RYNFR2B",
+    "B07S4KJV6W",
+    "B07S764D9V",
+    "B07S8F43Y6",
+    "B07SK6NJWP",
+    "B07TJLM1YM",
+    "B07V48GCZ7",
+    "B07V6CGGW2",
+    "B07W36NHV8",
+    "B07WMB4XS4",
+    "B07WV7LKNQ",
+    "B07XCGYYVF",
+    "B07Y887RM3",
+    "B07YZ77KTJ",
+    "B07ZCSL46C",
+    "B0819N8RP8",
+    "B081H6S2WG",
+    "B081J3BB63",
+    "B0829KDY9X",
+    "B082T7HDGT",
+    "B082YB9888",
+    "B086KSZWTW",
+    "B08JPHJX5S",
+    "B08JQ42WFN",
+    "B08KXL9PTV",
+    "B08MBX4FNC",
+    "B08MVYQTRR",
+    "B08W5G45PR",
+    "B091JB6HQ7",
+    "B091K4WYD1",
+    "B094ZNRZMD",
+    "B096GT8CJH",
+    "B09CDNM3VW",
+    "B09D41HQVZ",
+    "B09FYWWVB8",
+    "B09GLQ2PFV",
+    "B09KNJ518H",
+    "B09RZDNN93",
+    "B09W4DTMQX",
+    "B09XYMSZLL",
+    "B09Y54MQWT",
+    "B09YDHLYRL",
+    "B09ZQ4GHM8",
+    "B09ZTC6LGP",
+    "B0B2LMCJRL",
+    "B0B5V5TG95",
+    "B0B6HR2RKV",
+    "B0B8CPMS4T",
+    "B0BBR71NCL",
+    "B0BCL54L82",
+    "B0BD1TRBS7",
+    "B0BF59V2F7",
+    "B0BHJXCFXW",
+    "B0BHWYQ47Y",
+    "B0BJCYP6H5",
+    "B0BJFLRMR2",
+    "B0BJW2XLMR",
+    "B0BLVJWGCC",
+    "B0BLVYRWTX",
+    "B0BMQJYLQV",
+    "B0BNC1QBH6",
+    "B0BPMJ6FKN",
+    "B0BQ5H62TT",
+    "B0BSF17PM2",
+    "B0BTT1Z16D",
+    "B0BV2YBX3Q",
+    "B0BV3NWX67",
+    "B0BXM1MVWN",
+    "B0BXM4RTZ4",
+    "B0BXZ4D1C2",
+    "B0BYDKWZQY",
+    "B0BZ49NHW2",
+    "B0C3ZV9NNY",
+    "B0C49KQRX4",
+    "B0C58RXBPQ"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "65.78",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-003",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Electronics under $65.78 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 157673898,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B07L4B5DCT",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "5.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-004",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Electronics under $5.98 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1690859101,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B07L4B5DCT",
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00F0DD0I6",
+    "B00PFQPX5Q",
+    "B00QUG4XL0",
+    "B00WUOB3X2",
+    "B015ILEN80",
+    "B01KT301YC",
+    "B06XRTFG29",
+    "B07121TS59",
+    "B071HVYGNJ",
+    "B071K5BQPF",
+    "B0732QMQTC",
+    "B074W2JMS6",
+    "B077TPFXZV",
+    "B077V2BF3C",
+    "B077XGL4PG",
+    "B078RGL8SB",
+    "B078XDLDNM",
+    "B0797LQT4V",
+    "B07BTLS3R8",
+    "B07DCPJBC3",
+    "B07FTSFGXH",
+    "B07FW38SF8",
+    "B07GK3LQVC",
+    "B07H4HXW14",
+    "B07HC1LSL6",
+    "B07J38VMPN",
+    "B07J3FMTJ4",
+    "B07K7ZZJ21",
+    "B07KG7BLFD",
+    "B07L412K4Q",
+    "B07L4B5DCT",
+    "B07LG5WBTS",
+    "B07N83RDMJ",
+    "B07NL2S9QW",
+    "B07Q12TXD8",
+    "B07RBBN3X3",
+    "B07RYNFR2B",
+    "B07S4KJV6W",
+    "B07S764D9V",
+    "B07S8F43Y6",
+    "B07SK6NJWP",
+    "B07TJLM1YM",
+    "B07V48GCZ7",
+    "B07V6CGGW2",
+    "B07W36NHV8",
+    "B07WMB4XS4",
+    "B07WV7LKNQ",
+    "B07XCGYYVF",
+    "B07Y887RM3",
+    "B07YZ77KTJ",
+    "B07ZCSL46C",
+    "B0819N8RP8",
+    "B081H6S2WG",
+    "B081J3BB63",
+    "B0829KDY9X",
+    "B082T7HDGT",
+    "B082YB9888",
+    "B086KSZWTW",
+    "B08JPHJX5S",
+    "B08JQ42WFN",
+    "B08KXL9PTV",
+    "B08MBX4FNC",
+    "B08MVYQTRR",
+    "B08W5G45PR",
+    "B091JB6HQ7",
+    "B091K4WYD1",
+    "B094ZNRZMD",
+    "B096GT8CJH",
+    "B09CDNM3VW",
+    "B09D41HQVZ",
+    "B09FYWWVB8",
+    "B09GLQ2PFV",
+    "B09KNJ518H",
+    "B09RZDNN93",
+    "B09W4DTMQX",
+    "B09XYMSZLL",
+    "B09Y54MQWT",
+    "B09YDHLYRL",
+    "B09ZQ4GHM8",
+    "B09ZTC6LGP",
+    "B0B2LMCJRL",
+    "B0B5V5TG95",
+    "B0B6HR2RKV",
+    "B0B8CPMS4T",
+    "B0BBR71NCL",
+    "B0BCL54L82",
+    "B0BD1TRBS7",
+    "B0BF59V2F7",
+    "B0BHJXCFXW",
+    "B0BHWYQ47Y",
+    "B0BJCYP6H5",
+    "B0BJFLRMR2",
+    "B0BJW2XLMR",
+    "B0BLVJWGCC",
+    "B0BLVYRWTX",
+    "B0BMQJYLQV",
+    "B0BNC1QBH6",
+    "B0BPMJ6FKN",
+    "B0BQ5H62TT",
+    "B0BSF17PM2",
+    "B0BTT1Z16D",
+    "B0BV2YBX3Q",
+    "B0BV3NWX67",
+    "B0BXM1MVWN",
+    "B0BXM4RTZ4",
+    "B0BXZ4D1C2",
+    "B0BYDKWZQY",
+    "B0BZ49NHW2",
+    "B0C3ZV9NNY",
+    "B0C49KQRX4",
+    "B0C58RXBPQ"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "65.78",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-005",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Electronics under $65.78 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1460265989,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0C338S8M7",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Apple Products"
+      ]
+     }
+    ],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "5.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-006",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Electronics under $5.98 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1389587126,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0BJXSGLFJ",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Video Games"
+      ]
+     }
+    ],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "5.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-007",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Electronics under $5.98 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1484689278,
+   "split": "test",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B07L4B5DCT",
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00PFQPX5Q",
+    "B071HVYGNJ",
+    "B071K5BQPF",
+    "B077XGL4PG",
+    "B07BTLS3R8",
+    "B07FTSFGXH",
+    "B07FW38SF8",
+    "B07L4B5DCT",
+    "B07LG5WBTS",
+    "B07NL2S9QW",
+    "B07Q12TXD8",
+    "B07RYNFR2B",
+    "B07V6CGGW2",
+    "B07WMB4XS4",
+    "B07WV7LKNQ",
+    "B07ZCSL46C",
+    "B081H6S2WG",
+    "B081J3BB63",
+    "B082T7HDGT",
+    "B082YB9888",
+    "B08JQ42WFN",
+    "B08W5G45PR",
+    "B09FYWWVB8",
+    "B09RZDNN93",
+    "B0B2LMCJRL",
+    "B0B6HR2RKV",
+    "B0B8CPMS4T",
+    "B0BHJXCFXW",
+    "B0BJCYP6H5",
+    "B0BJW2XLMR",
+    "B0BLVJWGCC",
+    "B0BLVYRWTX",
+    "B0BMQJYLQV",
+    "B0BPMJ6FKN",
+    "B0BQ5H62TT",
+    "B0BSF17PM2",
+    "B0BV3NWX67",
+    "B0C3ZV9NNY"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "11.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-008",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Electronics under $11.99 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 149452378,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0BJXSGLFJ",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Video Games"
+      ]
+     }
+    ],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "65.78",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-009",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Electronics under $65.78 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1874725827,
+   "split": "test",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B07L4B5DCT",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "5.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-010",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Electronics under $5.98 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 500395753,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B07L4B5DCT",
+   "catalog_manifest_hash": "1f1071c1ea548b6de8e44c39c6dd9568b8cedb58bebc30fc6f25330d59a8ac7d",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00F0DD0I6",
+    "B00PFQPX5Q",
+    "B00QUG4XL0",
+    "B00WUOB3X2",
+    "B015ILEN80",
+    "B01KT301YC",
+    "B06XRTFG29",
+    "B07121TS59",
+    "B071HVYGNJ",
+    "B071K5BQPF",
+    "B0732QMQTC",
+    "B074W2JMS6",
+    "B077TPFXZV",
+    "B077V2BF3C",
+    "B077XGL4PG",
+    "B078RGL8SB",
+    "B078XDLDNM",
+    "B0797LQT4V",
+    "B07BTLS3R8",
+    "B07DCPJBC3",
+    "B07FTSFGXH",
+    "B07FW38SF8",
+    "B07GK3LQVC",
+    "B07H4HXW14",
+    "B07HC1LSL6",
+    "B07J38VMPN",
+    "B07J3FMTJ4",
+    "B07K7ZZJ21",
+    "B07KG7BLFD",
+    "B07L412K4Q",
+    "B07L4B5DCT",
+    "B07LG5WBTS",
+    "B07N83RDMJ",
+    "B07NL2S9QW",
+    "B07Q12TXD8",
+    "B07RBBN3X3",
+    "B07RYNFR2B",
+    "B07S4KJV6W",
+    "B07S764D9V",
+    "B07S8F43Y6",
+    "B07SK6NJWP",
+    "B07TJLM1YM",
+    "B07V48GCZ7",
+    "B07V6CGGW2",
+    "B07W36NHV8",
+    "B07WMB4XS4",
+    "B07WV7LKNQ",
+    "B07XCGYYVF",
+    "B07Y887RM3",
+    "B07YZ77KTJ",
+    "B07ZCSL46C",
+    "B0819N8RP8",
+    "B081H6S2WG",
+    "B081J3BB63",
+    "B0829KDY9X",
+    "B082T7HDGT",
+    "B082YB9888",
+    "B086KSZWTW",
+    "B08JPHJX5S",
+    "B08JQ42WFN",
+    "B08KXL9PTV",
+    "B08MBX4FNC",
+    "B08MVYQTRR",
+    "B08W5G45PR",
+    "B091JB6HQ7",
+    "B091K4WYD1",
+    "B094ZNRZMD",
+    "B096GT8CJH",
+    "B09CDNM3VW",
+    "B09D41HQVZ",
+    "B09FYWWVB8",
+    "B09GLQ2PFV",
+    "B09KNJ518H",
+    "B09RZDNN93",
+    "B09W4DTMQX",
+    "B09XYMSZLL",
+    "B09Y54MQWT",
+    "B09YDHLYRL",
+    "B09ZQ4GHM8",
+    "B09ZTC6LGP",
+    "B0B2LMCJRL",
+    "B0B5V5TG95",
+    "B0B6HR2RKV",
+    "B0B8CPMS4T",
+    "B0BBR71NCL",
+    "B0BCL54L82",
+    "B0BD1TRBS7",
+    "B0BF59V2F7",
+    "B0BHJXCFXW",
+    "B0BHWYQ47Y",
+    "B0BJCYP6H5",
+    "B0BJFLRMR2",
+    "B0BJW2XLMR",
+    "B0BLVJWGCC",
+    "B0BLVYRWTX",
+    "B0BMQJYLQV",
+    "B0BNC1QBH6",
+    "B0BPMJ6FKN",
+    "B0BQ5H62TT",
+    "B0BSF17PM2",
+    "B0BTT1Z16D",
+    "B0BV2YBX3Q",
+    "B0BV3NWX67",
+    "B0BXM1MVWN",
+    "B0BXM4RTZ4",
+    "B0BXZ4D1C2",
+    "B0BYDKWZQY",
+    "B0BZ49NHW2",
+    "B0C3ZV9NNY",
+    "B0C49KQRX4",
+    "B0C58RXBPQ"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Electronics",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "65.78",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "electronics-s20261101-011",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Electronics under $65.78 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 151619070,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B08Z93YKZN",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "2.39",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-000",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Office_Products under $2.39 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 347189176,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08Z93YKZN",
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "1223081273",
+    "1484707230",
+    "B0006HWRK8",
+    "B00JKCJPQ4",
+    "B00K89GGJC",
+    "B00O5WXW7W",
+    "B00T83XCM8",
+    "B00UROTAB4",
+    "B00YL5GBWG",
+    "B00YLAZXDE",
+    "B014PUOBQO",
+    "B01GRMG4TU",
+    "B01N9BOL6R",
+    "B06Y5LK3D5",
+    "B073JFXTML",
+    "B073P4W74G",
+    "B0748GPDDL",
+    "B074V752RR",
+    "B076D99J91",
+    "B076FXN3FL",
+    "B078H38QT5",
+    "B079PG2BT6",
+    "B07CKNLH9D",
+    "B07D2BN51M",
+    "B07D7CF9RZ",
+    "B07D8SX9SC",
+    "B07F1HZNVD",
+    "B07F7T3D73",
+    "B07GTFPKCP",
+    "B07KJQ62VF",
+    "B07MLP4CTN",
+    "B07QGKSP7S",
+    "B07QHPSFZ3",
+    "B07QKX1DP5",
+    "B07R57PRML",
+    "B07VH9P21M",
+    "B07VJFZCK2",
+    "B07VYN99KC",
+    "B07XY35M94",
+    "B07ZHDDZFB",
+    "B082F417S1",
+    "B082YVYDLF",
+    "B084D22DVV",
+    "B084PZBHW6",
+    "B085L5TTC9",
+    "B089WDQRSB",
+    "B08J45MDL3",
+    "B08KZVYBF8",
+    "B08PD98HYG",
+    "B08T198B1D",
+    "B08V17W3SY",
+    "B08WS227BX",
+    "B08YMVG2QG",
+    "B08Z93YKZN",
+    "B096Z6PDPF",
+    "B097CF46RC",
+    "B097JHXJQF",
+    "B097NFXCG6",
+    "B0996JBR7F",
+    "B0998F74M3",
+    "B099WJVXM6",
+    "B09CT3GD43",
+    "B09CTVRCYZ",
+    "B09DK2QFRJ",
+    "B09FG2G63M",
+    "B09FJZZQW3",
+    "B09HCGZDHR",
+    "B09HRDRXTB",
+    "B09JTTJWJ3",
+    "B09JVKQ1PK",
+    "B09KSL6PDD",
+    "B09LC2QWBT",
+    "B09LLY4S93",
+    "B09LYGXFG8",
+    "B09NMFZGCB",
+    "B09QDWBT19",
+    "B09QS97DB4",
+    "B09RHDZZ95",
+    "B09W8XZCFV",
+    "B09XWH5QWD",
+    "B09YP9YYZG",
+    "B09YPR5LV4",
+    "B0B1W4Z2DT",
+    "B0B2VPB513",
+    "B0B3MX7LVG",
+    "B0B3R1KFYJ",
+    "B0B8ZKNV6J",
+    "B0B9RV3MRZ",
+    "B0BCTWPGZK",
+    "B0BH5TPXDF",
+    "B0BKMHL1VT",
+    "B0BKZQLNH5",
+    "B0BL7WM36V",
+    "B0BMM64JS4",
+    "B0BSMKF5BQ",
+    "B0BTPHHW1W",
+    "B0BTWGF4B3",
+    "B0BVNP647J",
+    "B0BW46GVDB",
+    "B0BWS8GBV5",
+    "B0BZ12KNZZ",
+    "B0BZW2W3WR",
+    "B0BZW79ZZQ",
+    "B0C1N63BN5",
+    "B0C36Q7PM4",
+    "B0C46S9KCT",
+    "B0C4Q427VF",
+    "B0C59YJFN4",
+    "B0C5NLBBKW",
+    "B0C5XJZ3Z9"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "22.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-001",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Office_Products under $22.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 713392434,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08Z93YKZN",
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00JKCJPQ4",
+    "B00K89GGJC",
+    "B00O5WXW7W",
+    "B014PUOBQO",
+    "B01GRMG4TU",
+    "B01N9BOL6R",
+    "B06Y5LK3D5",
+    "B073JFXTML",
+    "B073P4W74G",
+    "B0748GPDDL",
+    "B07CKNLH9D",
+    "B07D2BN51M",
+    "B07D8SX9SC",
+    "B07F7T3D73",
+    "B07GTFPKCP",
+    "B07KJQ62VF",
+    "B07MLP4CTN",
+    "B07QGKSP7S",
+    "B07VH9P21M",
+    "B07VJFZCK2",
+    "B07VYN99KC",
+    "B07XY35M94",
+    "B082F417S1",
+    "B082YVYDLF",
+    "B084D22DVV",
+    "B084PZBHW6",
+    "B085L5TTC9",
+    "B089WDQRSB",
+    "B08J45MDL3",
+    "B08T198B1D",
+    "B08V17W3SY",
+    "B08YMVG2QG",
+    "B08Z93YKZN",
+    "B097CF46RC",
+    "B097NFXCG6",
+    "B0996JBR7F",
+    "B0998F74M3",
+    "B09CT3GD43",
+    "B09FG2G63M",
+    "B09HCGZDHR",
+    "B09HRDRXTB",
+    "B09JTTJWJ3",
+    "B09KSL6PDD",
+    "B09LC2QWBT",
+    "B09LLY4S93",
+    "B09LYGXFG8",
+    "B09NMFZGCB",
+    "B09QDWBT19",
+    "B09QS97DB4",
+    "B09RHDZZ95",
+    "B09W8XZCFV",
+    "B09XWH5QWD",
+    "B0B2VPB513",
+    "B0B3MX7LVG",
+    "B0B3R1KFYJ",
+    "B0B8ZKNV6J",
+    "B0B9RV3MRZ",
+    "B0BCTWPGZK",
+    "B0BH5TPXDF",
+    "B0BKMHL1VT",
+    "B0BKZQLNH5",
+    "B0BL7WM36V",
+    "B0BMM64JS4",
+    "B0BSMKF5BQ",
+    "B0BTWGF4B3",
+    "B0BVNP647J",
+    "B0BWS8GBV5",
+    "B0BZ12KNZZ",
+    "B0BZW2W3WR",
+    "B0BZW79ZZQ",
+    "B0C1N63BN5",
+    "B0C36Q7PM4",
+    "B0C46S9KCT",
+    "B0C59YJFN4"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "13.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-002",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Office_Products under $13.99 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1168611698,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "1484707230",
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "hard",
+   "feasible_set": [
+    "1484707230"
+   ],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Books"
+      ]
+     }
+    ],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "22.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-003",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Office_Products under $22.98 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 789682185,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B097JHXJQF",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Tools & Home Improvement"
+      ]
+     }
+    ],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "13.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-004",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Office_Products under $13.99 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 709181523,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B08Z93YKZN",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "2.39",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-005",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Office_Products under $2.39 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1975952725,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08Z93YKZN",
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00JKCJPQ4",
+    "B00K89GGJC",
+    "B00O5WXW7W",
+    "B014PUOBQO",
+    "B01GRMG4TU",
+    "B01N9BOL6R",
+    "B06Y5LK3D5",
+    "B073JFXTML",
+    "B073P4W74G",
+    "B0748GPDDL",
+    "B07CKNLH9D",
+    "B07D2BN51M",
+    "B07D8SX9SC",
+    "B07F7T3D73",
+    "B07GTFPKCP",
+    "B07KJQ62VF",
+    "B07MLP4CTN",
+    "B07QGKSP7S",
+    "B07VH9P21M",
+    "B07VJFZCK2",
+    "B07VYN99KC",
+    "B07XY35M94",
+    "B082F417S1",
+    "B082YVYDLF",
+    "B084D22DVV",
+    "B084PZBHW6",
+    "B085L5TTC9",
+    "B089WDQRSB",
+    "B08J45MDL3",
+    "B08T198B1D",
+    "B08V17W3SY",
+    "B08YMVG2QG",
+    "B08Z93YKZN",
+    "B097CF46RC",
+    "B097NFXCG6",
+    "B0996JBR7F",
+    "B0998F74M3",
+    "B09CT3GD43",
+    "B09FG2G63M",
+    "B09HCGZDHR",
+    "B09HRDRXTB",
+    "B09JTTJWJ3",
+    "B09KSL6PDD",
+    "B09LC2QWBT",
+    "B09LLY4S93",
+    "B09LYGXFG8",
+    "B09NMFZGCB",
+    "B09QDWBT19",
+    "B09QS97DB4",
+    "B09RHDZZ95",
+    "B09W8XZCFV",
+    "B09XWH5QWD",
+    "B0B2VPB513",
+    "B0B3MX7LVG",
+    "B0B3R1KFYJ",
+    "B0B8ZKNV6J",
+    "B0B9RV3MRZ",
+    "B0BCTWPGZK",
+    "B0BH5TPXDF",
+    "B0BKMHL1VT",
+    "B0BKZQLNH5",
+    "B0BL7WM36V",
+    "B0BMM64JS4",
+    "B0BSMKF5BQ",
+    "B0BTWGF4B3",
+    "B0BVNP647J",
+    "B0BWS8GBV5",
+    "B0BZ12KNZZ",
+    "B0BZW2W3WR",
+    "B0BZW79ZZQ",
+    "B0C1N63BN5",
+    "B0C36Q7PM4",
+    "B0C46S9KCT",
+    "B0C59YJFN4"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "13.99",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-006",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Office_Products under $13.99 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 2008509288,
+   "split": "test",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "1484707230",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Books"
+      ]
+     }
+    ],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "9.97",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-007",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Office_Products under $9.97 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 290836906,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B097JHXJQF",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Tools & Home Improvement"
+      ]
+     }
+    ],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "9.97",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-008",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Office_Products under $9.97 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 157863120,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B09KSL6PDD",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Toys & Games"
+      ]
+     }
+    ],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "9.97",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-009",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Office_Products under $9.97 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 631928521,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08Z93YKZN",
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B0006HWRK8",
+    "B00JKCJPQ4",
+    "B00K89GGJC",
+    "B00O5WXW7W",
+    "B00T83XCM8",
+    "B00YL5GBWG",
+    "B00YLAZXDE",
+    "B014PUOBQO",
+    "B01GRMG4TU",
+    "B01N9BOL6R",
+    "B06Y5LK3D5",
+    "B073JFXTML",
+    "B073P4W74G",
+    "B0748GPDDL",
+    "B076D99J91",
+    "B078H38QT5",
+    "B079PG2BT6",
+    "B07CKNLH9D",
+    "B07D2BN51M",
+    "B07D7CF9RZ",
+    "B07D8SX9SC",
+    "B07F1HZNVD",
+    "B07F7T3D73",
+    "B07GTFPKCP",
+    "B07KJQ62VF",
+    "B07MLP4CTN",
+    "B07QKX1DP5",
+    "B07R57PRML",
+    "B07VH9P21M",
+    "B07VJFZCK2",
+    "B07VYN99KC",
+    "B07ZHDDZFB",
+    "B082F417S1",
+    "B082YVYDLF",
+    "B084D22DVV",
+    "B085L5TTC9",
+    "B089WDQRSB",
+    "B08J45MDL3",
+    "B08KZVYBF8",
+    "B08PD98HYG",
+    "B08V17W3SY",
+    "B08WS227BX",
+    "B08YMVG2QG",
+    "B08Z93YKZN",
+    "B096Z6PDPF",
+    "B097CF46RC",
+    "B097NFXCG6",
+    "B0996JBR7F",
+    "B0998F74M3",
+    "B099WJVXM6",
+    "B09CT3GD43",
+    "B09CTVRCYZ",
+    "B09DK2QFRJ",
+    "B09FG2G63M",
+    "B09FJZZQW3",
+    "B09HCGZDHR",
+    "B09HRDRXTB",
+    "B09JTTJWJ3",
+    "B09JVKQ1PK",
+    "B09LC2QWBT",
+    "B09NMFZGCB",
+    "B09QDWBT19",
+    "B09RHDZZ95",
+    "B09W8XZCFV",
+    "B09XWH5QWD",
+    "B09YP9YYZG",
+    "B09YPR5LV4",
+    "B0B1W4Z2DT",
+    "B0B2VPB513",
+    "B0B3R1KFYJ",
+    "B0B8ZKNV6J",
+    "B0B9RV3MRZ",
+    "B0BCTWPGZK",
+    "B0BH5TPXDF",
+    "B0BKMHL1VT",
+    "B0BL7WM36V",
+    "B0BMM64JS4",
+    "B0BSMKF5BQ",
+    "B0BTPHHW1W",
+    "B0BTWGF4B3",
+    "B0BVNP647J",
+    "B0BW46GVDB",
+    "B0BWS8GBV5",
+    "B0BZ12KNZZ",
+    "B0BZW2W3WR",
+    "B0BZW79ZZQ",
+    "B0C1N63BN5",
+    "B0C36Q7PM4",
+    "B0C46S9KCT",
+    "B0C4Q427VF",
+    "B0C59YJFN4",
+    "B0C5NLBBKW",
+    "B0C5XJZ3Z9"
+   ],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Office Products"
+      ]
+     }
+    ],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "22.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-010",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Office_Products under $22.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1199440229,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "535d747a06a121b3e37fb4bcd63805de0802249b13da31e4e6ce767ca1003fd7",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B097JHXJQF",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Tools & Home Improvement"
+      ]
+     }
+    ],
+    "category": "Office_Products",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "2.39",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "office_products-s20261101-011",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Office_Products under $2.39 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 975560449,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0792DQGVX",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Sports & Outdoors"
+      ]
+     }
+    ],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "7.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-000",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Clothing_Shoes_and_Jewelry under $7.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 2085769663,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B00KBZOB40",
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00KBZOB40",
+    "B00KRYL71U",
+    "B0794VPVBH",
+    "B07BT5QZSB",
+    "B07CS9CG1Q",
+    "B07GVD8JPD",
+    "B07JPYSNDP",
+    "B07PN96XXJ",
+    "B07PQVDR45",
+    "B07TB8HZSQ",
+    "B07Z6J5N6Y",
+    "B0863H2XQZ",
+    "B089Y37G5Y",
+    "B08GCY2KQW",
+    "B08MJVWH16",
+    "B08WY5QXWB",
+    "B08YDWZ3C3",
+    "B0956HNH2Y",
+    "B0964J71QD",
+    "B09H3BS4QD",
+    "B09JB9XMW1",
+    "B09LSSM712",
+    "B09M67XH17",
+    "B0B9FBBHMY",
+    "B0BCHL66FT",
+    "B0BN99JVGS",
+    "B0BPV1P1PZ",
+    "B0BQLK5XYR",
+    "B0BV9DLYS8",
+    "B0C1GGKR87",
+    "B0C2D3BMC8",
+    "B0C3NBLK35",
+    "B0C46SPL6D",
+    "B0C4G3VQ9W",
+    "B0C4GBYM9C",
+    "B0C5TFFWNQ",
+    "B0C66HKVT7"
+   ],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "AMAZON FASHION"
+      ]
+     }
+    ],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "17.49",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-001",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Clothing_Shoes_and_Jewelry under $17.49 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 223338156,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08JX9G17V",
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B002G9U8VE",
+    "B00KBZOB40",
+    "B00KRYL71U",
+    "B06VY7R1MZ",
+    "B071CVH7VW",
+    "B0738J92CM",
+    "B077276QGC",
+    "B0792DQGVX",
+    "B0794VPVBH",
+    "B079BH5QPP",
+    "B07BT5QZSB",
+    "B07CS9CG1Q",
+    "B07CY398FB",
+    "B07DK5W36Z",
+    "B07DWXMJFP",
+    "B07G554VLP",
+    "B07GVD8JPD",
+    "B07HQCCDFC",
+    "B07JPYSNDP",
+    "B07MT546HC",
+    "B07N4P8TXK",
+    "B07PN96XXJ",
+    "B07PQVDR45",
+    "B07Q8T3LJH",
+    "B07QQMH2LF",
+    "B07TB8HZSQ",
+    "B07TZRN38M",
+    "B07Z6J5N6Y",
+    "B0863H2XQZ",
+    "B08918HKQ9",
+    "B089Y37G5Y",
+    "B08GCY2KQW",
+    "B08JX9G17V",
+    "B08L13LJ5M",
+    "B08MJVWH16",
+    "B08WY5QXWB",
+    "B08YDWZ3C3",
+    "B091F4LQWS",
+    "B0929KL5W7",
+    "B093QNR84N",
+    "B0956HNH2Y",
+    "B0964J71QD",
+    "B096TJWWRM",
+    "B09H3BS4QD",
+    "B09JB9XMW1",
+    "B09LSSM712",
+    "B09M67XH17",
+    "B09Y3V1P78",
+    "B0B29HBZ13",
+    "B0B9FBBHMY",
+    "B0BCHL66FT",
+    "B0BFQBC58T",
+    "B0BGZ56RR2",
+    "B0BMTZ8S8H",
+    "B0BN99JVGS",
+    "B0BPSYMBYF",
+    "B0BPV1P1PZ",
+    "B0BQLK5XYR",
+    "B0BRX8TCWS",
+    "B0BSSBKGMJ",
+    "B0BTGXFSBJ",
+    "B0BTNVPGD9",
+    "B0BV9DLYS8",
+    "B0BW96R1X3",
+    "B0BX6N6W3C",
+    "B0BZ8CRQ81",
+    "B0C1GGKR87",
+    "B0C2D3BMC8",
+    "B0C3NBLK35",
+    "B0C43DGGST",
+    "B0C46SPL6D",
+    "B0C4G3VQ9W",
+    "B0C4GBYM9C",
+    "B0C5TFFWNQ",
+    "B0C5VYQ6V4",
+    "B0C66HKVT7"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "25.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-002",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "Hi! need Clothing_Shoes_and_Jewelry under $25.00 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 747839878,
+   "split": "val",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B08JX9G17V",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Health & Personal Care"
+      ]
+     }
+    ],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "7.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-003",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Clothing_Shoes_and_Jewelry under $7.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1755112964,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B08JX9G17V",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "7.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-004",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Clothing_Shoes_and_Jewelry under $7.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 149638512,
+   "split": "val",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B0792DQGVX",
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "hard",
+   "feasible_set": [
+    "B0792DQGVX"
+   ],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Sports & Outdoors"
+      ]
+     }
+    ],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "35.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-005",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Clothing_Shoes_and_Jewelry under $35.00 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 154962388,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B08JX9G17V",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "7.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-006",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Clothing_Shoes_and_Jewelry under $7.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 406680806,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B00KBZOB40",
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B002G9U8VE",
+    "B00KBZOB40",
+    "B00KRYL71U",
+    "B01M4RQH83",
+    "B06VY7R1MZ",
+    "B071CVH7VW",
+    "B0738J92CM",
+    "B073XLK7FF",
+    "B074PWBPCL",
+    "B076HBFTYR",
+    "B077276QGC",
+    "B0794VPVBH",
+    "B079BH5QPP",
+    "B07BT5QZSB",
+    "B07CS9CG1Q",
+    "B07CY398FB",
+    "B07DK5W36Z",
+    "B07DRRV34R",
+    "B07DWXMJFP",
+    "B07G554VLP",
+    "B07GVD8JPD",
+    "B07HQCCDFC",
+    "B07JPYSNDP",
+    "B07MBNJHXD",
+    "B07MT546HC",
+    "B07N4P8TXK",
+    "B07PMF9392",
+    "B07PN96XXJ",
+    "B07PQVDR45",
+    "B07Q8T3LJH",
+    "B07QQMH2LF",
+    "B07RF944N6",
+    "B07T4WDPGJ",
+    "B07TB8HZSQ",
+    "B07TZRN38M",
+    "B07Z6J5N6Y",
+    "B08134XNNB",
+    "B0834T68X3",
+    "B0863H2XQZ",
+    "B08918HKQ9",
+    "B089Y37G5Y",
+    "B08B7VV8JP",
+    "B08D22XC8M",
+    "B08GCY2KQW",
+    "B08L13LJ5M",
+    "B08M7CGGZB",
+    "B08MJVWH16",
+    "B08PG4FSMV",
+    "B08QWZ1WGZ",
+    "B08WY5QXWB",
+    "B08YDWZ3C3",
+    "B091F4LQWS",
+    "B0929KL5W7",
+    "B093QNR84N",
+    "B0956HNH2Y",
+    "B0964J71QD",
+    "B096TJWWRM",
+    "B0972JMZTZ",
+    "B097P2S3J7",
+    "B098ZNVPBL",
+    "B09CNT7NF2",
+    "B09H3BS4QD",
+    "B09JB9XMW1",
+    "B09LSSM712",
+    "B09M67XH17",
+    "B09P65M64Z",
+    "B09QT4DRMB",
+    "B09QT6H6NQ",
+    "B09R4Z42F4",
+    "B09TSLQ3B5",
+    "B09XFD75HR",
+    "B09Y3V1P78",
+    "B0B29HBZ13",
+    "B0B4BRW7JT",
+    "B0B9FBBHMY",
+    "B0BCHL66FT",
+    "B0BFQBC58T",
+    "B0BGFVMW7R",
+    "B0BGZ56RR2",
+    "B0BHZ91844",
+    "B0BKT5D697",
+    "B0BMTZ8S8H",
+    "B0BN99JVGS",
+    "B0BPMQY64S",
+    "B0BPSYMBYF",
+    "B0BPV1P1PZ",
+    "B0BQ6X4RDP",
+    "B0BQDTGHMZ",
+    "B0BQLK5XYR",
+    "B0BQVRWY7D",
+    "B0BRX8TCWS",
+    "B0BS29CQ5M",
+    "B0BSSBKGMJ",
+    "B0BTGXFSBJ",
+    "B0BTNVPGD9",
+    "B0BV8F1H41",
+    "B0BV9DLYS8",
+    "B0BW96R1X3",
+    "B0BX6N6W3C",
+    "B0BZ8CRQ81",
+    "B0C1GGKR87",
+    "B0C2C9462Q",
+    "B0C2D3BMC8",
+    "B0C3NBLK35",
+    "B0C43DGGST",
+    "B0C46SPL6D",
+    "B0C4G3VQ9W",
+    "B0C4GBYM9C",
+    "B0C5TFFWNQ",
+    "B0C5VYQ6V4",
+    "B0C66HKVT7"
+   ],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "AMAZON FASHION"
+      ]
+     }
+    ],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "35.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-007",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Clothing_Shoes_and_Jewelry under $35.00 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 244793268,
+   "split": "val",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08JX9G17V",
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B00KBZOB40",
+    "B00KRYL71U",
+    "B0794VPVBH",
+    "B07BT5QZSB",
+    "B07CS9CG1Q",
+    "B07GVD8JPD",
+    "B07JPYSNDP",
+    "B07PN96XXJ",
+    "B07PQVDR45",
+    "B07TB8HZSQ",
+    "B07Z6J5N6Y",
+    "B0863H2XQZ",
+    "B089Y37G5Y",
+    "B08GCY2KQW",
+    "B08JX9G17V",
+    "B08MJVWH16",
+    "B08WY5QXWB",
+    "B08YDWZ3C3",
+    "B0956HNH2Y",
+    "B0964J71QD",
+    "B09H3BS4QD",
+    "B09JB9XMW1",
+    "B09LSSM712",
+    "B09M67XH17",
+    "B0B9FBBHMY",
+    "B0BCHL66FT",
+    "B0BN99JVGS",
+    "B0BPV1P1PZ",
+    "B0BQLK5XYR",
+    "B0BV9DLYS8",
+    "B0C1GGKR87",
+    "B0C2D3BMC8",
+    "B0C3NBLK35",
+    "B0C46SPL6D",
+    "B0C4G3VQ9W",
+    "B0C4GBYM9C",
+    "B0C5TFFWNQ",
+    "B0C66HKVT7"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "17.49",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-008",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Clothing_Shoes_and_Jewelry under $17.49 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1239699766,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": null,
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": "B0792DQGVX",
+   "difficulty": "hard",
+   "feasible_set": [],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Sports & Outdoors"
+      ]
+     }
+    ],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "7.98",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-009",
+   "implied_needs": [],
+   "is_impossible": true,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Clothing_Shoes_and_Jewelry under $7.98 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1880404949,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08JX9G17V",
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "easy",
+   "feasible_set": [
+    "B002G9U8VE",
+    "B00KBZOB40",
+    "B00KRYL71U",
+    "B06VY7R1MZ",
+    "B071CVH7VW",
+    "B0738J92CM",
+    "B077276QGC",
+    "B0792DQGVX",
+    "B0794VPVBH",
+    "B079BH5QPP",
+    "B07BT5QZSB",
+    "B07CS9CG1Q",
+    "B07CY398FB",
+    "B07DK5W36Z",
+    "B07DWXMJFP",
+    "B07G554VLP",
+    "B07GVD8JPD",
+    "B07HQCCDFC",
+    "B07JPYSNDP",
+    "B07MT546HC",
+    "B07N4P8TXK",
+    "B07PN96XXJ",
+    "B07PQVDR45",
+    "B07Q8T3LJH",
+    "B07QQMH2LF",
+    "B07TB8HZSQ",
+    "B07TZRN38M",
+    "B07Z6J5N6Y",
+    "B0863H2XQZ",
+    "B08918HKQ9",
+    "B089Y37G5Y",
+    "B08GCY2KQW",
+    "B08JX9G17V",
+    "B08L13LJ5M",
+    "B08MJVWH16",
+    "B08WY5QXWB",
+    "B08YDWZ3C3",
+    "B091F4LQWS",
+    "B0929KL5W7",
+    "B093QNR84N",
+    "B0956HNH2Y",
+    "B0964J71QD",
+    "B096TJWWRM",
+    "B09H3BS4QD",
+    "B09JB9XMW1",
+    "B09LSSM712",
+    "B09M67XH17",
+    "B09Y3V1P78",
+    "B0B29HBZ13",
+    "B0B9FBBHMY",
+    "B0BCHL66FT",
+    "B0BFQBC58T",
+    "B0BGZ56RR2",
+    "B0BMTZ8S8H",
+    "B0BN99JVGS",
+    "B0BPSYMBYF",
+    "B0BPV1P1PZ",
+    "B0BQLK5XYR",
+    "B0BRX8TCWS",
+    "B0BSSBKGMJ",
+    "B0BTGXFSBJ",
+    "B0BTNVPGD9",
+    "B0BV9DLYS8",
+    "B0BW96R1X3",
+    "B0BX6N6W3C",
+    "B0BZ8CRQ81",
+    "B0C1GGKR87",
+    "B0C2D3BMC8",
+    "B0C3NBLK35",
+    "B0C43DGGST",
+    "B0C46SPL6D",
+    "B0C4G3VQ9W",
+    "B0C4GBYM9C",
+    "B0C5TFFWNQ",
+    "B0C5VYQ6V4",
+    "B0C66HKVT7"
+   ],
+   "hard_constraints": {
+    "attributes": [],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "25.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-010",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "ok so I need Clothing_Shoes_and_Jewelry under $25.00 all in. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1167590196,
+   "split": "test",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  },
+  {
+   "ambiguities": [],
+   "best_value_reference": "B08JX9G17V",
+   "catalog_manifest_hash": "22d50967c74dcd8e1833a97496004cfdc33699e26c92c7b73b36904deb05e6fc",
+   "catalog_snapshot_id": "amazon2023-81d66c638123",
+   "closest_product_id": null,
+   "difficulty": "hard",
+   "feasible_set": [
+    "B08JX9G17V"
+   ],
+   "hard_constraints": {
+    "attributes": [
+     {
+      "attribute": "main_category",
+      "evidence": {
+       "checkable": true,
+       "provenance": "catalog product attribute",
+       "source_field": "attributes"
+      },
+      "operator": "eq",
+      "values": [
+       "Health & Personal Care"
+      ]
+     }
+    ],
+    "category": "Clothing_Shoes_and_Jewelry",
+    "category_evidence": {
+     "checkable": true,
+     "provenance": "catalog product category",
+     "source_field": "category"
+    },
+    "currency": "USD",
+    "max_total": "35.00",
+    "price_evidence": {
+     "checkable": true,
+     "provenance": "catalog listed price",
+     "source_field": "price"
+    },
+    "required_variant": null,
+    "variant_evidence": {
+     "checkable": true,
+     "provenance": "catalog variant inventory",
+     "source_field": "variants"
+    }
+   },
+   "held_out_category": false,
+   "id": "clothing_shoes_and_jewelry-s20261101-011",
+   "implied_needs": [],
+   "is_impossible": false,
+   "is_review_trap": false,
+   "raw_message": "hey, im after Clothing_Shoes_and_Jewelry under $35.00 all in for about 10k-ish. thx",
+   "research_requirements": {
+    "min_candidates_compared": 2,
+    "min_reviews_consulted": 2
+   },
+   "review_adjusted_best": null,
+   "review_signals": [],
+   "schema_version": "1.0",
+   "seed": 1901669205,
+   "split": "train",
+   "suitable_for_deterministic_training": true,
+   "unsuitable_reasons": []
+  }
+ ]
+}

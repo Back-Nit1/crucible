@@ -55,3 +55,9 @@ def test_feasible_sets_are_real_and_impossible_tasks_have_a_real_closest_product
 def test_unknown_or_empty_category_produces_no_tasks():
     _, cat = catalog()
     assert generate_tasks(cat, ["Nothing"], 3, seed=1, snapshot_id="s") == []
+
+
+def test_intended_feasible_tasks_are_not_accidentally_impossible():
+    _, cat = catalog()
+    tasks = generate_tasks(cat, ["Cat"], 60, seed=9, snapshot_id="s", impossible_fraction=0.0)
+    assert tasks and not any(t.is_impossible for t in tasks)

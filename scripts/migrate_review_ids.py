@@ -35,13 +35,35 @@ def migrate_docs(legacy_docs: list[dict]) -> list[tuple[str, dict]]:
     return out
 
 
+def rehash_manifests(raw_dir: str, manifest_dir: str = "data/manifests") -> dict[str, str]:
+    """Recompute each category manifest digest with the new review ids (same rule as catalog.sources.snapshot.build)."""
+    import hashlib
+    out = {}
+    for f in sorted(glob.glob(f"{raw_dir}/snapshot_*.json")):
+        cat = os.path.basename(f)[len("snapshot_"):-len(".json")]
+        d = json.load(open(f))
+        new = [nd for _, nd in migrate_docs(d["reviews"])]
+        digest = hashlib.sha256("\n".join(sorted(p["product_id"] for p in d["products"]) + sorted(r["review_id"] for r in new)).encode()).hexdigest()
+        mp = f"{manifest_dir}/{cat}.json"
+        m = json.load(open(mp))
+        m.update({"legacy_sha256": m["sha256"], "sha256": digest, "review_id_scheme": "v2: amazon2023:parent_asin:asin:user_id:timestamp[:n]; source key kept in source_review_key",
+                  "duplicate_source_rows": len(new) - len({r["source_review_key"] for r in new})})
+        json.dump(m, open(mp, "w"), indent=2); open(mp, "a").write("\n")
+        out[cat] = digest
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--raw-dir", required=True)
     ap.add_argument("--env-file")
     ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--rehash-manifests", action="store_true")
     a = ap.parse_args()
     legacy = [r for f in sorted(glob.glob(f"{a.raw_dir}/snapshot_*.json")) for r in json.load(open(f))["reviews"]]
+    if a.rehash_manifests:
+        print(json.dumps(rehash_manifests(a.raw_dir), indent=1))
+        return
     plan = migrate_docs(legacy)
     ids = [d["review_id"] for _, d in plan]
     assert len(ids) == len(set(ids)), "new ids must be unique"

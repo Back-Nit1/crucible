@@ -38,10 +38,15 @@ def generate_tasks(catalog: CatalogProvider, categories: list[str], per_category
                 cap = max(_CENT, (prices[0] - _CENT))
             else:
                 cap = _quantile(prices, rng.choice((0.25, 0.5, 0.75))).quantize(_CENT, ROUND_HALF_UP)
-            task = build_task(
-                task_id=f"{category.lower()}-s{seed}-{i:03d}", catalog_snapshot_id=snapshot_id, catalog=catalog,
-                constraints=HardConstraints(category=category, max_total=cap, attributes=attrs),
-                seed=rng.randrange(2**31), split_config=split_config, difficulty=Difficulty.MEDIUM)
+            def make(attrs_):
+                return build_task(
+                    task_id=f"{category.lower()}-s{seed}-{i:03d}", catalog_snapshot_id=snapshot_id, catalog=catalog,
+                    constraints=HardConstraints(category=category, max_total=cap, attributes=attrs_),
+                    seed=task_seed, split_config=split_config, difficulty=Difficulty.MEDIUM)
+            task_seed = rng.randrange(2**31)
+            task = make(attrs)
+            if attrs and task.is_impossible and not impossible:
+                task = make(())  # an unintended empty feasible set: drop the attribute so the task stays feasible as intended
             n = len(task.feasible_set)
             difficulty = Difficulty.HARD if task.is_impossible or n <= 3 else Difficulty.MEDIUM if n <= 15 else Difficulty.EASY
             tasks.append(task.model_copy(update={"difficulty": difficulty}))
