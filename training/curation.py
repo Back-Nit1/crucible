@@ -54,6 +54,13 @@ def _normalized(value: str) -> str:
     return re.sub(r"\s+", " ", value.casefold()).strip()
 
 
+def _normalized_action(action) -> dict[str, object]:
+    payload = action.model_dump(mode="json")
+    if payload.get("type") == "confirm_and_pay":
+        payload["pending_order_id"] = "<pending-order>"
+    return payload
+
+
 def _grounded(episode: EpisodeRecord) -> bool:
     if episode.score_components.get("gate") not in (1, "1"):
         return False
@@ -83,7 +90,7 @@ def _record(episode: EpisodeRecord, task: TaskSpec) -> SFTRecord:
                 {"role": "assistant", "content": episode.final_answer})
     normalized_payload = {
         "task": _normalized(task.raw_message),
-        "actions": [call.action.model_dump(mode="json") for call in episode.tool_calls],
+        "actions": [_normalized_action(call.action) for call in episode.tool_calls],
         "answer": _normalized(episode.final_answer),
     }
     digest = hashlib.sha256(json.dumps(normalized_payload, sort_keys=True,

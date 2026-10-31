@@ -23,6 +23,8 @@ from tasks.schemas import HardConstraints, ReviewPolarity, TaskSplit
 from tests.fixtures.scoring import InMemoryCatalog
 from world.evolution import initialize_population
 from world.orchestrator import run_generation
+from training.curation import curate_survivors
+from eval.artifacts import write_evaluation
 
 
 NOW = dt.datetime(2026, 10, 31, tzinfo=dt.UTC)
@@ -181,6 +183,27 @@ def test_generation_resume_is_duplicate_free_and_reports_honest_metrics(tmp_path
     assert resumed.summary.mock_payment_count == 8
     assert resumed.summary.total_cost == 0
     assert set(genome.id for genome in resumed.next_generation) != set(genome.id for genome in genomes)
+
+    survivor_episodes = tuple(
+        episode for episode in resumed.episodes if episode.agent_id in resumed.survivor_ids
+    )
+    curated = curate_survivors(
+        survivor_episodes,
+        {task.id: task for task in tasks},
+        catalog,
+        catalog_hash="a" * 64,
+        task_version="fixture-tasks-v1",
+        rule_version="kills-v1",
+        model_version="scripted-v1",
+        created_at=NOW,
+    )
+    assert len(curated.records) == 3
+    assert set(curated.manifest.source_task_splits.values()) == {TaskSplit.TRAIN}
+    assert len(curated.manifest.content_hash) == 64
+    json_path, markdown_path = write_evaluation(
+        resumed.evaluation, tmp_path / "reports", "generation-1"
+    )
+    assert json_path.exists() and markdown_path.exists()
 
     repeated = run_generation(
         store=store,
