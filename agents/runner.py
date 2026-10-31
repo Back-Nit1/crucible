@@ -16,6 +16,7 @@ from agents.actions import (
 from agents.executor import InMemoryToolExecutor
 from agents.memory import MemoryProvider, RetrievalRequest
 from agents.state import InvalidActionOrder
+from payments.guards import BudgetViolation, GuardViolation
 from scoring.fitness import calculate_efficiency_penalty, calculate_fitness
 from scoring.gate import evaluate_gate
 from scoring.kill_rules import evaluate_kill_rules
@@ -128,6 +129,7 @@ def run_episode(
     cost = Decimal(0)
     termination = EpisodeTermination.MODEL_FAILURE
     failure = "model returned no terminal action"
+    pre_kill: tuple[dict[str, object], ...] = ()
     if memory is not None:
         memory.retrieve(RetrievalRequest(task.id, task.split, task.hard_constraints.category,
                                          task.raw_message, 3, 0))
@@ -151,6 +153,18 @@ def run_episode(
             break
         try:
             executor.execute(step.action)
+        except GuardViolation as exc:
+            failure = f"payment guard rejected: {type(exc).__name__}"
+            if isinstance(exc, BudgetViolation):
+                termination = EpisodeTermination.INSTANT_KILL
+                pre_kill = ({
+                    "rule_id": "K003_BUDGET_VIOLATION", "rule_version": 1,
+                    "description": "Payment attempt exceeds the task cap",
+                    "evidence": (str(exc),),
+                },)
+            else:
+                termination = EpisodeTermination.MALFORMED_ACTION
+            break
         except (InvalidActionOrder, ValueError, KeyError) as exc:
             termination = EpisodeTermination.MALFORMED_ACTION
             failure = f"invalid action: {exc}"
@@ -168,7 +182,7 @@ def run_episode(
         failure = "maximum tool calls reached"
 
     score_components: dict[str, object] = {}
-    kill_information: tuple[dict[str, object], ...] = ()
+    kill_information: tuple[dict[str, object], ...] = pre_kill
     recommended: tuple[str, ...] = ()
     refusal = None
     final = failure

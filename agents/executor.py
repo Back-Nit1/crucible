@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Callable
 
 from catalog.providers.base import CatalogProvider
-from payments.guards import GuardedPayments
+from payments.guards import GuardedPayments, GuardViolation
 from agents.actions import (
     Action, Compare, ConfirmAndPay, GetProduct, GetReviews, ParseIntent,
     ProposePurchase, RecordedToolCall, ReportNoMatch, SearchCatalog,
@@ -65,10 +65,21 @@ class InMemoryToolExecutor:
             ))
             summary = f"grounded {len(action.claims)} claims"
         elif isinstance(action, ProposePurchase):
-            pending = self.payments.propose_purchase(
-                self.task_id, self.agent_id, action.product_id, action.variant,
-                action.expected_total, self.budget_cap,
-            )
+            try:
+                pending = self.payments.propose_purchase(
+                    self.task_id, self.agent_id, action.product_id, action.variant,
+                    action.expected_total, self.budget_cap,
+                )
+            except GuardViolation as exc:
+                record = RecordedToolCall(
+                    sequence=len(self.records), action=action,
+                    arguments=action.model_dump(mode="json", exclude={"type"}),
+                    result_summary=f"payment guard rejected: {type(exc).__name__}",
+                    error_code=type(exc).__name__, timestamp=self.clock(),
+                )
+                self.records.append(record)
+                self.state.calls += 1
+                raise
             references = (pending.id, pending.order_id)
             summary = "pending order created"
         elif isinstance(action, ConfirmAndPay):

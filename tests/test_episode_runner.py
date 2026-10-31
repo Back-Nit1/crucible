@@ -71,3 +71,19 @@ def test_invalid_order_terminates_without_payment():
     episode = run_episode(episode_id="ep-bad", task=task, agent_id="agent-1", generation_id="gen-1",
         policy=ScriptedPolicy([SearchCatalog(query="shoe")]), executor=executor, seed=1, clock=lambda: NOW)
     assert episode.termination == "malformed_action" and backend.ledger == []
+
+
+def test_over_budget_attempt_is_traced_and_instantly_killed():
+    task = feasible_task(); backend, executor = make_executor(task)
+    actions = [
+        ParseIntent(raw_message=task.raw_message, category="running-shoes", max_total=Decimal("100"), assumptions=("size 12",)),
+        SearchCatalog(query="", filters={"category": "running-shoes"}), GetProduct(product_id="shoe-a"),
+        GetReviews(product_id="shoe-a", limit=2), Compare(product_ids=("shoe-a", "shoe-b")),
+        ProposePurchase(product_id="shoe-a", variant="12", expected_total=Decimal("101"), assumptions=("size 12",)),
+    ]
+    episode = run_episode(episode_id="ep-budget", task=task, agent_id="agent-1", generation_id="gen-1",
+                          policy=ScriptedPolicy(actions), executor=executor, seed=1, clock=lambda: NOW)
+    assert episode.termination == "instant_kill"
+    assert episode.kill_information[0]["rule_id"] == "K003_BUDGET_VIOLATION"
+    assert episode.tool_calls[-1].error_code == "BudgetViolation"
+    assert backend.ledger == []

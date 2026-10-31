@@ -95,6 +95,7 @@ class RecordedToolCall(ActionModel):
     arguments: dict[str, object]
     result_references: tuple[str, ...] = ()
     result_summary: str = Field(min_length=1)
+    error_code: str | None = None
     timestamp: dt.datetime
 
 
