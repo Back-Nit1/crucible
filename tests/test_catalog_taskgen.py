@@ -61,3 +61,9 @@ def test_intended_feasible_tasks_are_not_accidentally_impossible():
     _, cat = catalog()
     tasks = generate_tasks(cat, ["Cat"], 60, seed=9, snapshot_id="s", impossible_fraction=0.0)
     assert tasks and not any(t.is_impossible for t in tasks)
+
+
+def test_impossible_mix_is_exact_not_sampled():
+    _, cat = catalog()
+    tasks = generate_tasks(cat, ["Cat"], 12, seed=3, snapshot_id="s", impossible_fraction=0.25)
+    assert sum(t.is_impossible for t in tasks) == 3

@@ -29,7 +29,7 @@ def generate_tasks(catalog: CatalogProvider, categories: list[str], per_category
         prices = [p.price for p in products]
         mains = sorted({p.attributes.get("main_category") for p in products if p.attributes.get("main_category")})
         for i in range(per_category):
-            impossible = rng.random() < impossible_fraction
+            impossible = int((i + 1) * impossible_fraction) > int(i * impossible_fraction)  # stratified: exact mix, no sampling noise
             attrs: tuple[AttributeConstraint, ...] = ()
             if mains and rng.random() < 0.5:
                 attrs = (AttributeConstraint(attribute="main_category", operator=ConstraintOperator.EQ,
