@@ -91,6 +91,28 @@ class ProviderRouter:
         base["source"] = self.cfg["providers"].get(name, {}).get("reviews_source") or name
         return ReviewsResult(reviews=revs, reviews_available=bool(revs), **base)
 
+    def _snapshot(self, mode: Mode):
+        """The provider for `mode` as a SnapshotCatalog; live providers (Channel3) cannot enumerate."""
+        name = self.provider_name(mode)
+        prov = self.providers[name]
+        if not hasattr(prov, "iter_products"):
+            raise ProviderUnavailable(f"{name} cannot enumerate a frozen catalog")
+        return name, prov
+
+    def enumerate_products(self, category: str, mode: Mode = "training") -> SearchResult:
+        """Explicit, complete, id-ordered enumeration of one category (the only supported enumeration path)."""
+        if mode == "live":
+            raise ProviderUnavailable("enumeration is a frozen-snapshot operation (training/eval only)")
+        name, prov = self._snapshot(mode)
+        prods = list(prov.iter_products(category))
+        return SearchResult(products=prods, **self._stamp(name, prods, None))
+
+    def review_ids(self, product_id: str, mode: Mode = "training") -> frozenset[str]:
+        """Complete product-scoped review-id set; never truncated."""
+        if mode == "live":
+            raise ProviderUnavailable("complete review-id lookup is a frozen-snapshot operation")
+        return self._snapshot(mode)[1].review_ids(product_id)
+
     def status(self) -> dict:
         return {"live_chat": self.cfg["live_chat"], "training_eval": SNAPSHOT,
                 "providers": {n: {"enabled": n in self.providers, **c} for n, c in (self.cfg.get("providers") or {}).items()}}
