@@ -11,3 +11,17 @@ node_modules/
 .next/
 graphify-out/cache/
 graphify-out/
+# model weights, caches, auth-bearing recordings, generated secrets
+*.safetensors
+*.gguf
+*.bin
+*.pt
+.cache/
+.ruff_cache/
+.mypy_cache/
+docs/media/raw/
+*.har
+*.webm
+*.mp4
+secrets/
+*.pem
