@@ -162,6 +162,8 @@ def _fabricated_review_evidence(
 def _skipped_reviews(
     task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider
 ) -> tuple[str, ...]:
+    if isinstance(trace.outcome, NoMatchOutcome):
+        return ()
     evidence: list[str] = []
     for product_id in _outcome_product_ids(trace):
         if not _catalog_reviews(catalog, product_id):
