@@ -1,4 +1,18 @@
-# Written by the Day-1 catalog check (spec 15.4). Nothing verified yet.
-status: pending
-live_chat: elastic_snapshot   # safe default until Channel3 / Best Buy terms are checked
-training_eval: elastic_snapshot
+# Day-1 provider decisions (spec 15.4). Evidence: docs/spikes/platform-day1.md. Verified facts only.
+status: decided-2026-10-31
+live_chat: elastic_snapshot   # channel3 is opt-in: no review text, so no review-grounded picks (see DECISIONS.md)
+training_eval: elastic_snapshot  # always; router ignores this key and pins training/eval to the snapshot
+providers:
+  elastic_snapshot:
+    enabled: true
+    reviews_source: amazon2023
+    note: Amazon Reviews 2023 frozen snapshot (Hou et al. 2024, arXiv:2403.03952); research use, short excerpts only.
+  channel3:
+    enabled: true
+    live_only: true
+    reviews: none          # ratings rollup only
+    snapshot_allowed: false  # ToS s.7 bars bulk caching and ML training on output
+    note: Live product display only; short-TTL cache; commission disclosure if affiliate links shown.
+  bestbuy:
+    enabled: false
+    note: Disabled. Developer signup unavailable (email restriction); not bypassed.
