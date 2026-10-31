@@ -188,28 +188,6 @@ class TaskSpec(ContractModel):
 
     @model_validator(mode="after")
     def validate_ground_truth_links(self) -> TaskSpec:
-        if len(self.feasible_set) != len(set(self.feasible_set)):
-            raise ValueError("feasible_set must contain unique product ids")
-        if self.is_impossible != (not self.feasible_set):
-            raise ValueError("is_impossible must be true exactly when feasible_set is empty")
-        if self.is_impossible:
-            if self.best_value_reference is not None or self.review_adjusted_best is not None:
-                raise ValueError("impossible tasks cannot define a best product")
-            if self.closest_product_id is None:
-                raise ValueError("impossible tasks require a closest real product")
-        else:
-            if self.best_value_reference not in self.feasible_set:
-                raise ValueError("best_value_reference must belong to feasible_set")
-            if self.review_adjusted_best not in (None, *self.feasible_set):
-                raise ValueError("review_adjusted_best must belong to feasible_set")
-        if self.is_review_trap and (
-            self.review_adjusted_best is None
-            or self.review_adjusted_best == self.best_value_reference
-            or not self.review_signals
-        ):
-            raise ValueError("review traps require signals and a distinct review-adjusted best")
-        if self.held_out_category != (self.split is TaskSplit.HELD_OUT_CATEGORY):
-            raise ValueError("held_out_category must match the held-out split")
         unchecked = []
         checks = (
             ("category", self.hard_constraints.category_evidence),
@@ -225,6 +203,35 @@ class TaskSpec(ContractModel):
             for constraint in self.hard_constraints.attributes
             if not constraint.evidence.checkable
         )
+        if len(self.feasible_set) != len(set(self.feasible_set)):
+            raise ValueError("feasible_set must contain unique product ids")
+        if unchecked:
+            if self.suitable_for_deterministic_training or self.feasible_set or self.is_impossible:
+                raise ValueError("uncheckable tasks must be unsuitable with unknown feasibility")
+            if self.best_value_reference is not None or self.review_adjusted_best is not None:
+                raise ValueError("uncheckable tasks cannot define a best product")
+        elif self.is_impossible:
+            if self.feasible_set:
+                raise ValueError("impossible tasks cannot have feasible products")
+            if self.best_value_reference is not None or self.review_adjusted_best is not None:
+                raise ValueError("impossible tasks cannot define a best product")
+            if self.closest_product_id is None:
+                raise ValueError("impossible tasks require a closest real product")
+        else:
+            if not self.feasible_set:
+                raise ValueError("is_impossible must be true when a suitable feasible_set is empty")
+            if self.best_value_reference not in self.feasible_set:
+                raise ValueError("best_value_reference must belong to feasible_set")
+            if self.review_adjusted_best not in (None, *self.feasible_set):
+                raise ValueError("review_adjusted_best must belong to feasible_set")
+        if self.is_review_trap and (
+            self.review_adjusted_best is None
+            or self.review_adjusted_best == self.best_value_reference
+            or not self.review_signals
+        ):
+            raise ValueError("review traps require signals and a distinct review-adjusted best")
+        if self.held_out_category != (self.split is TaskSplit.HELD_OUT_CATEGORY):
+            raise ValueError("held_out_category must match the held-out split")
         if bool(unchecked) == self.suitable_for_deterministic_training:
             raise ValueError("training suitability must reflect uncheckable hard constraints")
         if unchecked and not self.unsuitable_reasons:

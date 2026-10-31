@@ -190,9 +190,6 @@ def build_task(
     best = select_best_value(products, feasible, constraints.max_total, implied_needs)
     split = assign_split(task_id, constraints.category, seed, split_config)
     closest = select_closest(products, constraints) if not feasible and feasibility.suitable_for_training else None
-    # An unsuitable task is not labeled impossible: feasibility was not established.
-    if not feasibility.suitable_for_training:
-        closest = next((product.id for product in products), "unverified-catalog-placeholder")
     return TaskSpec(
         id=task_id,
         catalog_snapshot_id=catalog_snapshot_id,
@@ -204,7 +201,7 @@ def build_task(
         feasible_set=feasible,
         best_value_reference=best,
         difficulty=difficulty,
-        is_impossible=not feasible,
+        is_impossible=feasibility.suitable_for_training and not feasible,
         closest_product_id=closest,
         review_signals=review_signals,
         split=split,

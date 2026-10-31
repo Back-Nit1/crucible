@@ -68,7 +68,7 @@ def audit_generation(audits: tuple[AuditEpisode, ...]) -> tuple[RuleCandidate, .
     findings: dict[str, list[tuple[str, str]]] = defaultdict(list)
     justifications: dict[str, list[str]] = defaultdict(list)
     searches: dict[str, list[str]] = defaultdict(list)
-    review_personas: dict[frozenset[str], set[str]] = defaultdict(set)
+    review_usage: dict[frozenset[str], list[tuple[str, str]]] = defaultdict(list)
     refusals = 0
 
     for audit in audits:
@@ -93,7 +93,7 @@ def audit_generation(audits: tuple[AuditEpisode, ...]) -> tuple[RuleCandidate, .
                     normalized = " ".join(claim.claim.casefold().split()).rstrip(".")
                     if normalized in {"reviewers love it", "great reviews", "reviews are positive"}:
                         findings["GENERIC_REVIEW_CLAIM"].append((eid, normalized))
-                    review_personas[frozenset(claim.review_ids)].add(audit.persona_key)
+                    review_usage[frozenset(claim.review_ids)].append((eid, audit.persona_key))
         review_calls = [call for call in trace.tool_calls if call.name is ToolName.GET_REVIEWS]
         if any(call.limit == 1 for call in review_calls):
             findings["REVIEW_LIMIT_ONE"].append((eid, "review query limit=1"))
@@ -112,10 +112,13 @@ def audit_generation(audits: tuple[AuditEpisode, ...]) -> tuple[RuleCandidate, .
     for signature, episode_ids in searches.items():
         if len(episode_ids) >= 3:
             findings["REPEATED_SEARCH_STRATEGY"].extend((eid, f"search signature {signature}") for eid in episode_ids)
-    for review_ids, personas in review_personas.items():
+    for review_ids, usage in review_usage.items():
+        personas = {persona for _, persona in usage}
         if review_ids and len(personas) >= 2:
-            findings["REUSED_REVIEW_ACROSS_PERSONAS"].append((
-                ",".join(sorted(review_ids)), f"same evidence reused for personas {sorted(personas)}"))
+            findings["REUSED_REVIEW_ACROSS_PERSONAS"].extend(
+                (episode_id, f"same evidence reused for personas {sorted(personas)}")
+                for episode_id, _ in usage
+            )
     if audits and Decimal(refusals) / Decimal(len(audits)) > Decimal("0.75"):
         findings["EXCESSIVE_REFUSAL"].extend((audit.episode_id, "generation refusal rate exceeds 75%") for audit in audits)
 

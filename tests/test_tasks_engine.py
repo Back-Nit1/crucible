@@ -37,6 +37,9 @@ def test_uncheckable_required_variant_is_unsuitable_not_guessed():
     result = compute_feasible_set(InMemoryCatalog().products.values(), hard)
     assert result.product_ids == ()
     assert not result.suitable_for_training
+    task = build_task(task_id="uncheckable", catalog_snapshot_id="snap", catalog=InMemoryCatalog(),
+                      constraints=hard, seed=4)
+    assert not task.is_impossible and not task.suitable_for_deterministic_training
 
 
 def test_seeded_renderer_and_split_are_reproducible():
