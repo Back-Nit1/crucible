@@ -10,7 +10,8 @@ from decimal import Decimal
 from catalog.providers._http import request_json
 from catalog.providers.base import Product, Review
 
-DIMS = 384  # .multilingual-e5-small-elasticsearch; verified live in the spike doc, asserted at index time
+EMBED_ID = ".jina-embeddings-v5-text-nano"  # EIS-hosted, no cold start (e5-small deployment timed out, HTTP 408, live)
+DIMS = 768  # verified live 2026-10-31
 
 
 def _vec(dims=DIMS):
@@ -83,7 +84,7 @@ class Elastic:
             raise RuntimeError(f"bulk errors ({len(bad)}): {bad[0]}")
         return len(docs)
 
-    def embed(self, texts: list[str], inference_id: str = ".multilingual-e5-small-elasticsearch", input_type="ingest"):
+    def embed(self, texts: list[str], inference_id: str = EMBED_ID, input_type="ingest"):
         out = self.call("POST", f"/_inference/text_embedding/{inference_id}",
                         {"input": texts, "input_type": input_type})
         return [e["embedding"] for e in out["text_embedding"]]
