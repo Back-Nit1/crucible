@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "experiment": "qwen-day1-structured-tool-calling",
+  "status": "blocked_before_gpu_allocation",
+  "seed": 20261031,
+  "model": {
+    "id": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "dtype": "bfloat16"
+  },
+  "modal": {
+    "authentication_verified": true,
+    "authentication_output_suppressed": true,
+    "requested_gpu": "L4",
+    "gpu_allocated": false,
+    "blocker_code": "payment_method_required",
+    "sanitized_error": "Please add a payment method to use L4 GPU functions."
+  },
+  "cost": {
+    "preflight_45_minute_ceiling_usd": 0.861948,
+    "gpu_spend_usd": 0.0
+  },
+  "prompt_manifest": {
+    "count": 20,
+    "sha256": "b7445bb3195e10959504dc2e4262940eb69cac9d8a96b6c600b90566c9973f38"
+  },
+  "metrics": {
+    "valid_structured_tool_call": null,
+    "schema_valid_arguments": null,
+    "parse_intent_first": null,
+    "nonexistent_tool_calls": null,
+    "malformed_json_blocks": null,
+    "latency_seconds": null,
+    "estimated_modal_cost": null,
+    "reason": "No inference was run because Modal rejected L4 registration before allocation."
+  },
+  "records": []
+}

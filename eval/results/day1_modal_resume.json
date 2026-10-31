@@ -1,0 +1,90 @@
+{
+  "experiment": "modal-volume-checkpoint-resume",
+  "final_state": {
+    "history": [
+      {
+        "step": 1,
+        "value": 1
+      },
+      {
+        "step": 2,
+        "value": 4
+      },
+      {
+        "step": 3,
+        "value": 9
+      },
+      {
+        "step": 4,
+        "value": 16
+      },
+      {
+        "step": 5,
+        "value": 25
+      },
+      {
+        "step": 6,
+        "value": 36
+      }
+    ],
+    "run_id": "day1-1793478956",
+    "saved_at_epoch": 1793478968.0133524,
+    "step": 6
+  },
+  "intentional_stop_observed": true,
+  "resume_result": {
+    "completed_step": 6,
+    "history": [
+      {
+        "step": 1,
+        "value": 1
+      },
+      {
+        "step": 2,
+        "value": 4
+      },
+      {
+        "step": 3,
+        "value": 9
+      },
+      {
+        "step": 4,
+        "value": 16
+      },
+      {
+        "step": 5,
+        "value": 25
+      },
+      {
+        "step": 6,
+        "value": 36
+      }
+    ],
+    "resumed_from_step": 3,
+    "run_id": "day1-1793478956"
+  },
+  "run_id": "day1-1793478956",
+  "schema_version": 1,
+  "state_after_stop": {
+    "history": [
+      {
+        "step": 1,
+        "value": 1
+      },
+      {
+        "step": 2,
+        "value": 4
+      },
+      {
+        "step": 3,
+        "value": 9
+      }
+    ],
+    "run_id": "day1-1793478956",
+    "saved_at_epoch": 1793478960.0800369,
+    "step": 3
+  },
+  "stopped_error_type": "RuntimeError",
+  "success": true,
+  "wall_seconds": 13.901644
+}
