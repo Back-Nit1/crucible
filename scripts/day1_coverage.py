@@ -43,7 +43,7 @@ def attr_probe(metas) -> dict:
     keys, size_like = Counter(), 0
     for m in metas:
         d = m.get("details") or {}
-        keys.update(d)
+        keys.update(d.keys() if isinstance(d, dict) else [])
         size_like += any(SIZE_KEYS.search(k) for k in d)
     return {"products": len(metas), "top_detail_keys": keys.most_common(12),
             "products_with_size/width/weight/stock-like detail key": size_like,
