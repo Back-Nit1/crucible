@@ -65,8 +65,8 @@ model_image = (
         "torch==2.6.0",
         "transformers==4.49.0",
     )
-    .run_function(_download_model, timeout=30 * 60)
     .add_local_python_source("eval", copy=True)
+    .run_function(_download_model, timeout=30 * 60)
 )
 
 cpu_image = modal.Image.debian_slim(python_version="3.12")
