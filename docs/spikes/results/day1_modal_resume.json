@@ -27,8 +27,8 @@
         "value": 36
       }
     ],
-    "run_id": "day1-1793478956",
-    "saved_at_epoch": 1793478968.0133524,
+    "run_id": "day1-1793482345",
+    "saved_at_epoch": 1793482371.060928,
     "step": 6
   },
   "intentional_stop_observed": true,
@@ -61,9 +61,9 @@
       }
     ],
     "resumed_from_step": 3,
-    "run_id": "day1-1793478956"
+    "run_id": "day1-1793482345"
   },
-  "run_id": "day1-1793478956",
+  "run_id": "day1-1793482345",
   "schema_version": 1,
   "state_after_stop": {
     "history": [
@@ -80,11 +80,11 @@
         "value": 9
       }
     ],
-    "run_id": "day1-1793478956",
-    "saved_at_epoch": 1793478960.0800369,
+    "run_id": "day1-1793482345",
+    "saved_at_epoch": 1793482358.2646263,
     "step": 3
   },
   "stopped_error_type": "RuntimeError",
   "success": true,
-  "wall_seconds": 13.901644
+  "wall_seconds": 29.316788
 }
