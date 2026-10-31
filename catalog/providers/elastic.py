@@ -5,9 +5,10 @@ API shapes verified against elastic.co/docs on 2026-10-31: `rrf` retriever with 
 import datetime as dt
 import json
 import os
+import time
 from decimal import Decimal
 
-from catalog.providers._http import request_json
+from catalog.providers._http import HttpError, request_json
 from catalog.providers.base import Product, Review
 
 EMBED_ID = ".jina-embeddings-v5-text-nano"  # EIS-hosted, no cold start (e5-small deployment timed out, HTTP 408, live)
@@ -73,16 +74,26 @@ class Elastic:
                 if "resource_already_exists" not in str(e):
                     raise
 
-    def bulk(self, index: str, docs: list[tuple[str, dict]], chunk: int = 100) -> int:
-        """Index (id, doc) pairs idempotently (same id overwrites), in request-size-bounded chunks. Raises on any item error."""
+    def bulk(self, index: str, docs: list[tuple[str, dict]], chunk: int = 100, retries: int = 3) -> int:
+        """Index (id, doc) pairs idempotently (same id overwrites) in bounded chunks, refreshing once at the end.
+        Transient transport errors are retried (safe: ids make every chunk idempotent). Raises on any item error."""
         for i in range(0, len(docs), chunk):
             lines = []
             for _id, doc in docs[i:i + chunk]:
                 lines += [json.dumps({"index": {"_index": self.ix(index), "_id": _id}}), json.dumps(doc, default=str)]
-            out = self.call("POST", "/_bulk?refresh=wait_for", "\n".join(lines) + "\n", ndjson=True)
+            for attempt in range(retries):
+                try:
+                    out = self.call("POST", "/_bulk", "\n".join(lines) + "\n", ndjson=True)
+                    break
+                except (OSError, HttpError) as e:  # URLError/RemoteDisconnected are OSError
+                    if attempt == retries - 1 or (isinstance(e, HttpError) and e.status not in (429, 500, 502, 503, 504)):
+                        raise
+                    time.sleep(2 ** attempt)
             if out.get("errors"):
-                bad = [i["index"]["error"] for i in out["items"] if "error" in i["index"]]
+                bad = [x["index"]["error"] for x in out["items"] if "error" in x["index"]]
                 raise RuntimeError(f"bulk errors ({len(bad)}): {bad[0]}")
+        if docs:
+            self.call("POST", f"/{self.ix(index)}/_refresh")
         return len(docs)
 
     def embed(self, texts: list[str], inference_id: str = EMBED_ID, input_type="ingest"):
