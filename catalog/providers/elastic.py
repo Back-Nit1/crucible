@@ -150,3 +150,12 @@ class ElasticCatalogProvider:
         else:
             body = {"size": limit, "_source": {"excludes": ["embedding"]}, "query": {"term": {"product_id": product_id}}}
         return [_review(h["_source"]) for h in self.es.call("POST", idx, body)["hits"]["hits"]]
+
+
+def endpoint_from_cloud_id(cloud_id: str) -> str:
+    """Best-effort `https://{es}.{host}` from a Cloud ID. Serverless projects publish their own endpoint URL
+    (ELASTIC_ENDPOINT); this fallback is only a guess when that is missing."""
+    import base64
+    raw = cloud_id.split(":", 1)[-1]
+    host, es, *_ = base64.b64decode(raw + "=" * (-len(raw) % 4)).decode().split("$")
+    return f"https://{es}.{host}"

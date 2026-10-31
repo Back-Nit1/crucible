@@ -63,3 +63,10 @@ def test_bulk_is_ndjson_with_stable_ids_and_raises_on_item_errors():
     t.resp = {"errors": True, "items": [{"index": {"error": {"type": "mapper_parsing_exception"}}}]}
     with pytest.raises(RuntimeError, match="mapper_parsing"):
         es.bulk("reviews", [("r1", {"a": 1})])
+
+
+def test_endpoint_from_cloud_id():
+    import base64
+    from catalog.providers.elastic import endpoint_from_cloud_id
+    cid = "n:" + base64.b64encode(b"us-east4.gcp.elastic.cloud$abc.es$abc.kb").decode()
+    assert endpoint_from_cloud_id(cid) == "https://abc.es.us-east4.gcp.elastic.cloud"
