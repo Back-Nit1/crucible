@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -44,5 +45,50 @@ class DeterministicFakeJudge:
             output = {"score": "0" if self.fail_closed else None, "error": "unconfigured fixture"}
         result = JudgeResult(prompt_version=prompt_version, input_hash=digest, output=output,
                              cache_key=key, parse_failed=failed)
+        self.cache[key] = result
+        return result
+
+
+class ConfiguredJudgeAdapter:
+    """Fixed boundary around an explicitly injected judge invocation.
+
+    No network/model client is constructed here. Without both an invoker and parser,
+    evaluation returns a cached fail-closed result.
+    """
+
+    def __init__(
+        self, *, prompt_version: str,
+        invoker: Callable[[str, dict[str, object]], object] | None = None,
+        parser: Callable[[object], dict[str, object]] | None = None,
+    ) -> None:
+        if not prompt_version:
+            raise ValueError("prompt_version is required")
+        self.prompt_version = prompt_version
+        self.invoker = invoker
+        self.parser = parser
+        self.cache: dict[str, JudgeResult] = {}
+
+    def evaluate(self, prompt_version: str, payload: dict[str, object]) -> JudgeResult:
+        digest = input_hash(payload)
+        key = f"{prompt_version}:{digest}"
+        if key in self.cache:
+            return self.cache[key]
+        failed = False
+        if prompt_version != self.prompt_version:
+            output = {"score": "0", "error": "prompt_version_mismatch"}
+            failed = True
+        elif self.invoker is None or self.parser is None:
+            output = {"score": "0", "error": "judge_not_configured"}
+            failed = True
+        else:
+            try:
+                output = self.parser(self.invoker(prompt_version, payload))
+                if not isinstance(output, dict):
+                    raise TypeError("judge parser must return a dict")
+            except Exception as exc:
+                output = {"score": "0", "error": f"parse_failure:{type(exc).__name__}"}
+                failed = True
+        result = JudgeResult(prompt_version=prompt_version, input_hash=digest,
+                             output=output, cache_key=key, parse_failed=failed)
         self.cache[key] = result
         return result
