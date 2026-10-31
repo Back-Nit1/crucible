@@ -58,7 +58,7 @@ def main():
     vec: dict[str, list[float]] = {}
     uniq = sorted({k for k, _ in plan})
     for i in range(0, len(uniq), 200):
-        got = es.call("POST", f"/{es.ix('reviews')}/_mget", {"ids": uniq[i:i + 200], "_source": ["embedding"]})
+        got = es.call("POST", f"/{es.ix('reviews')}/_mget?_source=embedding", {"ids": uniq[i:i + 200]})
         for d in got["docs"]:
             if d.get("found"):
                 vec[d["_id"]] = d["_source"]["embedding"]
