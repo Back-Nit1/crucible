@@ -1,0 +1,22 @@
+{
+  "source": "amazon2023",
+  "citation": "Hou et al. 2024, arXiv:2403.03952",
+  "category": "Sports_and_Outdoors",
+  "retrieved_at": "2026-10-31T21:31:55.414684+00:00",
+  "source_revision": "2b6d039ed471f2ba5fd2acb718bf33b0a7e5598e",
+  "meta_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/meta_categories/meta_Sports_and_Outdoors.jsonl",
+  "review_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/review_categories/Sports_and_Outdoors.jsonl",
+  "sample_rule": {
+    "top_n": 150,
+    "per_product": 25,
+    "min_reviews": 5,
+    "meta_bytes": 157286400,
+    "review_bytes": 1572864000,
+    "order": "candidates by -rating_number,parent_asin; reviews in file order"
+  },
+  "review_records_scanned": 3178440,
+  "candidates": 150,
+  "products": 147,
+  "reviews": 3588,
+  "sha256": "3751f161a225aa6881b087d8e244f1646a955ef089497feebd586265c3efe092"
+}
