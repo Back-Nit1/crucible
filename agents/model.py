@@ -8,7 +8,7 @@ import re
 from decimal import Decimal
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field
 
 from agents.actions import (
     Action,
@@ -92,24 +92,30 @@ _ACTION_TYPES = (
     ReportNoMatch,
 )
 _ACTION_BY_NAME = {model.model_fields["type"].default: model for model in _ACTION_TYPES}
-_ACTION_ADAPTER = TypeAdapter(Action)
 
 
 def action_tools() -> tuple[ToolDefinition, ...]:
-    return tuple(
-        ToolDefinition(
-            name=name,
-            description=(model.__doc__ or f"Execute {name}.").strip(),
-            parameters=model.model_json_schema(),
+    tools = []
+    for name, model in _ACTION_BY_NAME.items():
+        parameters = model.model_json_schema()
+        parameters.get("properties", {}).pop("type", None)
+        parameters["required"] = [field for field in parameters.get("required", []) if field != "type"]
+        tools.append(
+            ToolDefinition(
+                name=name,
+                description=(model.__doc__ or f"Execute {name}.").strip(),
+                parameters=parameters,
+            )
         )
-        for name, model in _ACTION_BY_NAME.items()
-    )
+    return tuple(tools)
 
 
 def parse_action(call: StructuredToolCall) -> Action:
     if call.name not in _ACTION_BY_NAME:
         raise ValueError(f"unknown tool {call.name!r}")
-    return _ACTION_ADAPTER.validate_python({"type": call.name, **call.arguments})
+    if "type" in call.arguments:
+        raise ValueError("tool arguments cannot override the action discriminator")
+    return _ACTION_BY_NAME[call.name].model_validate({"type": call.name, **call.arguments})
 
 
 class ScriptedModelAdapter:

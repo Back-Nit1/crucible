@@ -25,6 +25,8 @@ from agents.model import (
     QwenModelAdapter,
     ScriptedModelAdapter,
     action_tools,
+    parse_action,
+    StructuredToolCall,
 )
 from agents.runner import run_episode
 from payments.guards import GuardedPayments, idempotency_key
@@ -90,6 +92,16 @@ def test_qwen_adapter_parses_native_calls_and_records_only_raw_hash():
     assert output.prompt_tokens == 10 and output.completion_tokens == 4
     assert len(output.raw_output_hash) == 64
     assert "need shoes" not in json.dumps(output.metadata())
+
+
+def test_tool_name_cannot_be_overridden_inside_arguments():
+    tools = {tool.name: tool for tool in action_tools()}
+    assert "type" not in tools["parse_intent"].parameters["properties"]
+    with pytest.raises(ValueError, match="discriminator"):
+        parse_action(StructuredToolCall(
+            name="parse_intent",
+            arguments={"type": "search_catalog", **parse_arguments()},
+        ))
 
 
 def test_qwen_adapter_retries_once_then_succeeds_deterministically():
