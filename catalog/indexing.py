@@ -3,6 +3,7 @@ Provenance: every doc carries source + as_of. The dataset has NO review id field
 is composed only from original fields (parent_asin:asin:user_id:timestamp) - nothing is invented."""
 import datetime as dt
 import hashlib
+import json
 from collections import Counter, defaultdict
 
 from catalog.sources.amazon2023 import parse_price
@@ -11,20 +12,29 @@ SOURCE = "amazon2023"
 AS_OF = dt.datetime(2023, 9, 30, tzinfo=dt.UTC)  # dataset runs to Sep 2023 (spec 7)
 
 
-def review_id(r: dict) -> str:
+def source_review_key(r: dict) -> str:
+    """The source dataset's own composed key (it has no review id). NOT unique: the source repeats identical rows."""
     return f"{r['parent_asin']}:{r['asin']}:{r['user_id']}:{r['timestamp']}"
 
 
-def canonical_review_id(source: str, product_id: str, source_review_id: str, occurrence: int = 0) -> str:
-    """Stable, collision-free id from (source, product, original review id). `occurrence` > 0 only disambiguates
-    byte-identical source duplicates (file order), so every stored review keeps a distinct id."""
-    digest = hashlib.sha256(source_review_id.encode()).hexdigest()[:16]
-    return f"{source}:{product_id}:{digest}" + (f"-{occurrence}" if occurrence else "")
+def record_sha256(r: dict) -> str:
+    """Content hash of the source record, so byte-identical duplicate rows are provably identical."""
+    keep = {k: r.get(k) for k in ("parent_asin", "asin", "user_id", "timestamp", "rating", "title", "text",
+                                  "helpful_vote", "verified_purchase")}
+    return hashlib.sha256(json.dumps(keep, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def review_id(r: dict, ordinal: int = 0) -> str:
+    """Canonical id `source:product:asin:user:timestamp[:n]` from (source, product, original key). `ordinal` numbers
+    repeats of the same source key in stream order (0 = first, no suffix) so duplicates stay distinct and stable.
+    Matches the ids already stored in the live `reviews` index."""
+    base = f"{SOURCE}:{source_review_key(r)}"
+    return base if ordinal == 0 else f"{base}:{ordinal}"
 
 
 def legacy_to_canonical(legacy_id: str, source: str = SOURCE) -> str:
-    """Migrate a v1 citation (`parent_asin:asin:user:ts`, no source prefix) to its canonical id."""
-    return canonical_review_id(source, legacy_id.split(":", 1)[0], legacy_id)
+    """Migrate a v1 citation (`parent_asin:asin:user:ts`) to its canonical id; v1 ids were ordinal 0."""
+    return f"{source}:{legacy_id}"
 
 
 def product_doc(m: dict, category: str, n_reviews: int) -> dict | None:
@@ -46,10 +56,10 @@ def product_doc(m: dict, category: str, n_reviews: int) -> dict | None:
     }
 
 
-def review_doc(r: dict, occurrence: int = 0) -> dict:
+def review_doc(r: dict, ordinal: int = 0) -> dict:
     return {
-        "review_id": canonical_review_id(SOURCE, r["parent_asin"], review_id(r), occurrence),
-        "source_review_id": review_id(r), "product_id": r["parent_asin"], "rating": r["rating"],
+        "review_id": review_id(r, ordinal), "source_review_key": source_review_key(r), "source_ordinal": ordinal,
+        "source_record_sha256": record_sha256(r), "product_id": r["parent_asin"], "rating": r["rating"],
         "title": r.get("title"), "text": r.get("text") or "",
         "date": dt.datetime.fromtimestamp(r["timestamp"] / 1000, dt.UTC).date().isoformat(),
         "helpful_votes": r.get("helpful_vote", 0), "verified": bool(r.get("verified_purchase")),

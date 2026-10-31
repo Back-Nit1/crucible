@@ -10,7 +10,7 @@ import urllib.request
 
 from collections import Counter
 
-from catalog.indexing import product_doc, review_doc, review_id
+from catalog.indexing import product_doc, review_doc, source_review_key
 from catalog.sources.amazon2023 import meta_url, parse_price, review_url
 
 DATASET_API = "https://huggingface.co/api/datasets/McAuley-Lab/Amazon-Reviews-2023"
@@ -36,6 +36,11 @@ def source_revision(opener=urllib.request.urlopen) -> str | None:
         return None
 
 
+def snapshot_digest(product_ids, review_ids) -> str:
+    """Snapshot identity: sha256 over the sorted product ids then sorted (canonical) review ids."""
+    return hashlib.sha256("\n".join(sorted(product_ids) + sorted(review_ids)).encode()).hexdigest()
+
+
 def build(category: str, meta_stream, review_stream, top_n=300, per_product=30, min_reviews=5,
           params: dict | None = None, revision: str | None = None, now: dt.datetime | None = None):
     cands = {}
@@ -52,14 +57,14 @@ def build(category: str, meta_stream, review_stream, top_n=300, per_product=30, 
             h.append(r)
     keep = [p for p in cands if len(held[p]) >= min_reviews]
     products = [product_doc(cands[p], category, len(held[p])) for p in keep]
-    seen_ids: Counter = Counter()  # byte-identical source duplicates get an occurrence suffix, not an id collision
     reviews = []
     for p in keep:
+        seen_keys: Counter = Counter()  # repeats of one source key get an ordinal, not an id collision
         for r in held[p]:
-            k = (p, review_id(r))
-            reviews.append(review_doc(r, seen_ids[k]))
-            seen_ids[k] += 1
-    digest = hashlib.sha256("\n".join(sorted(d["product_id"] for d in products) + sorted(d["review_id"] for d in reviews)).encode()).hexdigest()
+            k = source_review_key(r)
+            reviews.append(review_doc(r, seen_keys[k]))
+            seen_keys[k] += 1
+    digest = snapshot_digest([d["product_id"] for d in products], [d["review_id"] for d in reviews])
     manifest = {
         "source": "amazon2023", "citation": "Hou et al. 2024, arXiv:2403.03952", "category": category,
         "retrieved_at": (now or dt.datetime.now(dt.UTC)).isoformat(), "source_revision": revision,

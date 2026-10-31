@@ -35,7 +35,7 @@ def mappings(dims: int = DIMS) -> dict[str, dict]:
             "reviews_indexed": {"type": "integer"},  # real reviews held in `reviews`; 0 = reviews: none
             "source": kw, "as_of": dte, "embedding": _vec(dims)}},
         "reviews": {"properties": {
-            "review_id": kw, "source_review_id": kw, "product_id": kw, "rating": {"type": "float"}, "title": {"type": "text"},
+            "review_id": kw, "source_review_key": kw, "source_ordinal": {"type": "integer"}, "source_record_sha256": kw, "product_id": kw, "rating": {"type": "float"}, "title": {"type": "text"},
             "text": {"type": "text"}, "date": dte, "helpful_votes": {"type": "integer"},
             "verified": {"type": "boolean"}, "reviewer_context": {"type": "flattened"},
             "source": kw, "as_of": dte, "embedding": _vec(dims)}},
@@ -151,7 +151,7 @@ def _product(src: dict, manifest_hash: str | None = None) -> Product:
 
 def _review(src: dict) -> Review:
     return Review(
-        id=src["review_id"], product_id=src["product_id"], source_review_id=src.get("source_review_id"),
+        id=src["review_id"], product_id=src["product_id"], source_review_id=src.get("source_review_key"),
         rating=src["rating"], text=src["text"],
         date=dt.date.fromisoformat(src["date"][:10]) if src.get("date") else None,
         helpful_votes=src.get("helpful_votes", 0), verified=src.get("verified", False),
