@@ -89,7 +89,7 @@ Evidence: `docs/spikes/platform-day1.md`. Config: `config/providers.yaml`.
 - Channel3 `max_price` filter is unreliable (results with offers over the cap): the router re-filters; payment guards re-check the live price.
 - Channel3 variant `available` is empty in search and populated only on product detail.
 - **Embeddings: `.jina-embeddings-v5-text-nano` (768d, EIS-hosted, <=16 inputs/request).** The documented-default `.multilingual-e5-small-elasticsearch` timed out (HTTP 408, deployment not starting) twice on this project.
-- Review ids are composed `parent_asin:asin:user_id:timestamp` (dataset has none); 8 of 3,588 collided in the first snapshot (source duplicates), so ids are not guaranteed unique.
+- Review ids are composed `parent_asin:asin:user_id:timestamp` (dataset has none); 17 of 14,541 collided across the four snapshots (source duplicates), so ids are not guaranteed unique.
 - Amazon data has no stock or size availability. Those cannot be hard constraints in generated tasks (unverifiable); do not synthesise them.
 - PayPal: capture must send a JSON body (`{}`) or PayPal returns `UNSUPPORTED_MEDIA_TYPE` (live-verified bug, fixed). Agent Toolkit not adopted (required actions unconfirmed).
 - Modal: GPU functions require a payment method on the workspace; blocked, $0 spent. The Qwen tool-call numbers are therefore **not measured**; the license (Apache-2.0) and pinned revision `a09a3545...` stand from the earlier spike.

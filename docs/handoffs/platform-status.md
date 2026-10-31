@@ -11,13 +11,13 @@ Updated after phases 0-4. Latest commit: see `git log -1`. Tests: `uv run pytest
 | `PaymentsBackend`, `MockPayments(auto_approve)`, `SandboxPayments`, `GuardedPayments` | `payments.*` | `GuardedPayments.propose_purchase(task_id, agent_id, product_id, variant, expected_total, budget_cap)` then `confirm_and_pay(pending_id, user_confirmed)`. Guard violations (`BudgetViolation`, `PriceMismatch`, `OutOfStock`, `NotConfirmed`) are kill offenses. `MockPayments(auto_approve=True)` for bulk training. |
 | `TraceRecord`, `TraceRepository.add/similar`, `InMemoryTraceRepository`, `ElasticTraceRepository` | `memory`, `memory.elastic` | `similar()` only returns `killed=false`, `fitness>=min_fitness`, `split!="test"`. Requires agent 2 to set `split` truthfully on every trace. `TraceRecord.episode` is free-form JSON. Agent 2's own trace model is not imported here; map it to `TraceRecord` at the boundary. |
 | HTTP API | `api.main.create_app(router, backend)` | `/health`, `/providers/status`, `/catalog/search`, `/catalog/products/{id}`, `/catalog/products/{id}/reviews`, `/purchase/propose`, `/purchase/confirm`. Errors: `{"error": {"code", "message"}}`. |
-| Snapshot data | Elastic `products` / `reviews` (no prefix) | Sports_and_Outdoors, Electronics, Office_Products, Clothing_Shoes_and_Jewelry (see `data/manifests/`). Manifest hash per category. |
+| Snapshot data | Elastic `products` / `reviews` (no prefix) | Sports_and_Outdoors, Electronics, Office_Products, Clothing_Shoes_and_Jewelry: **590 products, 14,524 reviews live** (14,541 built; 17 id collisions). Manifest + hash per category in `data/manifests/`. Rule: top-150 by rating_number, first 1.5 GB of reviews, >=5 reviews held, <=25 kept. |
 
 ## Requested from agent 2 (documented only; nothing edited in their dirs)
 - Task generation must source products from `ProviderRouter(mode="training")`; feasible sets can use price and category only. **Drop size/stock hard constraints** (not in the data).
 - Review-trap eligibility: running shoes/clothing, hiking, headphones, office are plausible; textbooks have no reviews; video games are persona-weak (see `docs/spikes/catalog-elastic.md`).
 - Reviews can contain HTML and spam; do not treat a retrieved review as evidence of a concern unless the text says so (retrieval returns top-k even when nothing is relevant).
-- Review ids are not guaranteed unique (8 of 3,588 collided in the first snapshot).
+- Review ids are not guaranteed unique (17 of 14,541 collided across the four snapshots).
 
 ## Environment names
 `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=sandbox`, `PAYPAL_SANDBOX_BUYER_EMAIL`, `PAYPAL_SANDBOX_BUYER_PASSWORD`, `KERNEL_API_KEY`,

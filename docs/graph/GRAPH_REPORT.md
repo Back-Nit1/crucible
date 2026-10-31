@@ -1,113 +1,153 @@
-# Graph Report - Crucible   (2026-10-30)
+# Graph Report - Crucible-platform  (2026-10-31)
 
 ## Corpus Check
-- 17 files · ~8,590 words
+- 69 files · ~50,122 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 4 file(s) not represented in the graph (top: (none) 2, .example 1, .lock 1)
+- Unclassified: 5 file(s) not represented in the graph (top: (none) 3, .example 1, .lock 1)
 
 ## Summary
-- 139 nodes · 207 edges · 17 communities (8 shown, 9 thin omitted)
-- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 16 edges (avg confidence: 0.95)
+- 647 nodes · 1438 edges · 26 communities (16 shown, 10 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 148 edges (avg confidence: 0.93)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ea65e32b`
+- Built from commit: `e9e97963`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- CatalogProvider
+- test_payments_contract.py
+- providers/elastic.py
+- json
+- qwen_toolcalls.py
 - Architecture
+- pytest
 - Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal
-- guards.py
-- test_payments_guards.py
-- Capture
-- 8. Component build specs
-- 6. Architecture (mapped out)
+- decimal
+- Product
+- test_memory_retrieval.py
+- create_app
+- test_catalog_router.py
+- Graph Report - Crucible   (2026-10-30)
 - main.py
-- 10. Product surface and design direction
+- ProviderRouter
+- router.py
+- test_api_endpoints.py
+- FakePayPal
 - crucible
 
 ## God Nodes (most connected - your core abstractions)
-1. `Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal` - 21 edges
-2. `make()` - 10 edges
-3. `8. Component build specs` - 10 edges
-4. `CatalogProvider` - 9 edges
-5. `Capture` - 9 edges
-6. `PaymentsBackend` - 9 edges
-7. `GuardedPayments` - 9 edges
-8. `Architecture` - 9 edges
-9. `MockPayments` - 8 edges
-10. `6. Architecture (mapped out)` - 8 edges
+1. `create_app()` - 31 edges
+2. `SandboxPayments` - 30 edges
+3. `Product` - 29 edges
+4. `MockPayments` - 27 edges
+5. `Elastic` - 23 edges
+6. `ProviderRouter` - 22 edges
+7. `Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal` - 21 edges
+8. `Channel3Provider` - 18 edges
+9. `ElasticCatalogProvider` - 18 edges
+10. `GuardedPayments` - 18 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `4. Required skills and dev tooling` --references--> `Channel3Provider`  [INFERRED]
+  prompt.md → catalog/providers/channel3.py
+- `Scorecard` --references--> `OrderNotApproved`  [INFERRED]
+  docs/spikes/platform-day1.md → payments/errors.py
 - `2026-10-30 scaffold` --references--> `PriceMismatch`  [INFERRED]
   DECISIONS.md → payments/guards.py
-- `7.1 How each integration works (implementation detail)` --references--> `MockPayments`  [INFERRED]
-  prompt.md → payments/mock.py
-- `7.1 How each integration works (implementation detail)` --references--> `CatalogProvider`  [INFERRED]
-  prompt.md → catalog/providers/base.py
-- `7.1 How each integration works (implementation detail)` --references--> `PaymentsBackend`  [INFERRED]
-  prompt.md → payments/base.py
-- `test_budget_cap_enforced()` --uses--> `BudgetViolation`  [INFERRED]
-  tests/test_payments_guards.py → payments/guards.py
+- `Contracts agent 2 can consume (no Elastic import needed)` --references--> `reviews()`  [INFERRED]
+  docs/handoffs/platform-status.md → api/main.py
+- `Elastic (offline-verified only)` --references--> `reviews()`  [INFERRED]
+  docs/spikes/catalog-elastic.md → api/main.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (17 total, 9 thin omitted)
+## Communities (26 total, 10 thin omitted)
 
-### Community 0 - "CatalogProvider"
-Cohesion: 0.15
-Nodes (8): CatalogProvider, Product, Review, PaymentsBackend, GuardedPayments, 7.1 How each integration works (implementation detail), 7. Infrastructure: every service, what it does, and exactly how we use it, FakeCatalog
+### Community 0 - "test_payments_contract.py"
+Cohesion: 0.05
+Nodes (29): God Nodes (most connected - your core abstractions), Suggested Questions, 1. OAuth (verified live), 2. Orders v2 (`payments/sandbox.py`), 3. Contract tests, 4. PayPal Agent Toolkit / MCP (check 2), 6. Pending (blocked on buyer credentials), Blockers (+21 more)
 
-### Community 1 - "Architecture"
-Cohesion: 0.11
-Nodes (15): 2026-10-30 scaffold, Day-1 kill-checks (spec 15): NOT RUN, Decisions, Tooling versions (2026-10-30), Architecture, Catalog provider selection, Checkout, Data model (+7 more)
+### Community 1 - "providers/elastic.py"
+Cohesion: 0.05
+Nodes (37): default_router(), Elastic, ElasticCatalogProvider, endpoint_from_cloud_id(), hybrid_review_query(), mappings(), _product(), _vec() (+29 more)
 
-### Community 2 - "Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal"
+### Community 2 - "json"
+Cohesion: 0.07
+Nodes (35): join(), product_doc(), review_doc(), review_id(), sample_stats(), coverage(), iter_jsonl(), meta_url() (+27 more)
+
+### Community 3 - "qwen_toolcalls.py"
+Cohesion: 0.07
+Nodes (33): checkpoint_resume_probe(), checkpoint_steps(), _download_model(), inspect_checkpoint(), run_tool_call_probe(), _sanitize(), _state_path(), tool_call_probe() (+25 more)
+
+### Community 4 - "Architecture"
+Cohesion: 0.04
+Nodes (40): 2026-10-30 Day-1 check 4b/8 (partial): Amazon Reviews 2023 coverage, 2026-10-30 scaffold, 2026-10-31 integration owner: security, skills, Astropods (Day-1 checks 9, 10), 2026-10-31 platform owner (agent 1): Day-1 provider and infrastructure decisions, Astropods (check 9) — from docs.astropods.com, Day-1 kill-checks (spec 15): NOT RUN, Decisions, Integration status (+32 more)
+
+### Community 5 - "pytest"
+Cohesion: 0.10
+Nodes (24): CatalogProvider, Surprising Connections (you probably didn't know these), Contracts agent 2 can consume (no Elastic import needed), Tool contract, PaymentsBackend, BudgetViolation, GuardedPayments, GuardViolation (+16 more)
+
+### Community 6 - "Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal"
+Cohesion: 0.05
+Nodes (42): 0. Ground rules for you (read first), 10.1 Design direction, 10.2 Shopping Chat (hero), 10.3 World Dashboard, 10.4 Model Dashboard, 10.5 Reference visuals (look, don't copy), 10.6 Docs and visuals we must produce, 10. Product surface and design direction (+34 more)
+
+### Community 7 - "decimal"
+Cohesion: 0.09
+Nodes (9): 5. Kernel buyer approval (check 1a), ApprovalBlocked, KernelApprover, load(), FakeBackend, FakeKernel, test_approves_and_always_deletes_browser(), test_challenge_stops_run() (+1 more)
+
+### Community 8 - "Product"
 Cohesion: 0.12
-Nodes (17): 0. Ground rules for you (read first), 11. Data terms and compliance, 12. Evaluation, 13. Repository layout, 14. Non-functional requirements, 15. Day-1 kill-checks (do these first; report results before building further), 16. Milestones (deadline Nov 12, 12:00 PM PT), 17. Definition of done (+9 more)
+Nodes (14): Product, Review, build_filters(), Channel3Provider, to_product(), _review(), channel3(), Snap (+6 more)
 
-### Community 3 - "guards.py"
-Cohesion: 0.21
-Nodes (6): BudgetViolation, GuardViolation, idempotency_key(), NotConfirmed, OutOfStock, PendingOrder
+### Community 9 - "test_memory_retrieval.py"
+Cohesion: 0.11
+Nodes (14): similar_query(), eligible(), InMemoryTraceRepository, TraceRecord, TraceRepository, repo(), test_add_is_idempotent_per_episode(), test_elastic_query_carries_leakage_filter() (+6 more)
 
-### Community 4 - "test_payments_guards.py"
-Cohesion: 0.51
-Nodes (9): PriceMismatch, make(), propose(), test_budget_cap_enforced(), test_happy_path_charges_exact_listed_price(), test_idempotent_retries_single_charge(), test_requires_explicit_confirmation(), test_stale_price_rejected() (+1 more)
+### Community 10 - "create_app"
+Cohesion: 0.16
+Nodes (18): create_app(), confirm(), get_payments(), get_router(), _guard(), _payment(), product(), propose() (+10 more)
 
-### Community 7 - "8. Component build specs"
+### Community 11 - "test_catalog_router.py"
+Cohesion: 0.18
+Nodes (11): ProviderUnavailable, Fake, router(), test_bestbuy_disabled_cannot_be_routed(), test_live_falls_back_to_snapshot_and_says_so(), test_live_uses_channel3_not_labelled_snapshot(), test_missing_reviews_are_none_not_invented(), test_router_refilters_price_cap() (+3 more)
+
+### Community 12 - "Graph Report - Crucible   (2026-10-30)"
+Cohesion: 0.12
+Nodes (16): Communities (17 total, 9 thin omitted), Community 0 - "CatalogProvider", Community 10 - "10. Product surface and design direction", Community 1 - "Architecture", Community 2 - "Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal", Community 3 - "guards.py", Community 4 - "test_payments_guards.py", Community 7 - "8. Component build specs" (+8 more)
+
+### Community 13 - "main.py"
+Cohesion: 0.17
+Nodes (7): ConfirmRequest, ConfirmResponse, ErrorBody, ErrorResponse, ProposeRequest, ProposeResponse, ProviderStatus
+
+### Community 15 - "router.py"
 Cohesion: 0.20
-Nodes (10): 8.1 Catalog snapshot (`catalog/`), 8.2 Task generator (`tasks/`), 8.3 Agent tools (action space), 8.4 PayPal layer (`payments/`), 8.5 Population and evolution (`world/`), 8.6 Scoring (`scoring/`), 8.7 Loophole Hunter (`world/loophole_hunter.py`), 8.8 Trace store and memory (`memory/`) (+2 more)
+Nodes (5): load_config(), ProductResult, ReviewsResult, Routed, SearchResult
 
-### Community 8 - "6. Architecture (mapped out)"
-Cohesion: 0.25
-Nodes (8): 6.1 System context, 6.2 Catalog provider selection (fallback chain), 6.3 One episode (agent ↔ world), 6.4 Evolution loop, 6.5 Checkout (sandbox, no human click), 6.6 Training and evaluation pipeline, 6.7 Deployment topology, 6. Architecture (mapped out)
-
-### Community 10 - "10. Product surface and design direction"
-Cohesion: 0.29
-Nodes (7): 10.1 Design direction, 10.2 Shopping Chat (hero), 10.3 World Dashboard, 10.4 Model Dashboard, 10.5 Reference visuals (look, don't copy), 10.6 Docs and visuals we must produce, 10. Product surface and design direction
+### Community 16 - "test_api_endpoints.py"
+Cohesion: 0.27
+Nodes (11): client(), test_capture_needs_explicit_confirmation_then_approval(), test_confirm_after_approval_captures_exact_amount(), test_over_budget_rejected_before_order(), test_price_mismatch_rejected(), test_provider_status_shows_bestbuy_disabled(), test_reviews_and_missing_product(), test_search_labels_snapshot_and_source() (+3 more)
 
 ## Knowledge Gaps
 - **1 isolated node(s):** `crucible`
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 73 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 247 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal` connect `Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal` to `CatalogProvider`, `Architecture`, `8. Component build specs`, `6. Architecture (mapped out)`, `10. Product surface and design direction`?**
-  _High betweenness centrality (0.485) - this node is a cross-community bridge._
-- **Are the 2 inferred relationships involving `CatalogProvider` (e.g. with `GuardedPayments` and `7.1 How each integration works (implementation detail)`) actually correct?**
-  _`CatalogProvider` has 2 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal` connect `Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal` to `create_app`, `Architecture`?**
+  _High betweenness centrality (0.124) - this node is a cross-community bridge._
+- **Are the 11 inferred relationships involving `create_app()` (e.g. with `ProductResult` and `ProviderRouter`) actually correct?**
+  _`create_app()` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `crucible` to the rest of the system?**
   _1 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Architecture` be split into smaller, more focused modules?**
-  _Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected._
-- **Why does `7.1 How each integration works (implementation detail)` connect `CatalogProvider` to `Capture`?**
-  _High betweenness centrality (0.334) - this node is a cross-community bridge._
-- **Are the 2 inferred relationships involving `Capture` (e.g. with `GuardedPayments` and `MockPayments`) actually correct?**
-  _`Capture` has 2 INFERRED edges - model-reasoned connections that need verification._
-- **Should `Build Spec: Crucible — an evolutionary RL world that trains open models to shop on PayPal` be split into smaller, more focused modules?**
-  _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
+- **Should `test_payments_contract.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.053554040895813046 - nodes in this community are weakly interconnected._
+- **Why does `Contracts agent 2 can consume (no Elastic import needed)` connect `pytest` to `test_payments_contract.py`, `providers/elastic.py`, `Architecture`, `Product`, `test_memory_retrieval.py`, `create_app`?**
+  _High betweenness centrality (0.103) - this node is a cross-community bridge._
+- **Are the 8 inferred relationships involving `SandboxPayments` (e.g. with `Contracts agent 2 can consume (no Elastic import needed)` and `3. Contract tests`) actually correct?**
+  _`SandboxPayments` has 8 INFERRED edges - model-reasoned connections that need verification._
+- **Should `providers/elastic.py` be split into smaller, more focused modules?**
+  _Cohesion score 0.050078247261345854 - nodes in this community are weakly interconnected._
