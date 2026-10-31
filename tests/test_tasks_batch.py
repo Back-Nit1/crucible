@@ -55,3 +55,8 @@ def test_review_trap_requires_complete_real_id_grounding():
 def test_ratio_configuration_is_bounded():
     with pytest.raises(ValueError, match="between 70 and 80"):
         BatchConfig(feasible_percent=81)
+
+
+def test_batch_rejects_snapshot_variants_instead_of_inventing_stock_checkability():
+    with pytest.raises(ValueError, match="excludes size/stock"):
+        generate_batch(InMemoryCatalog(), seed=1, config=BatchConfig(size=10))
