@@ -11,6 +11,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Identifier = Annotated[str, Field(min_length=1, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")]
 Money = Annotated[Decimal, Field(gt=0, decimal_places=2)]
+UnitScore = Annotated[Decimal, Field(ge=0, le=1)]
+NonNegativeDecimal = Annotated[Decimal, Field(ge=0)]
 
 
 class ContractModel(BaseModel):
@@ -198,3 +200,41 @@ class KillEvaluation(ContractModel):
         if self.killed != bool(self.decisions):
             raise ValueError("killed must reflect whether any rule fired")
         return self
+
+
+class QualityMetricName(StrEnum):
+    IMPLIED_NEEDS_FIT = "implied_needs_fit"
+    VALUE = "value"
+    INTENT_EXTRACTION = "intent_extraction"
+    REVIEWS_CONSULTED = "reviews_consulted"
+    REVIEW_GROUNDING = "review_grounding"
+    REVIEW_SIGNAL_RECALL = "review_signal_recall"
+    REVIEW_ADJUSTED_CHOICE = "review_adjusted_choice"
+    ASSUMPTIONS = "assumptions"
+
+
+class QualityMetric(ContractModel):
+    name: QualityMetricName
+    value: UnitScore
+    weight: Annotated[Decimal, Field(gt=0)]
+    evidence: tuple[str, ...] = Field(min_length=1)
+
+
+class QualityAssessment(ContractModel):
+    """Auditable Q inputs; policy owners supply explicit versioned weights."""
+
+    metrics: tuple[QualityMetric, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def metric_names_must_be_unique(self) -> QualityAssessment:
+        names = [metric.name for metric in self.metrics]
+        if len(names) != len(set(names)):
+            raise ValueError("quality metric names must be unique")
+        return self
+
+
+class ScoreResult(ContractModel):
+    gate: Literal[0, 1]
+    quality: UnitScore
+    efficiency_penalty: NonNegativeDecimal
+    fitness: Decimal
