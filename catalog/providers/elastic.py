@@ -38,7 +38,7 @@ def mappings(dims: int = DIMS) -> dict[str, dict]:
         "traces": {"properties": {
             "episode_id": kw, "task_id": kw, "agent_id": kw, "generation": {"type": "integer"},
             "kill_reason": kw, "killed": {"type": "boolean"}, "fitness": {"type": "float"},
-            "category": kw, "split": kw, "created_at": dte,
+            "category": kw, "split": kw, "created_at": dte, "task_text": {"type": "text"}, "embedding": _vec(dims),
             "episode": {"type": "object", "enabled": False}}},  # full episode JSON, not indexed
         "kill_rules": {"properties": {
             "rule_id": kw, "version": {"type": "integer"}, "description": {"type": "text"},
