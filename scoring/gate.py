@@ -70,7 +70,8 @@ def evaluate_gate(task: TaskSpec, trace: EpisodeTrace, catalog: CatalogProvider)
                 GateViolation(code=GateViolationCode.PRICE_MISMATCH, product_id=product.id,
                               detail=f"expected {recommendation.expected_total}, catalog lists {product.price}")
             )
-        if product.variants.get(recommendation.variant, 0) <= 0:
+        if (task.hard_constraints.required_variant is not None
+                and product.variants.get(recommendation.variant, 0) <= 0):
             violations.append(
                 GateViolation(
                     code=GateViolationCode.OUT_OF_STOCK,

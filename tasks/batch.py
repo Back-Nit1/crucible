@@ -75,6 +75,10 @@ def generate_batch(
     if any(product.variants for products in enumerated.values() for product in products):
         # Variants may exist in another real snapshot, but this Amazon contract explicitly has none.
         raise ValueError("this training batch contract excludes size/stock variant requirements")
+    enumerated = {category: products for category, products in enumerated.items() if len(products) >= 2}
+    categories = tuple(sorted(enumerated))
+    if not categories:
+        raise ValueError("training categories need at least two products for comparison research")
     for template in review_templates:
         _validate_template(catalog, template)
 
