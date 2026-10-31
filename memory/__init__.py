@@ -6,6 +6,9 @@ from pydantic import BaseModel
 
 
 class TraceRecord(BaseModel):
+    """One episode as stored in the `traces` index. Flat fields drive filters/dashboards; `episode` is the complete
+    source EpisodeRecord JSON (ordered tool calls, args, result refs, timestamps, final answer, score, kills)."""
+    schema_version: str = "2"
     episode_id: str
     task_id: str
     agent_id: str
@@ -17,6 +20,18 @@ class TraceRecord(BaseModel):
     kill_reason: str | None = None
     fitness: float
     episode: dict = {}  # full episode JSON (tool calls, final answer, PayPal ids)
+    generation_id: str = ""
+    seed: int | None = None
+    catalog_hash: str | None = None  # TaskSpec.catalog_manifest_hash the episode ran against
+    genome: dict = {}  # complete Genome JSON (None-safe: empty for non-world traces)
+    scored: bool = False  # True only when the episode ran to a scored terminal action; unscored never retrievable
+    kill_rule_version: int | None = None
+    kills: list[dict] = []  # every KillDecision: rule_id, rule_version, description, evidence
+    products_considered: list[str] = []
+    review_ids_cited: list[str] = []
+    payment_events: list[dict] = []  # PayPal/mock order + capture ids, amounts
+    score_components: dict = {}
+    final_answer: str = ""
 
 
 class TraceRepository(Protocol):
@@ -26,8 +41,11 @@ class TraceRepository(Protocol):
         """Top-k best matches among traces with killed=false, fitness>=min_fitness and split != test."""
 
 
+PROTECTED_SPLITS = ("test", "held_out_category")  # never retrievable: they would leak evaluation tasks into memory
+
+
 def eligible(t: TraceRecord, min_fitness: float) -> bool:
-    return t.split != "test" and not t.killed and t.fitness >= min_fitness
+    return t.split not in PROTECTED_SPLITS and not t.killed and t.scored and t.fitness >= min_fitness
 
 
 _words = lambda s: set(re.findall(r"[a-z0-9]+", s.lower()))

@@ -1,11 +1,14 @@
 """Elastic-backed TraceRepository. The leakage filter is part of every query, not post-processing."""
+from pydantic import ValidationError
+
 from catalog.providers.elastic import Elastic
-from memory import TraceRecord
+from memory import PROTECTED_SPLITS, TraceRecord, eligible
 
 
 def similar_query(vector: list[float], k: int, min_fitness: float) -> dict:
-    flt = {"bool": {"filter": [{"term": {"killed": False}}, {"range": {"fitness": {"gte": min_fitness}}}],
-                    "must_not": [{"term": {"split": "test"}}]}}
+    flt = {"bool": {"filter": [{"term": {"killed": False}}, {"term": {"scored": True}},
+                              {"range": {"fitness": {"gte": min_fitness}}}],
+                    "must_not": [{"terms": {"split": list(PROTECTED_SPLITS)}}]}}
     return {"size": k, "_source": {"excludes": ["embedding"]},
             "knn": {"field": "embedding", "query_vector": vector, "k": k, "num_candidates": max(50, k * 10), "filter": flt}}
 
@@ -20,6 +23,15 @@ class ElasticTraceRepository:
         self.es.bulk("traces", [(trace.episode_id, doc)])
 
     def similar(self, task_text: str, k: int = 3, min_fitness: float = 0.0) -> list[TraceRecord]:
+        """Filtered kNN; every hit is re-validated and re-filtered client-side, malformed hits are dropped (fail closed)."""
         body = similar_query(self.embed(task_text, "search"), k, min_fitness)
         hits = self.es.call("POST", f"/{self.es.ix('traces')}/_search", body)["hits"]["hits"]
-        return [TraceRecord(**h["_source"]) for h in hits]
+        out = []
+        for h in hits:
+            try:
+                t = TraceRecord(**h["_source"])
+            except (ValidationError, TypeError, KeyError):
+                continue
+            if eligible(t, min_fitness):
+                out.append(t)
+        return out

@@ -3,7 +3,7 @@ from memory.elastic import ElasticTraceRepository, similar_query
 
 
 def tr(i, split="train", killed=False, fitness=0.9, text="running shoes under 100 dollars"):
-    return TraceRecord(episode_id=i, task_id=i, agent_id="a", split=split, task_text=text, killed=killed, fitness=fitness)
+    return TraceRecord(episode_id=i, task_id=i, agent_id="a", split=split, task_text=text, killed=killed, fitness=fitness, scored=True)
 
 
 def repo():
@@ -35,8 +35,8 @@ def test_add_is_idempotent_per_episode():
 
 def test_elastic_query_carries_leakage_filter():
     f = similar_query([0.1], 3, 0.5)["knn"]["filter"]["bool"]
-    assert {"term": {"split": "test"}} in f["must_not"]
-    assert {"term": {"killed": False}} in f["filter"] and {"range": {"fitness": {"gte": 0.5}}} in f["filter"]
+    assert {"terms": {"split": ["test", "held_out_category"]}} in f["must_not"]
+    assert {"term": {"killed": False}} in f["filter"] and {"term": {"scored": True}} in f["filter"] and {"range": {"fitness": {"gte": 0.5}}} in f["filter"]
 
 
 def test_elastic_repo_sends_filtered_knn_without_importing_elastic_in_callers():

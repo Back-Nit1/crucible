@@ -19,6 +19,15 @@ EMBED_ID = ".jina-embeddings-v5-text-nano"  # EIS-hosted, no cold start (e5-smal
 DIMS = 768  # verified live 2026-10-31
 
 
+TRACE_EXTRA = {  # additive fields of the v2 trace document (flat views of the full `episode` JSON)
+    "schema_version": {"type": "keyword"}, "generation_id": {"type": "keyword"}, "seed": {"type": "long"},
+    "catalog_hash": {"type": "keyword"}, "scored": {"type": "boolean"}, "kill_rule_version": {"type": "integer"},
+    "products_considered": {"type": "keyword"}, "review_ids_cited": {"type": "keyword"},
+    "genome": {"type": "object", "enabled": False}, "kills": {"type": "object", "enabled": False},
+    "payment_events": {"type": "object", "enabled": False}, "score_components": {"type": "object", "enabled": False},
+    "final_answer": {"type": "text"}}
+
+
 def _vec(dims=DIMS):
     return {"type": "dense_vector", "dims": dims, "index": True, "similarity": "cosine"}
 
@@ -43,7 +52,7 @@ def mappings(dims: int = DIMS) -> dict[str, dict]:
             "episode_id": kw, "task_id": kw, "agent_id": kw, "generation": {"type": "integer"},
             "kill_reason": kw, "killed": {"type": "boolean"}, "fitness": {"type": "float"},
             "category": kw, "split": kw, "created_at": dte, "task_text": {"type": "text"}, "embedding": _vec(dims),
-            "episode": {"type": "object", "enabled": False}}},  # full episode JSON, not indexed
+            **TRACE_EXTRA, "episode": {"type": "object", "enabled": False}}},  # full episode JSON, not indexed
         "kill_rules": {"properties": {
             "rule_id": kw, "version": {"type": "integer"}, "description": {"type": "text"},
             "added_at": dte, "kills": {"type": "integer"}}},
@@ -77,6 +86,10 @@ class Elastic:
             except Exception as e:  # already exists is fine, anything else is not
                 if "resource_already_exists" not in str(e):
                     raise
+
+    def update_traces_mapping(self):
+        """Additive, idempotent: bring an existing `traces` index up to the v2 document schema."""
+        self.call("PUT", f"/{self.ix('traces')}/_mapping", {"properties": TRACE_EXTRA})
 
     def bulk(self, index: str, docs: list[tuple[str, dict]], chunk: int = 100, retries: int = 3) -> int:
         """Index (id, doc) pairs idempotently (same id overwrites) in bounded chunks, refreshing once at the end.
