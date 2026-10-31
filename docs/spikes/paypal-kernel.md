@@ -1,0 +1,75 @@
+# Spike: PayPal sandbox checkout + Agent Toolkit + Kernel approval (Day-1 checks 1–3)
+
+Status: **PARTIAL — buyer approval and capture not yet run** (no sandbox buyer credentials available to the agent; see Blockers).
+Branch: `feat/paypal-kernel-day1`. Sandbox only; no live credentials. No tokens, approval URLs, cookies or passwords appear below.
+
+## 1. OAuth (verified live)
+
+Docs: <https://developer.paypal.com/api/rest/authentication/>
+
+```
+python scripts/paypal_oauth_check.py <env-file>
+status 200 ms 806 keys [access_token, app_id, expires_in, nonce, scope, token_type] token_type Bearer expires_in 32399 access_token_len 97
+```
+
+`POST https://api-m.sandbox.paypal.com/v1/oauth2/token`, HTTP Basic (client id:secret), `grant_type=client_credentials`.
+
+## 2. Orders v2 (`payments/sandbox.py`)
+
+Docs: <https://developer.paypal.com/api/orders/v2/> (OpenAPI v2.36, `schema.json`), errors: <https://developer.paypal.com/api/rest/reference/orders/v2/errors/>
+
+Verified against the spec: `POST /v2/checkout/orders` (header `PayPal-Request-Id`, body `intent`, `purchase_units[].amount.{currency_code,value}`, `purchase_units[].custom_id`, `payment_source.paypal.experience_context.{return_url,cancel_url,user_action,shipping_preference}`), `GET /v2/checkout/orders/{id}`, `POST /v2/checkout/orders/{id}/capture` (header `PayPal-Request-Id`). Order status enum: `CREATED, SAVED, APPROVED, VOIDED, COMPLETED, PAYER_ACTION_REQUIRED`. Capture status enum: `COMPLETED, DECLINED, PARTIALLY_REFUNDED, PENDING, REFUNDED, FAILED`. With `payment_source.paypal.experience_context` the create response is `PAYER_ACTION_REQUIRED` with a `payer-action` link (the legacy shape uses `approve`; both handled).
+
+Not verifiable from the spec (numeric HTTP status per error issue is not listed on the errors page): error mapping keys on `details[0].issue` / `name`, not on status code.
+
+Behaviour:
+- Money is `Decimal` end to end, formatted `"%.2f"`; >2 decimals, zero, or negative raises before any API call.
+- Create uses the guard idempotency key as `PayPal-Request-Id` (and `custom_id`, for ledger reconciliation). Capture uses `capture-{order_id}`; if PayPal answers `ORDER_ALREADY_CAPTURED` the capture is rebuilt from `GET`.
+- Capture amount is compared with the created amount (`AmountMismatch`); non-`COMPLETED` capture raises `PaymentDeclined`.
+- `PAYPAL_ENV != sandbox` raises at construction.
+
+Live create + retrieve (5 orders, `scripts/paypal_latency.py`, token acquisition excluded):
+
+| step | median | max |
+|---|---|---|
+| create order | 670 ms | 876 ms |
+| get order | 371 ms | 457 ms |
+
+All 5 returned `PAYER_ACTION_REQUIRED` with a payer-action link. No rate-limit response seen at this volume (sample too small to establish headroom).
+
+## 3. Contract tests
+
+`tests/test_payments_contract.py` runs one scenario set against `MockPayments(auto_approve=False)` and `SandboxPayments` over a stateful fake of Orders v2 (`httpx.MockTransport`): exact amount, inexact-amount rejection, idempotent create/capture, status progression, error mapping (not approved, not found). Sandbox-only: wire headers, 401 token refresh, declined capture, already-captured replay, amount mismatch, live-env refusal, budget rejection with **zero** HTTP calls, no capture call without confirmation. The fake follows spec shapes but is **not** PayPal; live sandbox behaviour is covered by section 2 and section 5.
+
+`MockPayments` gained `auto_approve` (default `True`, keeps bulk-training behaviour), `approve()`, `get_status()`, `approval_url()`.
+
+## 4. PayPal Agent Toolkit / MCP (check 2)
+
+Docs: <https://developer.paypal.com/ai-tools/agent-tools>, <https://developer.paypal.com/tools/mcp-server/>, <https://github.com/paypal/agent-toolkit>
+
+| Need | Toolkit | Verdict |
+|---|---|---|
+| create order | `create_order` (`items[{name,quantity,unit_price}]`, `currency`); return value undocumented | partial: no `custom_id`/idempotency header or approval link documented |
+| get order status | `get_order` takes `payment_id`, described as "a specific payment" | not confirmed as order-by-id |
+| capture | `pay_order` (`order_id`) | covered |
+| buyer approval | none | **not covered** |
+| refund | `create_refund`, `get_refund` | covered (unused) |
+
+Local server: `npx -y @paypal/mcp --tools=all`, env `PAYPAL_ACCESS_TOKEN`, `PAYPAL_ENVIRONMENT=SANDBOX`; remote `https://mcp.sandbox.paypal.com`. Third-party issue <https://github.com/paypal/agent-toolkit/issues/95> (unverified by us) reports no human gate or spend bound on capture. **Decision: no `agent_toolkit.py` adapter** — required actions (idempotent create with approval link, order status, approval) are not confirmed.
+
+## 5. Kernel buyer approval (check 1a)
+
+Docs: <https://www.kernel.sh/docs/quickstart>, <https://www.kernel.sh/docs/api-reference/browsers/create-a-browser-session.md>, <https://www.kernel.sh/docs/browsers/replays.md>. SDK `kernel==0.139.0` (`pip install kernel`; optional extra here). Used: `browsers.create(timeout_seconds=)`, `browsers.playwright.execute(id, code=, timeout_sec=)`, `browsers.delete_by_id`. Not set: `stealth`, `proxy`, any CAPTCHA feature.
+
+Credential-free probe (`scripts/kernel_probe.py`): a default Kernel browser (`stealth=False`, `headless=False`, create ≈ 274 ms) opened our own sandbox approval page. Result: host `www.sandbox.paypal.com`, path `/checkoutnow`, title "Log in to your PayPal account"; visible inputs `#email` (`login_email`), `#password`, buttons `#btnNext`, `#btnLogin`; a `www.recaptcha.net` frame is present on the page and two captcha text inputs exist; no block text detected. Order stayed `PAYER_ACTION_REQUIRED`. **Whether PayPal challenges the login itself is unknown until credentials are used.**
+
+`payments/kernel_approver.py` logs in, clicks the review/confirm button, polls order status to `APPROVED`, and raises `ApprovalBlocked` (stopping the run) on any challenge frame/text or unexpected step.
+
+## 6. Pending (blocked on buyer credentials)
+
+- Approval attempt via Kernel, then capture; latency of create / approval / capture over a small sample (`scripts/paypal_kernel_e2e.py`).
+- Final sandbox order status, limitations observed, go/no-go.
+
+## Blockers
+
+- No sandbox personal (buyer) account email/password available to the agent (`.env` has none; `.env` must not be edited).
