@@ -26,6 +26,12 @@ The highest score wins, with product ID as the stable tie-break. Split assignmen
 
 Review traps require at least one `ReviewSignal`, a distinct feasible review-adjusted best, and supporting review IDs that exist under the signaled product. Ratings alone cannot create a trap.
 
+Production batch generation uses `FrozenTrainingCatalog`, not routed live search.
+The contract requires complete deterministic enumeration and complete product-scoped
+review IDs. `BatchConfig.feasible_percent` is constrained to 70–80; exact seeded
+counts keep impossible tasks in the complementary 20–30 band. Amazon batches use
+category and price only and reject variant/stock requirements.
+
 ## Action order
 
 1. `parse_intent` is first and occurs once.
@@ -70,6 +76,12 @@ Rules are stable, versioned, dated, enabled/disabled records with deterministic 
 Population initialization and all mutation use local seeded RNG instances. Genome hashes serialize every field except the external ID. Selection removes killed genomes, ranks survivors by fitness then ID, culls the bottom quartile, keeps all survivors unchanged as elites, and fills the population using seeded tournament parents. Mutations clamp temperature, search, and review parameters to schema ranges; prompt mutation uses a protocol and deterministic fixture proposer, not an LLM.
 
 Checkpoint hashes cover the canonical JSON content. Episode keys are `genome_id:task_id`; resume schedules only absent keys, preventing duplicate work. Parent IDs always point to the supplied survivor population.
+
+`world.orchestrator.run_generation` additionally requires the persisted episode set
+to match completed checkpoint keys exactly. It internally constructs
+`MockPayments(auto_approve=True)`, so world generations have no code path to PayPal
+sandbox capture. A completed generation emits measured summaries, evaluation
+JSON/Markdown, curated traces, and a versioned training manifest.
 
 ## Leakage and curation
 

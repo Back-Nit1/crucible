@@ -1,8 +1,89 @@
 # Core status handoff
 
-Branch: `feat/core-m2-m5`
+Branch: `feat/core-generation` (based on audited platform+core merge `6782e35`)
 
-Last implementation commit before this handoff: `858aa8e fix(agents): trace rejected budget attempts`.
+## 2026-10-31 generation integration update
+
+Implemented after the platform/core integration:
+
+- `FrozenTrainingCatalog` requires an explicit frozen marker, snapshot ID, SHA-256
+  manifest hash, deterministic category enumeration, complete product enumeration,
+  and complete product-scoped review-ID lookup.
+- Seeded batch generation produces a configured 70–80% feasible / 20–30%
+  impossible mix. It never adds size or stock requirements to the Amazon snapshot.
+  Uncheckable constraints retain unknown feasibility and cannot enter a generation.
+- Review traps accept only pre-verified semantic signals whose supporting IDs pass
+  the complete product-scoped lookup. Ratings and retrieval rank are never used to
+  invent a claim.
+- `ModelAdapter` is a vendor-neutral structured-tool-call boundary. The stateless
+  `ScriptedModelAdapter` is indexed by persisted history for deterministic resume.
+- `world.orchestrator.run_generation` wires the frozen provider, model adapter,
+  episode runner, deterministic scorer, kill registry, memory protocol, and
+  `GuardedPayments(MockPayments(auto_approve=True))`. Sandbox payments cannot be
+  injected into this function.
+- Resume requires exactly one persisted episode per completed checkpoint key and
+  schedules only missing genome/task pairs.
+- Completed generations produce a summary, checkpoint, evaluation JSON/Markdown,
+  curated SFT records, and a versioned training manifest. No training occurs.
+- `TraceRepositoryMemoryProvider` maps full episode JSON and raw task text to the
+  integrated platform memory contract while blocking test/killed/below-threshold
+  records.
+- `ConfiguredJudgeAdapter` is versioned, input-hashed, cache-keyed, cached, and
+  fail-closed. It constructs no network or paid-model client.
+
+Verification on the integrated tree:
+
+- Untouched merged baseline: `140 passed, 2 deselected, 1 warning`.
+- Final generation phase gate: `156 passed, 2 deselected, 1 warning`.
+- The warning is the existing Starlette/httpx deprecation. Live tests remain
+  intentionally deselected.
+
+### Seeded contract-fixture generation metrics
+
+These values are from an explicitly synthetic, in-memory contract fixture, not the
+real Elastic snapshot and not a model-quality claim.
+
+| Field | Measured value |
+|---|---:|
+| Seed / genomes / tasks / episodes | `9 / 2 / 10 / 20` |
+| Feasible / impossible / review-trap tasks | `7 / 3 / 1` |
+| Survivors | `2` |
+| Kills / wrong refusals / hallucinations | `0 / 0 / 0` |
+| Success / hard constraints / correct refusal | `1 / 1 / 1` |
+| Review grounding / review-trap accuracy | `1 / 1` |
+| Persona-relevant review recall | `0.9` |
+| pass@1 / budget violation rate | `1 / 0` |
+| Mean fixture latency / cost | `0 ms / 0` |
+| Mock captures | `14` |
+| Grounded SFT records / deterministic duplicates removed | `17 / 3` |
+| Training manifest content hash | `329c7ba2e731568fa8402fc450c9f66d7cca9723d07a2c046cc5904060a4c875` |
+
+### Platform changes still required
+
+The integrated `ElasticCatalogProvider` currently exposes capped `search()` and
+`get_reviews()` only. A real-snapshot generation is therefore deliberately blocked.
+Agent 1 must add, directly or through a training-only adapter:
+
+1. `snapshot_id: str`, a stable identifier for the exact indexed snapshot.
+2. `manifest_hash: str`, a 64-character hash covering every included category
+   manifest (or a provider per single-category manifest).
+3. `is_frozen_training_provider = True` only for the pinned training snapshot.
+4. `categories() -> tuple[str, ...]` in stable order.
+5. `enumerate_products(category) -> tuple[Product, ...]` using complete bounded
+   pagination (`search_after` or equivalent), not the current default `size=10`.
+6. `complete_review_ids(product_id) -> frozenset[str]`, scoped to the product and
+   complete despite the source review-ID collisions. It must not use semantic
+   retrieval or a top-k limit.
+7. Add `tasks`, `agents`, `scoring`, `world`, `training`, and `eval` to the shared
+   packaging list in `pyproject.toml`.
+
+The four committed real snapshot manifests are represented by manifest-only task
+cases (590 built products, 14,541 built reviews); no raw dataset is committed. The
+real generation cannot run until the six provider operations above exist. Because
+that real generation is not green, the WebShop integration intentionally remains
+the documented `WebShopNotConfigured` executable stub.
+
+Last pre-integration core commit: `858aa8e fix(agents): trace rejected budget attempts`.
 
 ## Verification
 
