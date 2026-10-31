@@ -1,0 +1,22 @@
+{
+  "source": "amazon2023",
+  "citation": "Hou et al. 2024, arXiv:2403.03952",
+  "category": "Office_Products",
+  "retrieved_at": "2026-10-31T21:35:45.852314+00:00",
+  "source_revision": "2b6d039ed471f2ba5fd2acb718bf33b0a7e5598e",
+  "meta_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/meta_categories/meta_Office_Products.jsonl",
+  "review_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023/resolve/main/raw/review_categories/Office_Products.jsonl",
+  "sample_rule": {
+    "top_n": 150,
+    "per_product": 25,
+    "min_reviews": 5,
+    "meta_bytes": 157286400,
+    "review_bytes": 1572864000,
+    "order": "candidates by -rating_number,parent_asin; reviews in file order"
+  },
+  "review_records_scanned": 3437440,
+  "candidates": 150,
+  "products": 146,
+  "reviews": 3624,
+  "sha256": "c2c6a780b9f25b745720ab3a8ce6691339149563a9ea039e9abfbe8b83e3d359"
+}
