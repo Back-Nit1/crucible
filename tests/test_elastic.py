@@ -70,3 +70,23 @@ def test_endpoint_from_cloud_id():
     from catalog.providers.elastic import endpoint_from_cloud_id
     cid = "n:" + base64.b64encode(b"us-east4.gcp.elastic.cloud$abc.es$abc.kb").decode()
     assert endpoint_from_cloud_id(cid) == "https://abc.es.us-east4.gcp.elastic.cloud"
+
+
+def test_decimal_price_filters_serialize_on_the_wire():
+    import json
+    from decimal import Decimal
+    from catalog.providers import _http
+    seen = {}
+
+    class R:
+        def read(self): return b"{}"
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+    def opener(req, timeout): seen["body"] = req.data; return R()
+    orig = _http.urllib.request.urlopen
+    _http.urllib.request.urlopen = opener
+    try:
+        _http.request_json("POST", "http://x", {}, {"range": {"price": {"lte": Decimal("25.50")}}})
+    finally:
+        _http.urllib.request.urlopen = orig
+    assert json.loads(seen["body"]) == {"range": {"price": {"lte": 25.5}}}

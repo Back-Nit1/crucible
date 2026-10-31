@@ -2,6 +2,7 @@
 import json
 import urllib.error
 import urllib.request
+from decimal import Decimal
 
 
 class HttpError(RuntimeError):
@@ -10,10 +11,16 @@ class HttpError(RuntimeError):
         self.status, self.body, self.url = status, body, url
 
 
+def _num(o):
+    if isinstance(o, Decimal):  # price filters arrive as Decimal; the wire format is a JSON number
+        return float(o)
+    raise TypeError(f"{type(o).__name__} is not JSON serializable")
+
+
 def request_json(method: str, url: str, headers: dict, body=None, timeout: float = 60):
     """Send `body` (dict -> JSON, str/bytes -> as is) and return the parsed JSON response."""
     if isinstance(body, dict):
-        data = json.dumps(body).encode()
+        data = json.dumps(body, default=_num).encode()
     elif isinstance(body, str):
         data = body.encode()
     else:
