@@ -1,7 +1,8 @@
 # Day-1 checks 5–6: Qwen tool calling and Modal resumability
 
-Date: 2026-10-31  
-Seed: `20261031`  
+Date: 2026-10-31
+
+Seed: `20261031`
 Status: **no-go for Qwen promotion; Modal Volume resume proof passed**
 
 This spike is deliberately independent of the unfinished agent runtime. It does
