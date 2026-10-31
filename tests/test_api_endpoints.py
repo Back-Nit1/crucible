@@ -76,7 +76,7 @@ def test_confirm_after_approval_captures_exact_amount():
     be = MockPayments(auto_approve=False)
     c = client(be)
     p = c.post("/purchase/propose", json=PROPOSE).json()
-    be.approve(be._by_key[p["pending_order_id"]])
+    be.approve(next(iter(be._orders)))  # the only order created
     r = c.post("/purchase/confirm", json={"pending_order_id": p["pending_order_id"], "user_confirmed": True}).json()
     assert r["status"] == "COMPLETED" and r["amount"] == "80.00"
 
@@ -92,3 +92,14 @@ def test_unhandled_error_hides_internals():
     c = TestClient(create_app(ProviderRouter({"elastic_snapshot": Boom()}, CFG), MockPayments()), raise_server_exceptions=False)
     r = c.get("/catalog/search", params={"q": "x"})
     assert r.status_code == 500 and "secret-token-123" not in r.text
+
+
+def test_propose_labels_the_quote_basis_and_never_claims_all_in_for_item_price():
+    j = client().post("/purchase/propose", json=PROPOSE).json()
+    assert j["quote_basis"] == "item_price_only" and j["quote_id"].startswith("q-") and j["total"] == "80.00"
+
+
+def test_require_all_in_env_blocks_item_price_only_checkout(monkeypatch):
+    monkeypatch.setenv("REQUIRE_ALL_IN_QUOTE", "1")
+    r = client().post("/purchase/propose", json=PROPOSE)
+    assert r.status_code == 409 and r.json()["error"]["code"] == "quote_incomplete"
