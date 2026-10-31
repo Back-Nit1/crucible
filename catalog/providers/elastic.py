@@ -31,7 +31,8 @@ def mappings(dims: int = DIMS) -> dict[str, dict]:
             "reviews_indexed": {"type": "integer"},  # real reviews held in `reviews`; 0 = reviews: none
             "source": kw, "as_of": dte, "embedding": _vec(dims)}},
         "reviews": {"properties": {
-            "review_id": kw, "product_id": kw, "rating": {"type": "float"}, "title": {"type": "text"},
+            "review_id": kw, "source_review_key": kw, "source_ordinal": {"type": "integer"},
+            "source_record_sha256": kw, "product_id": kw, "rating": {"type": "float"}, "title": {"type": "text"},
             "text": {"type": "text"}, "date": dte, "helpful_votes": {"type": "integer"},
             "verified": {"type": "boolean"}, "reviewer_context": {"type": "flattened"},
             "source": kw, "as_of": dte, "embedding": _vec(dims)}},
@@ -131,17 +132,56 @@ def _review(src: dict) -> Review:
         id=src["review_id"], product_id=src["product_id"], rating=src["rating"], text=src["text"],
         date=dt.date.fromisoformat(src["date"][:10]) if src.get("date") else None,
         helpful_votes=src.get("helpful_votes", 0), verified=src.get("verified", False),
-        reviewer_context=src.get("reviewer_context") or {})
+        reviewer_context=src.get("reviewer_context") or {}, source_id=src.get("source_review_key"))
+
+
+PAGE = 500
 
 
 class ElasticCatalogProvider:
-    """Snapshot provider: every result carries the doc's own source + as_of (the frozen snapshot time)."""
+    """Snapshot provider: every result carries the doc's own source + as_of (the frozen snapshot time).
+    Implements `SnapshotCatalog`: complete enumeration via `search_after` (no 10,000 result-window cap)."""
 
     def __init__(self, es: Elastic, embed=None):
         self.es = es
         self.embed = embed or (lambda t: es.embed([t], input_type="search")[0])
 
+    def _paged(self, index: str, query: dict, sort_field: str, includes=None, excludes=None, limit: int | None = None):
+        """Deterministic complete scan ordered by a unique keyword field; `limit=None` means everything."""
+        after, got = None, 0
+        while limit is None or got < limit:
+            size = PAGE if limit is None else min(PAGE, limit - got)
+            body = {"size": size, "query": query, "sort": [{sort_field: "asc"}]}
+            if includes:
+                body["_source"] = {"includes": includes}
+            elif excludes:
+                body["_source"] = {"excludes": excludes}
+            if after:
+                body["search_after"] = after
+            hits = self.es.call("POST", f"/{self.es.ix(index)}/_search", body)["hits"]["hits"]
+            for h in hits:
+                yield h["_source"]
+            got += len(hits)
+            if len(hits) < size:
+                return
+            after = hits[-1]["sort"]
+
+    def iter_products(self, category: str):
+        for src in self._paged("products", {"term": {"category": category}}, "product_id", excludes=["embedding"]):
+            yield _product(src)
+
+    def review_ids(self, product_id: str) -> frozenset[str]:
+        ids = [s["review_id"] for s in self._paged("reviews", {"term": {"product_id": product_id}}, "review_id", includes=["review_id"])]
+        if len(ids) != len(set(ids)):
+            raise RuntimeError(f"duplicate review ids for {product_id}: refusing to return an ambiguous id set")
+        return frozenset(ids)
+
+    def review_count(self, product_id: str) -> int:
+        return self.es.call("POST", f"/{self.es.ix('reviews')}/_count", {"query": {"term": {"product_id": product_id}}})["count"]
+
     def search(self, query: str, filters: dict | None = None, size: int = 10) -> list[Product]:
+        if not query.strip():
+            raise ValueError("empty query is not an enumeration mechanism; use iter_products(category)")
         f = filters or {}
         flt = [{"term": {"category": f["category"]}}] if f.get("category") else []
         if f.get("max_price") is not None or f.get("min_price") is not None:
@@ -157,12 +197,14 @@ class ElasticCatalogProvider:
         return _product(hits[0]["_source"]) if hits else None
 
     def get_reviews(self, product_id: str, focus: str | None = None, limit: int = 10) -> list[Review]:
-        idx = f"/{self.es.ix('reviews')}/_search"
+        """Without `focus`: the first `limit` reviews in review-id order, paged (limit may exceed 10,000 safely).
+        With `focus`: hybrid retrieval, capped by the RRF rank window (<=100): relevance search is never a complete listing."""
         if focus:
-            body = hybrid_review_query(product_id, focus, self.embed(focus), size=limit)
-        else:
-            body = {"size": limit, "_source": {"excludes": ["embedding"]}, "query": {"term": {"product_id": product_id}}}
-        return [_review(h["_source"]) for h in self.es.call("POST", idx, body)["hits"]["hits"]]
+            body = hybrid_review_query(product_id, focus, self.embed(focus), size=min(limit, 100), window=100)
+            hits = self.es.call("POST", f"/{self.es.ix('reviews')}/_search", body)["hits"]["hits"]
+            return [_review(h["_source"]) for h in hits]
+        return [_review(s) for s in self._paged("reviews", {"term": {"product_id": product_id}}, "review_id",
+                                                excludes=["embedding"], limit=limit)]
 
 
 def endpoint_from_cloud_id(cloud_id: str) -> str:

@@ -1,5 +1,6 @@
 """CatalogProvider interface + core entities (spec 7.1, section 9)."""
 import datetime as dt
+from collections.abc import Iterator
 from decimal import Decimal
 from typing import Protocol
 
@@ -28,9 +29,23 @@ class Review(BaseModel):
     helpful_votes: int = 0
     verified: bool = False
     reviewer_context: dict = Field(default_factory=dict)
+    source_id: str | None = None  # the source dataset's own composed key, preserved separately from `id`
 
 
 class CatalogProvider(Protocol):
     def search(self, query: str, filters: dict | None = None) -> list[Product]: ...
     def get_product(self, product_id: str) -> Product | None: ...
     def get_reviews(self, product_id: str, focus: str | None = None, limit: int = 10) -> list[Review]: ...
+
+
+class SnapshotCatalog(CatalogProvider, Protocol):
+    """A frozen catalog that can be enumerated completely. This is the only sanctioned enumeration path:
+    an empty search query is NOT an enumeration mechanism (providers must reject it)."""
+
+    def iter_products(self, category: str) -> Iterator[Product]:
+        """Every product in `category`, in ascending product-id order, with no result cap."""
+
+    def review_ids(self, product_id: str) -> frozenset[str]:
+        """The complete set of review ids for one product. Never truncated; raises rather than returning a partial set."""
+
+    def review_count(self, product_id: str) -> int: ...
