@@ -73,15 +73,16 @@ class Elastic:
                 if "resource_already_exists" not in str(e):
                     raise
 
-    def bulk(self, index: str, docs: list[tuple[str, dict]]) -> int:
-        """Index (id, doc) pairs idempotently (same id overwrites). Raises on any item error."""
-        lines = []
-        for _id, doc in docs:
-            lines += [json.dumps({"index": {"_index": self.ix(index), "_id": _id}}), json.dumps(doc, default=str)]
-        out = self.call("POST", "/_bulk?refresh=wait_for", "\n".join(lines) + "\n", ndjson=True)
-        if out.get("errors"):
-            bad = [i["index"]["error"] for i in out["items"] if "error" in i["index"]]
-            raise RuntimeError(f"bulk errors ({len(bad)}): {bad[0]}")
+    def bulk(self, index: str, docs: list[tuple[str, dict]], chunk: int = 100) -> int:
+        """Index (id, doc) pairs idempotently (same id overwrites), in request-size-bounded chunks. Raises on any item error."""
+        for i in range(0, len(docs), chunk):
+            lines = []
+            for _id, doc in docs[i:i + chunk]:
+                lines += [json.dumps({"index": {"_index": self.ix(index), "_id": _id}}), json.dumps(doc, default=str)]
+            out = self.call("POST", "/_bulk?refresh=wait_for", "\n".join(lines) + "\n", ndjson=True)
+            if out.get("errors"):
+                bad = [i["index"]["error"] for i in out["items"] if "error" in i["index"]]
+                raise RuntimeError(f"bulk errors ({len(bad)}): {bad[0]}")
         return len(docs)
 
     def embed(self, texts: list[str], inference_id: str = EMBED_ID, input_type="ingest"):

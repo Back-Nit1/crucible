@@ -113,8 +113,8 @@ def elastic(a):
     revs = [r for p in pick for r in by[p]]
     rdocs = [review_doc(r) for r in revs]
     vecs = []
-    for i in range(0, len(rdocs), 32):
-        vecs += es.embed([f"{d['title']}. {d['text']}"[:1500] for d in rdocs[i:i + 32]])
+    for i in range(0, len(rdocs), 16):
+        vecs += es.embed([f"{d['title']}. {d['text']}"[:1500] for d in rdocs[i:i + 16]])
     for d, v in zip(rdocs, vecs):
         d["embedding"] = v
     es.bulk("reviews", [(d["review_id"], d) for d in rdocs])
