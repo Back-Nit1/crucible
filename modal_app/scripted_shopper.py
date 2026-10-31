@@ -43,7 +43,7 @@ def _excerpt(text: str, n: int = 160) -> str:
     return " ".join(text.split())[:n].strip()
 
 
-def build_script(task: TaskSpec, catalog: CatalogProvider, *, min_candidates: int = 2, review_limit: int = 5) -> list[Action]:
+def build_script(task: TaskSpec, catalog: CatalogProvider, *, min_candidates: int = 2, review_limit: int = 2) -> list[Action]:
     cap = task.hard_constraints.max_total
     cat = task.hard_constraints.category
     steps: list[Action] = [ParseIntent(raw_message=task.raw_message, category=cat, max_total=cap,
@@ -77,9 +77,9 @@ def build_script(task: TaskSpec, catalog: CatalogProvider, *, min_candidates: in
     steps += [SearchCatalog(query=query, filters=filters)]
     steps += [GetProduct(product_id=p.id) for p in [pick, *others]]
     steps += [Compare(product_ids=tuple(p.id for p in [pick, *others]))]
-    reviews = catalog.get_reviews(pick.id, "durability and fit", review_limit)
-    if reviews:
-        steps += [GetReviews(product_id=pick.id, focus="durability and fit", sort=ReviewSort.RELEVANT, limit=review_limit)]
+    reviews = catalog.get_reviews(pick.id, None, 100)
+    if reviews:  # read every held review, most critical first, so the cited one is genuinely the least favourable
+        steps += [GetReviews(product_id=pick.id, sort=ReviewSort.CRITICAL, limit=min(100, max(review_limit, len(reviews))))]
         top = sorted(reviews, key=lambda r: (r.rating, r.id))[0]  # the most critical review: never cherry-pick praise
         steps += [SummarizeReviewEvidence(
             product_id=pick.id, user_context=task.raw_message,
