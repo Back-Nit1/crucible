@@ -70,7 +70,11 @@ model_image = (
     .run_function(_download_model, timeout=30 * 60)
 )
 
-cpu_image = modal.Image.debian_slim(python_version="3.12")
+cpu_image = (
+    modal.Image.debian_slim(python_version="3.12")
+    .pip_install("jsonschema==4.23.0")
+    .add_local_python_source("eval", copy=True)
+)
 checkpoint_volume = modal.Volume.from_name(
     "crucible-day1-checkpoints-v2", create_if_missing=True, version=2
 )
