@@ -211,3 +211,22 @@ flowchart LR
 Implemented: provider interface + router (source/as_of/snapshot stamps), Elastic hybrid retrieval, Channel3 live provider,
 PayPal sandbox backend with guards and mock parity, memory retrieval with test-split exclusion, typed API.
 Not yet: Kernel approval run, Modal world/train/serve, Render deploy, web UI, Astropods, Zapier.
+
+
+## Integration/runtime layer (measured 2026-11-01)
+```mermaid
+flowchart LR
+  tasks[tasks.engine build_task] -->|search with empty query| tc[catalog.training.TrainingCatalog]
+  tc -->|enumerate / review_ids| router[ProviderRouter mode=training]
+  router --> es[ElasticCatalogProvider<br/>search_after paging]
+  gen[modal_app.generation_runner] --> ck[memory.checkpoints.CheckpointStore<br/>atomic, resumable]
+  gen --> runner[agents.runner.run_episode]
+  runner --> exec[InMemoryToolExecutor] --> tc
+  exec --> gp[GuardedPayments + Quote] --> mock[MockPayments]
+  runner --> ep[EpisodeRecord]
+  ep --> mp[memory.provider.TraceMemoryProvider]
+  mp --> repo[ElasticTraceRepository / InMemory] --> traces[(Elastic traces)]
+  mp -.retrieve: no test, held-out, killed.-> runner
+```
+Verified live: enumeration, review-id lookup, one scripted episode, persist + retrieve, one interrupted-and-resumed generation.
+Not verified: Kernel-approved capture and Qwen inference (credentials/billing missing).

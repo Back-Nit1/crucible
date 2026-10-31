@@ -30,15 +30,26 @@ Postman: import `postman/crucible.postman_collection.json` + `postman/crucible.p
 | Service | Status |
 |---|---|
 | PayPal Orders v2 sandbox | OAuth, create, get, idempotent replay, pre-approval capture rejection live-verified. Approval + capture **not** run (no buyer account). |
-| Kernel approval | Code + probe done; login challenge unknown until buyer credentials exist. Blocked. |
+| Kernel approval | Code + probe done; login challenge unknown until buyer credentials exist. **Blocked** (no `PAYPAL_SANDBOX_BUYER_*`). |
 | PayPal Agent Toolkit | Not used: required actions not confirmed. |
 | Elastic Serverless | Connected; mappings, keyword/vector/hybrid verified (see spike). Embeddings: `.jina-embeddings-v5-text-nano` (768d). |
 | Channel3 | Live product display only; no review text; snapshot/training barred by ToS. Opt-in. |
 | Best Buy | Disabled (signup unavailable). |
 | Modal | Auth OK; Volume resume proven. GPU functions blocked: workspace needs a payment method. $0 spent. |
 | Qwen tool-call probe | **Not measured** (needs Modal GPU). |
+| Frozen snapshot | 590 products / 14,541 reviews in 4 categories; complete enumeration and review-id lookup; stable composite review ids. |
+| Memory + checkpoints | `TraceMemoryProvider` (Elastic or in-memory) enforces no test/held-out/killed retrieval; atomic resumable `CheckpointStore`. |
+| Quotes | All-in `Quote` enforced before order creation; snapshot quotes are disclosed as `snapshot_declared`. |
+| Pipeline | Real-snapshot tasks (`data/tasks/tasks_v1.json`), scripted-shopper episode and one resumable generation verified live (scripted, not a model). |
 | Astropods / Render / Zapier | Not built. |
 
+More commands (see `docs/handoffs/integration-runtime.md`):
+```
+uv run python -m scripts.generate_tasks --env-file .env
+uv run python -m scripts.live_episode --env-file .env
+uv run python -m scripts.run_generation --env-file .env
+```
+
 ## Explicitly incomplete
-Qwen tool-calling metrics; Kernel buyer approval and capture timings; Modal GPU/LoRA cost measurement; APIMatic plugin install;
+Qwen tool-calling metrics (Modal needs a payment method); Kernel buyer approval and capture timings; Modal GPU/LoRA cost measurement; APIMatic plugin install;
 Astropods deploy; web UI. Amazon data has no stock or size availability: those constraints are unverifiable and must not be generated.
