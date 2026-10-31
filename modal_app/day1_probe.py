@@ -40,6 +40,7 @@ MAX_GPU_SECONDS = 45 * 60
 MAX_EXPERIMENT_SPEND_USD = 5.0
 DEFAULT_TOOL_RESULT = "eval/results/day1_qwen_tool_calls.json"
 DEFAULT_RESUME_RESULT = "eval/results/day1_modal_resume.json"
+L4_PROBE_ENABLED = os.environ.get("CRUCIBLE_ENABLE_L4_PROBE") == "1"
 
 
 def _download_model() -> None:
@@ -85,7 +86,9 @@ def _sanitize(value: str) -> str:
 
 @app.function(
     image=model_image,
-    gpu="L4",
+    # Keep CPU-only diagnostics runnable in workspaces without GPU billing.
+    # The local GPU entrypoint below refuses to run unless this is explicitly enabled.
+    gpu="L4" if L4_PROBE_ENABLED else None,
     cpu=2.0,
     memory=32_768,
     timeout=MAX_GPU_SECONDS,
@@ -245,6 +248,10 @@ def _write_result(path: str, result: dict[str, Any]) -> None:
 
 @app.local_entrypoint()
 def tool_call_probe(output_path: str = DEFAULT_TOOL_RESULT) -> None:
+    if not L4_PROBE_ENABLED:
+        raise RuntimeError(
+            "set CRUCIBLE_ENABLE_L4_PROBE=1 after authentication, billing, and cost checks"
+        )
     ceiling = estimate_modal_cost(MAX_GPU_SECONDS)["total_usd"]
     if ceiling >= MAX_EXPERIMENT_SPEND_USD:
         raise RuntimeError(
