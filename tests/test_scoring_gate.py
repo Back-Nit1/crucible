@@ -68,3 +68,18 @@ def test_gate_rejects_budget_and_stock_violations():
         GateViolationCode.OVER_BUDGET,
         GateViolationCode.PRICE_MISMATCH,
     }
+
+
+def test_snapshot_without_stock_data_does_not_fail_the_gate_on_variant():
+    """Amazon snapshot products have no variants; a task with no required variant must not be gated on stock."""
+    from catalog.providers.base import ReviewIds  # noqa: F401
+    catalog = InMemoryCatalog()
+    catalog.products["shoe-a"] = catalog.products["shoe-a"].model_copy(update={"variants": {}})
+    task = feasible_task(hard_constraints=feasible_task().hard_constraints.model_copy(update={"required_variant": None}))
+    trace = grounded_trace()
+    rec = trace.outcome.recommendations[0].model_copy(update={"variant": "default"})
+    trace = trace.model_copy(update={"outcome": trace.outcome.model_copy(update={"recommendations": (rec,)})})
+    assert evaluate_gate(task, trace, catalog).value == 1
+    # but a task that DOES require a variant still fails when the catalog cannot show it in stock
+    required = feasible_task()
+    assert evaluate_gate(required, trace, catalog).value == 0
