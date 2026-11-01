@@ -45,7 +45,7 @@ class MockPayments:
     def capture(self, order_id: str) -> Capture:
         _, amount, ccy = self._order(order_id)
         if order_id in self._captures:
-            return self._captures[order_id]
+            return self._captures[order_id].model_copy(update={"replayed": True})
         if self._status[order_id] != "APPROVED":
             raise OrderNotApproved("ORDER_NOT_APPROVED", order_id)
         cap = Capture(order_id=order_id, capture_id=f"MOCK-CAP-{order_id}", amount=amount,

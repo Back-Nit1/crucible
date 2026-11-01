@@ -11,6 +11,7 @@ class Capture(BaseModel):
     amount: Decimal
     currency: str
     status: str  # "COMPLETED"
+    replayed: bool = False  # True when this call returned an already-made capture (no new charge)
 
 
 class PaymentsBackend(Protocol):

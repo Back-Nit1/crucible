@@ -28,12 +28,19 @@ class FakePayPal:
         self.by_req: dict[str, dict] = {}
         self.decline = False
         self.expire_next_token = False
+        self.faults: list = []  # responses/exceptions served (in order) to the next non-token calls
+        self.pending_capture = False
 
     def handler(self, req: httpx.Request) -> httpx.Response:
         self.calls.append((req.method, req.url.path, dict(req.headers)))
         if req.url.path == "/v1/oauth2/token":
             return httpx.Response(200, json={"access_token": "tok", "token_type": "Bearer",
                                              "expires_in": 32000})
+        if self.faults:
+            f = self.faults.pop(0)
+            if isinstance(f, Exception):
+                raise f
+            return f
         if self.expire_next_token:
             self.expire_next_token = False
             return httpx.Response(401, json={"name": "AUTHENTICATION_FAILURE", "message": "x",
@@ -63,7 +70,7 @@ class FakePayPal:
         if order["status"] != "APPROVED":
             return self._err(422, "UNPROCESSABLE_ENTITY", "ORDER_NOT_APPROVED")
         amt = order["purchase_units"][0]["amount"]
-        status = "DECLINED" if self.decline else "COMPLETED"
+        status = "DECLINED" if self.decline else "PENDING" if self.pending_capture else "COMPLETED"
         order["status"] = "COMPLETED"
         order["_cap_req"] = req.headers["paypal-request-id"]
         order["purchase_units"][0]["payments"] = {"captures": [
@@ -117,7 +124,8 @@ def test_idempotent_create_and_capture(rig):
     assert rig.backend.create_order(D("10.00"), "USD", "other") != a
     rig.approve(a)
     c1, c2 = rig.backend.capture(a), rig.backend.capture(a)
-    assert c1 == c2
+    assert c1.model_dump(exclude={"replayed"}) == c2.model_dump(exclude={"replayed"})
+    assert (c1.replayed, c2.replayed) == (False, True)  # second call is a replay, not a second charge
 
 
 def test_status_progression(rig):
@@ -165,7 +173,8 @@ def test_sandbox_declined_capture_and_already_captured_replay():
     r2.approve(oid)
     first = r2.backend.capture(oid)
     r2.fake.orders[oid]["_cap_req"] = "expired"
-    assert r2.backend.capture(oid) == first
+    again = r2.backend.capture(oid)
+    assert again.capture_id == first.capture_id and again.replayed
 
 
 def test_sandbox_refreshes_token_once_on_401_and_never_leaks_secret():
@@ -228,3 +237,75 @@ def _sandbox() -> Rig:
     r = Rig(SandboxPayments("id", SECRET, client=http), fake.approve)
     r.fake = fake
     return r
+
+
+# --- retries, redaction, duplicate capture ---------------------------------------------------------
+def _resp(status, issue="X", name="N", message="LEAKY-PAYPAL-TEXT"):
+    return httpx.Response(status, json={"name": name, "message": message, "debug_id": "dbg-77",
+                                        "details": [{"issue": issue}]})
+
+
+def test_transient_failures_retry_with_the_same_request_id_then_succeed():
+    from payments.errors import PaymentUnavailable
+    r = _sandbox()
+    r.fake.faults = [_resp(503), httpx.ReadTimeout("slow")]
+    oid = r.backend.create_order(D("5.00"), "USD", "key-r")
+    posts = [h["paypal-request-id"] for m, p, h in r.fake.calls if p == "/v2/checkout/orders"]
+    assert posts == ["key-r"] * 3 and len(r.fake.orders) == 1  # one order despite three attempts
+    assert oid == "ORD1"
+    r.fake.faults = [httpx.ConnectError("down")] * 3
+    with pytest.raises(PaymentUnavailable) as e:
+        r.backend.get_status(oid)
+    assert e.value.code == "NETWORK_ERROR" and e.value.retryable
+
+
+def test_timeout_after_retries_is_typed_and_retryable():
+    from payments.errors import PaymentUnavailable
+    r = _sandbox()
+    r.fake.faults = [httpx.ReadTimeout("t")] * 3
+    with pytest.raises(PaymentUnavailable) as e:
+        r.backend.create_order(D("5.00"), "USD", "k")
+    assert e.value.code == "TIMEOUT" and e.value.retryable and r.fake.orders == {}
+
+
+def test_permanent_errors_are_not_retried_and_leak_nothing():
+    r = _sandbox()
+    r.fake.faults = [_resp(400, issue="INVALID_PARAMETER_SYNTAX")]
+    with pytest.raises(PaymentError) as e:
+        r.backend.create_order(D("5.00"), "USD", "k")
+    assert not e.value.retryable and e.value.code == "INVALID_PARAMETER_SYNTAX"
+    assert len([1 for m, p, _ in r.fake.calls if p == "/v2/checkout/orders"]) == 1
+    text = f"{e.value!s} {e.value!r}"
+    assert "LEAKY-PAYPAL-TEXT" not in text and "dbg-77" not in text
+
+
+def test_pending_or_missing_capture_is_a_typed_error():
+    r = _sandbox()
+    r.fake.pending_capture = True
+    oid = r.backend.create_order(D("5.00"), "USD", "k")
+    r.approve(oid)
+    with pytest.raises(PaymentError) as e:
+        r.backend.capture(oid)
+    assert e.value.code == "CAPTURE_PENDING" and e.value.retryable
+    r.fake.orders[oid]["purchase_units"][0]["payments"] = {}
+    with pytest.raises(PaymentError, match="CAPTURE_MISSING"):
+        r.backend.capture(oid)
+
+
+def test_oauth_failure_is_typed_without_body():
+    fake = FakePayPal()
+    http = httpx.Client(base_url="https://api-m.sandbox.paypal.com", transport=httpx.MockTransport(
+        lambda req: _resp(401, issue="invalid_client", message="LEAKY-PAYPAL-TEXT")))
+    with pytest.raises(PaymentError, match="AUTH_FAILED") as e:
+        SandboxPayments("id", SECRET, client=http).create_order(D("5.00"), "USD", "k")
+    assert "LEAKY" not in str(e.value) and SECRET not in repr(e.value) and fake.calls == []
+
+
+def test_second_capture_with_a_different_request_id_never_charges_twice():
+    r = _sandbox()
+    oid = r.backend.create_order(D("5.00"), "USD", "k")
+    r.approve(oid)
+    r.backend.capture(oid)
+    with pytest.raises(PaymentError, match="ORDER_ALREADY_CAPTURED"):
+        r.backend._call("POST", f"/v2/checkout/orders/{oid}/capture", request_id="rogue", json={})
+    assert len(r.fake.orders[oid]["purchase_units"][0]["payments"]["captures"]) == 1
