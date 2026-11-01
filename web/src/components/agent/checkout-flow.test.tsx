@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ProductPick } from "@/lib/api/types";
+import { ApiError } from "@/lib/api/client";
 import { CheckoutFlow } from "./checkout-flow";
 
 const pick: ProductPick = {
@@ -64,5 +65,45 @@ describe("CheckoutFlow", () => {
     await waitFor(() => expect(onConfirm).toHaveBeenCalledWith("pending-1"));
     expect(await screen.findByText(/sandbox capture completed/i)).toBeVisible();
     expect(screen.getByText("SANDBOX-CAPTURE-1")).toBeVisible();
+  });
+
+  it("turns an expired quote into an actionable retry state", async () => {
+    const user = userEvent.setup();
+    render(
+      <CheckoutFlow
+        pick={pick}
+        purchaseContext={{ taskId: "task-1", agentId: "agent-1", budgetCap: "100", variant: "" }}
+        onPropose={vi.fn().mockRejectedValue(new ApiError("quote_stale", "stale", 409))}
+        onConfirm={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /verify all-in quote/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/quote expired.*fresh quote/i);
+  });
+
+  it("reports sandbox capture failure without showing a receipt", async () => {
+    const user = userEvent.setup();
+    render(
+      <CheckoutFlow
+        pick={pick}
+        purchaseContext={{ taskId: "task-1", agentId: "agent-1", budgetCap: "100", variant: "" }}
+        onPropose={vi.fn().mockResolvedValue({
+          pending_order_id: "pending-1",
+          product_id: "REAL-1",
+          total: "96.25",
+          currency: "USD",
+          status: "APPROVED",
+          approval_url: null,
+          quote_id: "quote-1",
+          quote_basis: "all_in",
+        })}
+        onConfirm={vi.fn().mockRejectedValue(new ApiError("payment_failed", "INSTRUMENT_DECLINED", 402))}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /verify all-in quote/i }));
+    await user.click(await screen.findByRole("checkbox", { name: /explicitly authorize/i }));
+    await user.click(screen.getByRole("button", { name: /confirm sandbox purchase/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/sandbox capture failed/i);
+    expect(screen.queryByText(/capture completed/i)).not.toBeInTheDocument();
   });
 });

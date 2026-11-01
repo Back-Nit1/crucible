@@ -13,6 +13,20 @@ export type PurchaseContext = {
   variant: string;
 };
 
+export function checkoutErrorMessage(cause: unknown): string {
+  if (!(cause instanceof ApiError)) return "The sandbox payment request could not be completed.";
+  const messages: Record<string, string> = {
+    quote_stale: "The verified quote expired. Request a fresh quote before confirming.",
+    quote_changed: "The price or all-in total changed. Review the new quote before confirming.",
+    price_mismatch: "The current catalog price no longer matches the recommendation.",
+    budget_exceeded: "The verified total exceeds the shopper's budget cap. No order was created.",
+    out_of_stock: "The selected product or variant is no longer available.",
+    confirmation_required: "Explicit confirmation is required before sandbox capture.",
+    payment_failed: "PayPal sandbox capture failed. No completed receipt was returned.",
+  };
+  return messages[cause.code] ?? cause.message;
+}
+
 export function CheckoutFlow({
   pick,
   purchaseContext,
@@ -40,7 +54,7 @@ export function CheckoutFlow({
       setQuote(result);
       dialog.current?.showModal();
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "The quote could not be verified.");
+      setError(checkoutErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -55,7 +69,7 @@ export function CheckoutFlow({
       setReceipt(result);
       dialog.current?.close();
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Sandbox capture failed.");
+      setError(checkoutErrorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -90,7 +104,7 @@ export function CheckoutFlow({
           </p>
         </div>
       ) : null}
-      {error ? <p role="alert" className="text-sm text-rose-300">{error}</p> : null}
+      {error && !quote ? <p role="alert" className="text-sm text-rose-300">{error}</p> : null}
       <button
         type="button"
         disabled={!enabled || busy}
@@ -124,6 +138,7 @@ export function CheckoutFlow({
               </button>
             </header>
             <div className="space-y-5 p-5">
+              {error ? <p role="alert" className="rounded-lg border border-rose-800/50 bg-rose-950/30 p-3 text-sm text-rose-200">{error}</p> : null}
               <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                 <p className="text-xs text-slate-500">Verified total</p>
                 <p className="mt-1 text-3xl font-semibold text-emerald-200 tabular-nums">
