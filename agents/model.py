@@ -56,6 +56,8 @@ class ModelRequest(ModelContract):
     messages: tuple[Message, ...]
     tools: tuple[ToolDefinition, ...]
     seed: int | None = Field(default=None, ge=0)
+    temperature: Decimal = Field(default=Decimal("0"), ge=0, le=2)
+    checkpoint: str | None = None  # pinned model/checkpoint the caller expects; a client must refuse a different one
 
 
 class ModelOutput(ModelContract):
@@ -235,10 +237,14 @@ class QwenModelAdapter:
 class AdapterPolicy(ActionPolicy):
     """Translate runner history into a structured model request and typed action."""
 
-    def __init__(self, adapter: ModelAdapter, system_prompt: str, *, seed: int | None = None):
+    def __init__(self, adapter: ModelAdapter, system_prompt: str, *, seed: int | None = None,
+                 request_id: str | None = None, temperature: Decimal = Decimal("0"), checkpoint: str | None = None):
         self.adapter = adapter
         self.system_prompt = system_prompt
         self.seed = seed
+        self.request_id = request_id
+        self.temperature = temperature
+        self.checkpoint = checkpoint
         self.memory_examples = ()
 
     def accept_memory(self, episodes: tuple) -> None:
@@ -282,12 +288,14 @@ class AdapterPolicy(ActionPolicy):
                 )
             )
         request = ModelRequest(
-            request_id=task.id,
+            request_id=self.request_id or task.id,
             sequence=len(history),
             system_prompt=self.system_prompt,
             messages=tuple(messages),
             tools=action_tools(),
             seed=self.seed,
+            temperature=self.temperature,
+            checkpoint=self.checkpoint,
         )
         output = self.adapter.generate(request)
         if output.malformed or len(output.tool_calls) != 1:

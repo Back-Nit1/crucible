@@ -122,7 +122,7 @@ def run_episode(
     *, episode_id: str, task: TaskSpec, agent_id: str, generation_id: str,
     policy: ActionPolicy, executor: InMemoryToolExecutor, seed: int,
     config: RunnerConfig = RunnerConfig(), memory: MemoryProvider | None = None,
-    clock: Callable[[], dt.datetime] | None = None,
+    clock: Callable[[], dt.datetime] | None = None, memory_k: int = 3,
 ) -> EpisodeRecord:
     now = clock or (lambda: dt.datetime.now(dt.timezone.utc))
     started = now()
@@ -134,7 +134,7 @@ def run_episode(
     pre_kill: tuple[dict[str, object], ...] = ()
     if memory is not None:
         examples = memory.retrieve(RetrievalRequest(task.id, task.split, task.hard_constraints.category,
-                                                     task.raw_message, 3, 0))
+                                                     task.raw_message, memory_k, 0))
         accept_memory = getattr(policy, "accept_memory", None)
         if callable(accept_memory):
             accept_memory(examples)
