@@ -77,6 +77,10 @@ def main(argv=None) -> int:
                                        "payments": a.payments, "provider": a.provider, "fixtures": not a.no_fixtures})
     out = Path(a.out_dir) / gen
     report.write(summary, out)
+    if a.traces == "elastic":
+        from world.publish import publish_generation, publish_kill_rules
+        publish_generation(es, res.state, summary)
+        publish_kill_rules(es, summary["kills"]["by_rule"])
     (out / "sft.jsonl").write_text("".join(r.model_dump_json() + "\n" for r in curated.records))
     (out / "training_manifest.json").write_text(curated.manifest.model_dump_json(indent=2) + "\n")
     print(json.dumps({"generation_id": gen, "status": summary["status"], "executed_this_run": len(res.executed),

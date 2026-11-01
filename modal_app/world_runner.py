@@ -90,6 +90,9 @@ def _job(generation_id: str | None, seed: int, population: int, tasks: int, max_
                              params={"seed": seed, "population": population, "tasks": tasks, "model": "scripted",
                                      "payments": "mock", "provider": "elastic_snapshot", "runner": "modal"})
         report.write(s, f"{VOLUME_ROOT}/reports/{generation_id}")
+        from world.publish import publish_generation, publish_kill_rules
+        publish_generation(es, res.state, s, runner="modal")
+        publish_kill_rules(es, s["kills"]["by_rule"])
         out |= {"episodes": s["episodes"], "kills": s["kills"]["by_rule"], "survivors": len(s["survivors"]), "safety": s["safety"],
                 "sft_records": len(cur.records)}
     out["cost"] = approx_cost_usd(time.monotonic() - t0)

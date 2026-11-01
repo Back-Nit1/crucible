@@ -5,12 +5,13 @@ import os
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from catalog.router import ProductResult, ProviderRouter, ProviderUnavailable, ReviewsResult, SearchResult
+from api.world import ModelUnavailable, WorldDataUnavailable, world_router
 from payments.errors import PaymentError
 from payments.guards import (BudgetViolation, GuardedPayments, GuardViolation, NotConfirmed, OutOfStock,
                              PriceMismatch, QuoteChanged, QuoteIncomplete, QuoteStale)
@@ -101,7 +102,16 @@ def default_backend():
     return MockPayments(auto_approve=False)
 
 
-def create_app(router: ProviderRouter | None = None, backend=None) -> FastAPI:
+def default_reader():
+    from api.readers import ElasticReader
+    from catalog.providers.elastic import Elastic, endpoint_from_cloud_id
+    if not (os.environ.get("ELASTIC_API_KEY") and (os.environ.get("ELASTIC_ENDPOINT") or os.environ.get("ELASTIC_CLOUD_ID"))):
+        raise WorldDataUnavailable()
+    url = os.environ.get("ELASTIC_ENDPOINT") or endpoint_from_cloud_id(os.environ["ELASTIC_CLOUD_ID"])
+    return ElasticReader(Elastic(url))
+
+
+def create_app(router: ProviderRouter | None = None, backend=None, reader=None, runner=None) -> FastAPI:
     app = FastAPI(title="Crucible Agent API", version="0.1.0")
     state: dict = {}
 
@@ -139,6 +149,18 @@ def create_app(router: ProviderRouter | None = None, backend=None) -> FastAPI:
     async def _unhandled(_: Request, e: Exception):
         log.exception("unhandled error")  # detail goes to logs only
         return _err(500, "internal_error", "internal error")
+
+    @app.exception_handler(ModelUnavailable)
+    async def _no_model(_: Request, e: ModelUnavailable):
+        return _err(503, "model_unavailable", "no model endpoint is configured")
+
+    @app.exception_handler(WorldDataUnavailable)
+    async def _no_world(_: Request, e: WorldDataUnavailable):
+        return _err(503, "world_data_unavailable", "the trace store is not configured")
+
+    @app.exception_handler(HTTPException)
+    async def _http(_: Request, e: HTTPException):
+        return _err(e.status_code, str(e.detail), str(e.detail).replace("_", " "))
 
     errs = {422: {"model": ErrorResponse}, 500: {"model": ErrorResponse}}
 
@@ -181,7 +203,20 @@ def create_app(router: ProviderRouter | None = None, backend=None) -> FastAPI:
             return _err(404, "pending_order_not_found", req.pending_order_id)
         return g.confirm_and_pay(req.pending_order_id, req.user_confirmed)
 
+    app.include_router(world_router(_LazyReader(reader), runner))
     return app
+
+
+class _LazyReader:
+    """Defers the Elastic connection until the first world request, so the app boots (and /health passes) without it."""
+
+    def __init__(self, reader=None):
+        self._r = reader
+
+    def __getattr__(self, name):
+        if self._r is None:
+            self._r = default_reader()
+        return getattr(self._r, name)
 
 
 app = create_app()
