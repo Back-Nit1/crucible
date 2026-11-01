@@ -6,8 +6,23 @@ const sampleEpisode =
 test("renders the Crucible product shell", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /one request. an auditable decision/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /researched products/i })).toBeVisible();
+  await page.getByRole("button", { name: /no-match replay/i }).click();
   await expect(page.getByRole("heading", { name: /no realistic match found/i })).toBeVisible();
   await expect(page).toHaveTitle(/Crucible/);
+});
+
+test("keeps sample recommendation and confirmation distinct", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile", "desktop checkout smoke; responsive shell has separate coverage");
+  await page.goto("/");
+  await page.getByRole("radio", { name: /select quoted item/i }).check();
+  await page.getByRole("button", { name: /review verified quote/i }).click();
+  await expect(page.getByRole("heading", { name: /recommendation is not a purchase/i })).toBeVisible();
+  await expect(page.getByText("Verified total", { exact: true })).toBeVisible();
+  await page.getByRole("checkbox", { name: /replays a sanitized sample/i }).check();
+  await page.getByRole("button", { name: /replay sample receipt/i }).click();
+  await expect(page.getByText(/sample receipt replayed/i)).toBeVisible();
+  await expect(page.getByText(/no payment was attempted/i)).toBeVisible();
 });
 
 test("keeps sample provenance visible across operational routes", async ({ page }, testInfo) => {
