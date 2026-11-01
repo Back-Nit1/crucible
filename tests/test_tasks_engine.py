@@ -1,4 +1,5 @@
 from decimal import Decimal
+import datetime as dt
 
 from tasks.engine import (
     LeakageGuard,
@@ -8,7 +9,8 @@ from tasks.engine import (
     compute_feasible_set,
     render_request,
 )
-from tasks.schemas import ConstraintEvidence, HardConstraints, ReviewSignal, TaskSplit
+from tasks.schemas import ConstraintEvidence, HardConstraints, ReviewPolarity, TaskSplit
+from tasks.review_signals import LexicalRule, extract_lexical_signals
 from tests.fixtures.scoring import FIXTURE_MANIFEST, InMemoryCatalog
 
 
@@ -52,11 +54,20 @@ def test_seeded_renderer_and_split_are_reproducible():
 
 def test_review_traps_require_real_product_scoped_review_ids():
     catalog = InMemoryCatalog()
+    signal = extract_lexical_signals(
+        catalog,
+        "shoe-a",
+        (LexicalRule(
+            concern="cushioning",
+            phrases=("cushioning remained supportive",),
+            persona_relevance="runner seeking support",
+            polarity=ReviewPolarity.POSITIVE,
+        ),),
+        extracted_at=dt.datetime(2026, 1, 1, tzinfo=dt.UTC),
+    ).signals[0]
     task = build_task(task_id="trap-1", catalog_snapshot_id="snap-1", catalog=catalog, manifest_hash=FIXTURE_MANIFEST,
                       constraints=constraints(max_total=Decimal("100.00")), seed=2,
-                      review_signals=(ReviewSignal(
-                          concern="cushioning", product_id="shoe-a", claim="supportive",
-                          supporting_review_ids=("review-a-positive",)),))
+                      review_signals=(signal,))
     trapped = build_review_trap(task, "shoe-b", catalog)
     assert trapped.is_review_trap and trapped.review_adjusted_best == "shoe-b"
 
