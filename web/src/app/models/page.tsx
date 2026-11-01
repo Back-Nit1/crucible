@@ -3,6 +3,8 @@ import { ErrorState } from "@/components/ui/data-state";
 import { serverApi } from "@/lib/api/server";
 import { publicEnv } from "@/lib/env";
 
+export const dynamic = "force-dynamic";
+
 export default async function ModelsPage() {
   const api = serverApi();
   let data = null;

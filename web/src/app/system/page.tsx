@@ -2,6 +2,8 @@ import { SystemDashboard } from "@/components/system/system-dashboard";
 import { serverApi } from "@/lib/api/server";
 import { publicEnv } from "@/lib/env";
 
+export const dynamic = "force-dynamic";
+
 export default async function SystemPage() {
   const api = serverApi();
   const [health, readiness, config, generations] = await Promise.allSettled([

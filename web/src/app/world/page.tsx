@@ -3,6 +3,8 @@ import { WorldDashboard } from "@/components/world/world-dashboard";
 import { serverApi } from "@/lib/api/server";
 import { publicEnv } from "@/lib/env";
 
+export const dynamic = "force-dynamic";
+
 export default async function WorldPage() {
   const api = serverApi();
   let data = null;

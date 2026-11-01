@@ -7,6 +7,8 @@ import { publicEnv } from "@/lib/env";
 import { shortHash } from "@/lib/records";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 export default async function GenerationsPage() {
   let page = null;
   let message = "Generation data was unavailable.";

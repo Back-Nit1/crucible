@@ -6,6 +6,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { serverApi } from "@/lib/api/server";
 import { publicEnv } from "@/lib/env";
 
+export const dynamic = "force-dynamic";
+
 export default async function PaymentsPage() {
   let ledger = null;
   let message = "The ledger could not be loaded.";

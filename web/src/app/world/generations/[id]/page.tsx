@@ -3,6 +3,8 @@ import { GenerationDetailView } from "@/components/world/generation-detail";
 import { serverApi } from "@/lib/api/server";
 import { publicEnv } from "@/lib/env";
 
+export const dynamic = "force-dynamic";
+
 export default async function GenerationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let generation = null;
