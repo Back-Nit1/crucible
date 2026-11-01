@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from catalog.providers.base import Product, Review, ReviewIds, SnapshotMismatch
 
+A, B, C = ("amber", "birch", "cedar", "dusk"), ("ember", "fjord", "grove", "haze"), ("iris", "jade", "kelp", "lime")
 CATEGORIES = ("widgets", "gadgets", "gizmos")
 HASHES = {c: format(i + 1, "x") * 64 for i, c in enumerate(CATEGORIES)}
 
@@ -15,7 +16,7 @@ class BigSynthetic:
         for c, cat in enumerate(CATEGORIES):
             for i in range(per_category):
                 pid = f"{cat[:2].upper()}{i:03d}"
-                self.products[pid] = Product(id=pid, title=f"{cat} model {i}", category=cat, price=Decimal(10 + 3 * i + c),
+                self.products[pid] = Product(id=pid, title=f"{cat} {A[i // 16]} {B[(i // 4) % 4]} {C[i % 4]}", category=cat, price=Decimal(10 + 3 * i + c),
                                              source="synthetic-test-fixture", as_of=as_of, snapshot=True,
                                              manifest_hash=HASHES[cat], source_product_id=pid)
                 revs = [Review(id=f"synthetic:{pid}:{k}", product_id=pid, rating=5.0, text="works great", date=dt.date(2023, 1, 1 + k))
@@ -26,7 +27,11 @@ class BigSynthetic:
                 self.reviews[pid] = revs
 
     def search(self, query, filters=None):
-        return sorted(self.products.values(), key=lambda p: p.id)[:10]
+        f, words = filters or {}, set(query.lower().split())
+        hits = [p for p in self.products.values() if words <= set(p.title.split())
+                and (not f.get("category") or p.category == f["category"])
+                and (f.get("max_price") is None or p.price <= Decimal(str(f["max_price"])))]
+        return sorted(hits, key=lambda p: p.id)[:10]
 
     def get_product(self, pid):
         return self.products.get(pid)

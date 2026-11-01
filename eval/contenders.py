@@ -34,6 +34,7 @@ class ContenderConfig(_Strict):
     memory_enabled: bool
     memory_k: int = Field(default=2, ge=1, le=10)
     prompt_version: str = Field(min_length=1)
+    system_prompt_variant: str = "grounded-shopper-v1"
     temperature: Decimal = Field(ge=0, le=2)
     endpoint: str = Field(min_length=1)            # e.g. "modal:crucible-qwen-inference/Qwen"
     optional: bool = False
@@ -63,6 +64,11 @@ class ContenderConfig(_Strict):
     def checkpoint(self) -> str:
         base = f"{self.model_id}@{self.base_revision}"
         return f"{base}+adapter:{self.adapter_sha256[:12]}" if self.adapter_sha256 else base
+
+    @property
+    def request_checkpoint(self) -> str:
+        """What every model request pins; a client that cannot serve it must refuse (no silent fallback to base)."""
+        return self.adapter_sha256 or self.base_revision
 
     @property
     def identity_hash(self) -> str:

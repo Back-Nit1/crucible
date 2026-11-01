@@ -61,6 +61,8 @@ class EvaluationManifest(_Strict):
     catalog_hash: str = Field(min_length=1)
     versions: Versions
     contenders: tuple[ContenderConfig, ...] = Field(min_length=1)
+    memory_pool_hash: str | None = None                        # sha256 of the frozen memory pool; None = no pool
+    memory_pool_size: int = Field(default=0, ge=0)
     pass_k: int = Field(ge=1)
     payment_backend: Literal["mock", "sandbox"] = "mock"
     # --- mutable run state: deliberately outside the identity hash ---
@@ -119,10 +121,12 @@ class EvaluationManifest(_Strict):
 
 def build_manifest(*, evaluation_id: str, tasks: tuple[TaskSpec, ...], seeds: tuple[int, ...],
                    contenders: tuple[ContenderConfig, ...], catalog_hash: str, versions: Versions, pass_k: int,
-                   created_at: dt.datetime, payment_backend: str = "mock") -> EvaluationManifest:
+                   created_at: dt.datetime, payment_backend: str = "mock", memory_pool_hash: str | None = None,
+                   memory_pool_size: int = 0) -> EvaluationManifest:
     return EvaluationManifest(
         evaluation_id=evaluation_id, created_at=created_at, seeds=seeds, contenders=contenders, catalog_hash=catalog_hash,
         versions=versions, pass_k=pass_k, payment_backend=payment_backend,
+        memory_pool_hash=memory_pool_hash, memory_pool_size=memory_pool_size,
         tasks=tuple(ManifestTask(id=t.id, split=t.split.value, category=t.hard_constraints.category,
                                  held_out_category=t.held_out_category, catalog_manifest_hash=t.catalog_manifest_hash)
                     for t in tasks),

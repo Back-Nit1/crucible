@@ -72,7 +72,7 @@ def test_memory_pool_leakage_is_detected(batch):
     t = protected[0]
     p = sorted(t.feasible_set or [t.closest_product_id])[0]
     bad = (trace(episode_id="a", split="test"), trace(episode_id="b", task_id=t.id), trace(episode_id="c", task_text=t.raw_message),
-           trace(episode_id="d", genome={"model_checkpoint": "scripted-v1"}), trace(episode_id="e", products_considered=[p]))
+           trace(episode_id="d", genome={"model_checkpoint": "scripted-v1"}), trace(episode_id="e", final_answer=f"Recommend {p} now"))
     res = audit(protected=protected, reference=reference, memory_traces=bad).checks["memory_eligibility"]
     assert res.status == "fail" and res.violations == 5
     assert audit(protected=protected, reference=reference, memory_traces=(trace(),)).checks["memory_eligibility"].status == "pass"

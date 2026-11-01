@@ -130,9 +130,12 @@ def audit(*, protected: tuple[TaskSpec, ...], reference: tuple[TaskSpec, ...] = 
                 bad.append(f"{tr.episode_id}: task text equals an evaluation message")
             if privileged(tr):
                 bad.append(f"{tr.episode_id}: scripted trace carries an answer key")
-            shared = (set(tr.products_considered) | set(tr.episode.get("recommended_products", []))) & prot_products
+            # what retrieval hands a model is the recommendation and answer text; search hits (products_considered) span the
+            # whole category by construction and are not answers
+            said = set(tr.episode.get("recommended_products", [])) | {p for p in prot_products if re.search(rf"\b{re.escape(p)}\b", tr.final_answer)}
+            shared = said & prot_products
             if shared:
-                bad.append(f"{tr.episode_id}: touches evaluation product {sorted(shared)[0]}")
+                bad.append(f"{tr.episode_id}: recommends evaluation product {sorted(shared)[0]}")
         checks["memory_eligibility"] = _result(len(memory_traces), bad)
 
     # 7. training manifests: sources must be non-protected splits and not evaluation tasks
