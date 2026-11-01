@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   AllCommunityModule,
-  colorSchemeDark,
-  themeQuartz,
   type ColDef,
   type GridApi,
   type GridReadyEvent,
@@ -18,20 +16,7 @@ import { CrucibleApi } from "@/lib/api/client";
 import type { Episode, EpisodeQuery } from "@/lib/api/types";
 import { publicEnv } from "@/lib/env";
 import { StatusBadge } from "@/components/ui/status-badge";
-
-const gridTheme = themeQuartz.withPart(colorSchemeDark).withParams({
-  accentColor: "#a6ffcb",
-  backgroundColor: "#0b1514",
-  foregroundColor: "#dce7e5",
-  chromeBackgroundColor: "#0f1c19",
-  borderColor: "rgba(255,255,255,0.09)",
-  headerTextColor: "#8da19d",
-  oddRowBackgroundColor: "rgba(255,255,255,0.018)",
-  selectedRowBackgroundColor: "rgba(166,255,203,0.08)",
-  fontFamily: "IBM Plex Sans, Segoe UI, sans-serif",
-  fontSize: 12,
-  spacing: 6,
-});
+import { crucibleGridTheme } from "@/components/grid/theme";
 
 type Filters = {
   generation_id: string;
@@ -163,7 +148,7 @@ export function EpisodeGrid() {
       <div className="h-[680px] overflow-hidden rounded-2xl border border-white/10">
         <AgGridProvider modules={[AllCommunityModule]}>
           <AgGridReact<Episode>
-            theme={gridTheme}
+            theme={crucibleGridTheme}
             columnDefs={columns}
             defaultColDef={{ sortable: true, resizable: true, suppressHeaderMenuButton: true }}
             rowModelType="infinite"
