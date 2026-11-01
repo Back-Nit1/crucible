@@ -29,12 +29,15 @@ class SFTRecord(TrainingModel):
 
 
 class TrainingManifest(TrainingModel):
-    manifest_version: str = "1.0"
+    manifest_version: str = "1.1"
     catalog_hash: str
     task_version: str
     rule_version: str
+    model_version: str
     source_episode_ids: tuple[str, ...]
     splits: tuple[TaskSplit, ...]
+    source_task_splits: dict[str, TaskSplit]
+    deduplication_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     created_at: dt.datetime
     content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
 
@@ -48,6 +51,13 @@ class CurationResult:
 
 def _normalized(value: str) -> str:
     return re.sub(r"\s+", " ", value.casefold()).strip()
+
+
+def _normalized_action(action) -> dict[str, object]:
+    payload = action.model_dump(mode="json")
+    if payload.get("type") == "confirm_and_pay":
+        payload["pending_order_id"] = "<pending-order>"
+    return payload
 
 
 def _grounded(episode: EpisodeRecord) -> bool:
@@ -79,7 +89,7 @@ def _record(episode: EpisodeRecord, task: TaskSpec) -> SFTRecord:
                 {"role": "assistant", "content": episode.final_answer})
     normalized_payload = {
         "task": _normalized(task.raw_message),
-        "actions": [call.action.model_dump(mode="json") for call in episode.tool_calls],
+        "actions": [_normalized_action(call.action) for call in episode.tool_calls],
         "answer": _normalized(episode.final_answer),
     }
     digest = hashlib.sha256(json.dumps(normalized_payload, sort_keys=True,
@@ -91,6 +101,7 @@ def _record(episode: EpisodeRecord, task: TaskSpec) -> SFTRecord:
 def curate_survivors(
     episodes: tuple[EpisodeRecord, ...], tasks: dict[str, TaskSpec], catalog: FrozenCatalogProvider, *,
     catalog_hash: str, task_version: str, rule_version: str, created_at: dt.datetime,
+    model_version: str = "unspecified-source-model",
 ) -> CurationResult:
     records: list[SFTRecord] = []
     exclusions: dict[str, str] = {}
@@ -114,10 +125,16 @@ def curate_survivors(
         records.append(item)
     content = [record.model_dump(mode="json") for record in records]
     digest = hashlib.sha256(json.dumps(content, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    deduplication_hash = hashlib.sha256(
+        "|".join(sorted(record.normalized_hash for record in records)).encode()
+    ).hexdigest()
     manifest = TrainingManifest(
         catalog_hash=catalog_hash, task_version=task_version, rule_version=rule_version,
+        model_version=model_version,
         source_episode_ids=tuple(record.source_episode_id for record in records),
         splits=tuple(sorted({record.split for record in records}, key=str)),
+        source_task_splits={record.source_episode_id: record.split for record in records},
+        deduplication_hash=deduplication_hash,
         created_at=created_at, content_hash=digest,
     )
     return CurationResult(tuple(records), manifest, exclusions)
