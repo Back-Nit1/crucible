@@ -1,7 +1,10 @@
 """Typed FastAPI service (spec 7.1). Thin layer over ProviderRouter + GuardedPayments.
 Errors are structured `{"error": {"code", "message"}}`; internals, tokens and upstream bodies never leak."""
+import json
 import logging
 import os
+import time
+import uuid
 from decimal import Decimal
 from typing import Annotated
 
@@ -18,6 +21,22 @@ from payments.guards import (BudgetViolation, GuardedPayments, GuardViolation, N
 from payments.mock import MockPayments
 
 log = logging.getLogger("crucible.api")
+APP_VERSION = "0.2.0"
+
+
+def configure_logging() -> None:
+    """One JSON object per line on stdout (Render/Modal collect it). Idempotent."""
+    if not any(getattr(h, "_crucible", False) for h in logging.getLogger().handlers):
+        h = logging.StreamHandler()
+        h._crucible = True
+        h.setFormatter(logging.Formatter("%(message)s"))
+        logging.getLogger("crucible").addHandler(h)
+        logging.getLogger("crucible").setLevel(logging.INFO)
+        logging.getLogger("crucible").propagate = False
+
+
+def demo_mode() -> bool:
+    return os.environ.get("DEMO_MODE") == "1"
 
 
 class ProposeRequest(BaseModel):
@@ -126,6 +145,23 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
                                                 require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1")
         return state["payments"]
 
+    @app.middleware("http")
+    async def _access_log(request: Request, call_next):
+        """Structured access log: path only (never query string / body, which can hold shopper text), latency, status.
+        `cost_usd` is added by handlers that spend money (agent runs) via request.state."""
+        rid, t0 = request.headers.get("x-request-id") or uuid.uuid4().hex[:16], time.perf_counter()
+        request.state.cost_usd = None
+        status = 500
+        try:
+            response = await call_next(request)
+            status = response.status_code
+            response.headers["x-request-id"] = rid
+            return response
+        finally:
+            log.info(json.dumps({"event": "request", "request_id": rid, "method": request.method, "path": request.url.path,
+                                 "status": status, "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+                                 "cost_usd": request.state.cost_usd}))
+
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, e: RequestValidationError):
         return _err(422, "invalid_request", "; ".join(f"{'.'.join(map(str, x['loc'][1:]))}: {x['msg']}" for x in e.errors()))
@@ -166,7 +202,26 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
 
     @app.get("/health")
     def health():
+        """Liveness only: no dependencies touched, safe for Render's health check and keep-alive pings."""
         return {"status": "ok"}
+
+    @app.get("/ready")
+    def ready():
+        """Readiness: which backends are configured (names and booleans only, never values)."""
+        env = os.environ
+        return {"status": "ok", "version": APP_VERSION, "checks": {
+            "elastic_configured": bool(env.get("ELASTIC_API_KEY") and (env.get("ELASTIC_ENDPOINT") or env.get("ELASTIC_CLOUD_ID"))),
+            "paypal_sandbox_configured": bool(env.get("PAYPAL_CLIENT_ID") and env.get("PAYPAL_CLIENT_SECRET")),
+            "model_configured": runner is not None, "demo_mode": demo_mode()}}
+
+    @app.get("/config")
+    def public_config():
+        """Non-secret deployment settings the web app needs (labels the data honestly)."""
+        return {"version": APP_VERSION, "demo_mode": demo_mode(),
+                "payments": "sandbox" if os.environ.get("PAYMENTS_BACKEND") == "sandbox" else "mock",
+                "require_all_in_quote": os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1",
+                "catalog": get_router().status()["live_chat"], "snapshot_as_of": "2023-09-30",
+                "data_notice": "Frozen Amazon Reviews 2023 snapshot; shopper requests are generated; payments are PayPal sandbox or mock."}
 
     @app.get("/providers/status", response_model=ProviderStatus)
     def providers_status():
@@ -219,4 +274,5 @@ class _LazyReader:
         return getattr(self._r, name)
 
 
+configure_logging()
 app = create_app()

@@ -342,6 +342,306 @@
               "raw": "{\n  \"pending_order_id\": \"{{pending_order_id}}\",\n  \"user_confirmed\": true\n}"
             }
           }
+        },
+        {
+          "name": "Ready (configured backends)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/ready"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('booleans only', () => pm.expect(Object.values(pm.response.json().checks).every(v => typeof v === 'boolean')).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/config"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('labels data', () => pm.expect(pm.response.json().data_notice).to.include('snapshot'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent run (503 until a model is configured)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{api_base_url}}/agent/run"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\": \"running shoes under $100, size 12 or something\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 or typed 503', () => pm.expect([200,503]).to.include(pm.response.code));",
+                  "if (pm.response.code === 503) pm.test('typed error', () => pm.expect(pm.response.json().error.code).to.eql('model_unavailable'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "World, models, ledger",
+      "item": [
+        {
+          "name": "Generations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/world/generations"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Generation detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/world/generations/{{generation_id}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('summary present', () => pm.expect(pm.response.json()).to.have.property('summary'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Episodes (filtered, sorted)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/world/episodes?generation_id={{generation_id}}&killed=false&sort=-fitness&limit=5"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Episode replay",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/world/episodes/{{episode_id}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('ordered replay', () => { const r = pm.response.json().replay; pm.expect(r.map(s => s.sequence)).to.eql([...r.keys()]); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/world/leaderboard?generation_id={{generation_id}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kill log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/world/kills?generation_id={{generation_id}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Kill rules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/world/kill-rules"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('versioned rules', () => pm.expect(pm.response.json()[0]).to.include.keys(['rule_id','version','kills']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Model evaluations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/models/evaluations"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Model checkpoints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/models/checkpoints"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payments ledger (mock/sandbox demo data)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{api_base_url}}/payments/ledger?generation_id={{generation_id}}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit'])); pm.test('never live money', () => pm.expect(j.items.every(r => ['mock','sandbox'].includes(r.mode))).to.be.true);"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

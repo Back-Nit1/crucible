@@ -1,0 +1,32 @@
+# Render Blueprint (free plan only - this file never selects a paid plan). Verified keys: render.com/docs/blueprint-spec.
+# `sync: false` values are prompted once at Blueprint creation; set them in the Render dashboard, never here.
+# The Next.js `web` service is owned by the web app and added to this file when it exists.
+services:
+  - type: web
+    name: crucible-api
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: uv run uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: PAYMENTS_BACKEND      # "sandbox" = PayPal sandbox (judge demo); anything else = mock
+        value: mock
+      - key: DEMO_MODE
+        value: "1"
+      - key: REQUIRE_ALL_IN_QUOTE
+        value: "0"
+      - key: ELASTIC_API_KEY
+        sync: false
+      - key: ELASTIC_CLOUD_ID
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_ENV
+        value: sandbox

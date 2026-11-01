@@ -10,7 +10,7 @@ from collections import Counter, defaultdict
 from decimal import Decimal
 from typing import Annotated, Generic, Literal, Protocol, TypeVar
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from memory import TraceRecord
@@ -242,8 +242,10 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None) -> APIR
                              catalog_hash=c.get("catalog_hash"), runner=d.get("runner"), error=d.get("error"))
 
     @r.post("/agent/run", response_model=AgentRunResult, tags=["agent"])
-    def agent_run(req: AgentRunRequest):
-        return runner.run(req)
+    def agent_run(req: AgentRunRequest, request: Request):
+        out = runner.run(req)
+        request.state.cost_usd = None if out.cost_usd is None else str(out.cost_usd)  # surfaced in the structured access log
+        return out
 
     @r.get("/world/generations", response_model=Page[GenerationOut], tags=["world"])
     def generations(offset: Offset = 0, limit: Limit = 50, status: str | None = None):

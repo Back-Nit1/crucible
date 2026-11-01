@@ -119,3 +119,24 @@ def test_responses_never_contain_credentials_or_urls_with_tokens(client):
     blob = " ".join(client.get(p).text for p in ("/world/episodes/ep-0", "/world/episodes", "/payments/ledger", "/world/leaderboard"))
     for needle in ("ApiKey", "client_secret", "access_token", "approval", "PAYPAL_", "Traceback"):
         assert needle not in blob
+
+
+def test_ready_and_config_expose_booleans_and_labels_only(client, monkeypatch):
+    monkeypatch.setenv("DEMO_MODE", "1")
+    monkeypatch.setenv("ELASTIC_API_KEY", "super-secret-value")
+    ready = client.get("/ready").json()
+    assert all(isinstance(v, bool) for v in ready["checks"].values()) and ready["checks"]["demo_mode"] is True
+    cfg = client.get("/config")
+    assert cfg.json()["payments"] == "mock" and "snapshot" in cfg.json()["data_notice"] and cfg.json()["demo_mode"] is True
+    assert "super-secret-value" not in client.get("/ready").text + cfg.text
+
+
+def test_access_log_is_structured_and_never_contains_query_or_body(client, caplog):
+    import json as _json
+    import logging
+    with caplog.at_level(logging.INFO, logger="crucible.api"):
+        r = client.post("/agent/run?token=SECRETQUERY", json={"message": "my private shopper text"}, headers={"x-request-id": "rid-1"})
+    assert r.headers["x-request-id"] == "rid-1"
+    line = _json.loads(next(m for m in caplog.messages if '"event": "request"' in m))
+    assert line["path"] == "/agent/run" and line["status"] == 200 and line["request_id"] == "rid-1" and line["latency_ms"] >= 0
+    assert "SECRETQUERY" not in caplog.text and "private shopper text" not in caplog.text and "cost_usd" in line
