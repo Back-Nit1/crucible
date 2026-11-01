@@ -97,6 +97,10 @@ def test_authorized_launch_pauses_then_resumes_to_a_trained_verified_artifact(fi
     assert done["status"] == "trained" and done["trained"] is True and done["checkpoint_id"].startswith("qwen-lora-")
     assert done["artifact_ref"].startswith("modal-volume://crucible-qwen-adapters/runs/run-smoke/final@")
     assert done["cost_usd"] is not None and "estimate" in done["cost_basis"]
+    ref = read(files, "adapter_ref.json")
+    assert ref["adapter_ref"] == done["artifact_ref"] and ref["adapter_sha256"] == done["adapter_hash"]
+    assert ref["checkpoint_id"] == "qwen-lora-" + ref["adapter_sha256"][:12] and ref["training_manifest_hash"] == files[2].content_hash
+    assert (ref["base_model"], len(ref["base_revision"])) == ("Qwen/Qwen2.5-7B-Instruct", 40)
     assert inspect_main([str(files[3] / "out" / "artifact_manifest.json"), "--adapter-dir", str(root / "run-smoke" / "final")]) == 0
     assert '"verified": true' in capsys.readouterr().out
 

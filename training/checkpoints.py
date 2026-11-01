@@ -35,6 +35,16 @@ def artifact_ref(manifest: ArtifactManifest) -> str:
     return f"modal-volume://{ADAPTER_VOLUME}/runs/{manifest.run_id}/final@{manifest.adapter_hash}"
 
 
+def adapter_reference(manifest: ArtifactManifest) -> dict[str, str]:
+    """The public, JSON-serializable facts an evaluator needs to run this checkpoint (docs/model-runs/<run>/adapter_ref.json).
+    `checkpoint_id` is the label to put in ModelRequest.checkpoint / Genome.model_checkpoint."""
+    return {"adapter_ref": artifact_ref(manifest), "adapter_sha256": manifest.adapter_hash,
+            "base_model": manifest.base_model, "base_revision": manifest.base_revision,
+            "training_manifest_hash": manifest.training_manifest_hash, "checkpoint_id": manifest.checkpoint_id,
+            "run_id": manifest.run_id, "artifact_manifest_hash": manifest.manifest_hash, "dataset_hash": manifest.dataset_hash,
+            "data_source_model_version": manifest.data_source_model_version}
+
+
 def selection_from_ref(ref: str, *, training_manifest_hash: str) -> AdapterSelection:
     match = _REF.match(ref)
     if not match:

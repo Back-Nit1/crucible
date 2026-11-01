@@ -23,7 +23,7 @@ from pathlib import Path
 
 from modal_app.adapter_artifact import ArtifactManifest
 from modal_app.train_protocol import TrainRequest, TrainResponse
-from training.checkpoints import artifact_ref
+from training.checkpoints import adapter_reference, artifact_ref
 from training.curation import SFTRecord, TrainingManifest
 from training.dataset import DatasetError, build_dataset
 from training.gates import (MAX_LAUNCH_SECONDS, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR, GateError, affordable_seconds,
@@ -62,6 +62,8 @@ def launch_commands(args: argparse.Namespace) -> list[str]:
         base + " --launch --max-steps 4 --stop-after-steps 2   # smoke: interrupt after 2 steps",
         base + " --launch --max-steps 4                         # resume the same run id to the end",
         "uv run modal app stop crucible-qwen-training",
+        "# before training on real traces, audit split/product leakage with the evaluation branch's scripts.audit_split_leakage "
+        "--training-manifest <training_manifest.json> (owned by the evaluation workstream)",
     ]
 
 
@@ -153,6 +155,7 @@ def main(argv=None, *, transport: Transport | None = None, now: Callable[[], dt.
         print(json.dumps({"status": "failed", "error": "artifact_verification_failed"}))
         return 1
     _write(out, "artifact_manifest.json", artifact.model_dump(mode="json"))
+    _write(out, "adapter_ref.json", adapter_reference(artifact))  # the reference Agent 2's eval.contenders consumes
     _write(out, "training_run.json", {"status": "trained", "trained": True, "checkpoint_id": artifact.checkpoint_id,
                                       "artifact_ref": artifact_ref(artifact), "adapter_hash": artifact.adapter_hash,
                                       "measured_duration_seconds": artifact.duration_seconds, "cost_usd": artifact.cost_usd,
