@@ -28,3 +28,10 @@ def test_refuses_without_confirmation_and_without_sandbox(script, tmp_path):
 def test_kernel_e2e_also_needs_the_browser_authorization(tmp_path):
     code, out = run("paypal_kernel_e2e", ENV, tmp_path, "--confirm-sandbox-run")
     assert code == 4 and "CRUCIBLE_KERNEL_BUYER_APPROVAL_AUTHORIZED=1" in out
+
+
+def test_live_tests_skip_without_credentials_or_outside_sandbox():
+    from tests.test_payments_live import live_ready
+    assert live_ready({"PAYPAL_CLIENT_ID": "a", "PAYPAL_CLIENT_SECRET": "b", "PAYPAL_ENV": "sandbox"})
+    assert not live_ready({}) and not live_ready({"PAYPAL_CLIENT_ID": "a", "PAYPAL_CLIENT_SECRET": "b"})
+    assert not live_ready({"PAYPAL_CLIENT_ID": "a", "PAYPAL_CLIENT_SECRET": "b", "PAYPAL_ENV": "live"})
