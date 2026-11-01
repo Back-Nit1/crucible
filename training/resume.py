@@ -52,6 +52,7 @@ class RunIdentity(_Frozen):
     base_revision: str = Field(pattern=HEX40)
     training_manifest_hash: str = Field(pattern=HEX64)
     dataset_hash: str = Field(pattern=HEX64)
+    data_source_model_version: str = Field(min_length=1)  # provenance of the traces; part of what the run IS
     hyperparameters: dict[str, object]
     backend_signature: str = Field(min_length=1)  # library versions: resuming under different ones is refused
 
@@ -107,6 +108,8 @@ def _fsync_dir(path: Path) -> None:
     fd = os.open(path, os.O_RDONLY)
     try:
         os.fsync(fd)
+    except OSError:  # some network/FUSE filesystems (Modal Volumes) refuse directory fsync; the rename is still atomic
+        pass
     finally:
         os.close(fd)
 

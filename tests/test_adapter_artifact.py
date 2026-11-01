@@ -22,7 +22,7 @@ def write_adapter(directory, weights=b"weights-v1"):
 def manifest(tmp_path, **over):
     files = write_adapter(tmp_path / "adapter")
     fields = dict(run_id="run-0001", base_model=MODEL_ID, base_revision=MODEL_REVISION, adapter_files=files,
-                  training_manifest_hash="b" * 64, dataset_hash="c" * 64, dataset_record_count=30, plan_hash="d" * 64,
+                  training_manifest_hash="b" * 64, dataset_hash="c" * 64, data_source_model_version="qwen-base", dataset_record_count=30, plan_hash="d" * 64,
                   hyperparameters={"epochs": 1, "learning_rate": "0.0002"}, total_steps=6, steps_completed=6,
                   epochs_completed=1, checkpoint_lineage=(LineageEntry(step=3, epoch=0, state_sha256=H),),
                   segments=(Segment(start_step=0, end_step=3, duration_seconds=10.5),

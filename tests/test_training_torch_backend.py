@@ -71,7 +71,7 @@ def run(tmp_path, model_dir, sh, data, manifest, stop=None):
     plan = build_lora_plan(manifest, base_model="tiny/qwen2", base_revision="a" * 40, gpu="L4",
                            maximum_approved_cost=Decimal("1"), hyperparameters=HP)
     identity = RunIdentity(run_id="run-tiny", plan_hash=plan_hash(plan), base_model="tiny/qwen2", base_revision="a" * 40,
-                           training_manifest_hash=manifest.content_hash, dataset_hash=data.dataset_hash,
+                           training_manifest_hash=manifest.content_hash, dataset_hash=data.dataset_hash, data_source_model_version=sh.source_model_version,
                            hyperparameters=HP.model_dump(mode="json"), backend_signature=backend_signature())
     store = CheckpointStore(tmp_path, identity, clock=lambda: NOW)
     return run_training(store=store, identity=identity, backend=backend, hp=HP, record_count=len(sh.examples),

@@ -46,6 +46,7 @@ def finalize_artifact(*, store: CheckpointStore, identity: RunIdentity, hp: LoRA
         manifest = seal_manifest(
             run_id=identity.run_id, base_model=identity.base_model, base_revision=identity.base_revision,
             adapter_files=files, training_manifest_hash=identity.training_manifest_hash, dataset_hash=identity.dataset_hash,
+            data_source_model_version=identity.data_source_model_version,
             dataset_record_count=record_count, plan_hash=identity.plan_hash, hyperparameters=identity.hyperparameters,
             total_steps=total_steps, steps_completed=total_steps,
             epochs_completed=max(1, total_steps // hp.steps_per_epoch(record_count)),

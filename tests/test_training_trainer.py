@@ -18,7 +18,7 @@ NOW = dt.datetime(2026, 11, 1, tzinfo=dt.timezone.utc)
 
 def identity(**over):
     base = dict(run_id="run-0001", plan_hash="a" * 64, base_model="Qwen/Qwen2.5-7B-Instruct", base_revision="b" * 40,
-                training_manifest_hash="c" * 64, dataset_hash="d" * 64, hyperparameters=HP.model_dump(mode="json"),
+                training_manifest_hash="c" * 64, dataset_hash="d" * 64, data_source_model_version="scripted-v1", hyperparameters=HP.model_dump(mode="json"),
                 backend_signature="fake")
     return RunIdentity(**{**base, **over})
 
@@ -171,3 +171,11 @@ def test_corrupt_checkpoint_on_resume_falls_back_and_still_matches(tmp_path):
     whole, _, _ = go(tmp_path / "w")
     assert out.resumed_from_step == 4 and out.manifest.adapter_hash == whole.manifest.adapter_hash
     assert store.read_ledger().skipped_corrupt == ("step-000005",)
+
+
+def test_on_durable_runs_after_every_checkpoint_and_at_the_end(tmp_path):
+    calls = []
+    store = make_store(tmp_path)
+    run_training(store=store, identity=store.identity, backend=StatefulBackend(), hp=HP, record_count=N,
+                 total_budget_seconds=1000, gpu="L4", clock=lambda: NOW, on_durable=lambda: calls.append(1))
+    assert len(calls) == 4 + 1  # saves at steps 2,4,6,8 + final

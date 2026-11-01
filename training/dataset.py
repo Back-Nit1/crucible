@@ -23,8 +23,8 @@ from agents.prompts import PROMPT_VERSION, system_prompt
 from agents.qwen_client import qwen_tools, to_qwen_messages
 from tasks.schemas import TaskSplit
 from training.curation import SFTRecord, TrainingManifest
+from training.shard import DATASET_FORMAT
 
-DATASET_FORMAT = "crucible-sft-chat-v1"
 ALLOWED_SPLITS = frozenset({TaskSplit.TRAIN, TaskSplit.VALIDATION})
 DEFAULT_PROMPT_VARIANT = "grounded-shopper-v1"
 _PII = (
@@ -103,7 +103,7 @@ def build_dataset(records: tuple[SFTRecord, ...], manifest: TrainingManifest, *,
     validate_records(records, manifest)
     system = system_prompt(prompt_variant)
     header = {"header": {"format": DATASET_FORMAT, "training_manifest_hash": manifest.content_hash,
-                         "record_count": len(records), "prompt_version": PROMPT_VERSION, "prompt_variant": prompt_variant,
+                         "record_count": len(records), "source_model_version": manifest.model_version, "prompt_version": PROMPT_VERSION, "prompt_variant": prompt_variant,
                          "system": system, "tools": qwen_tools(action_tools())}}
     lines = [header] + [{"source_episode_id": r.source_episode_id, "messages": render_example(r)} for r in records]
     shard = ("\n".join(json.dumps(line, sort_keys=True, separators=(",", ":")) for line in lines) + "\n").encode()

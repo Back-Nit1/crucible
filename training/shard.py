@@ -7,7 +7,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 
-from training.dataset import DATASET_FORMAT  # noqa: F401  (format constant lives with the writer)
+DATASET_FORMAT = "crucible-sft-chat-v1"
 
 
 class ShardError(ValueError):
@@ -24,6 +24,7 @@ class Shard:
     episode_ids: list[str]
     training_manifest_hash: str
     dataset_hash: str
+    source_model_version: str       # which policy produced the traces (e.g. "scripted-v1" = oracle, not a model)
 
 
 def parse_shard(data: bytes, *, expected_dataset_hash: str, expected_manifest_hash: str) -> Shard:
@@ -44,4 +45,5 @@ def parse_shard(data: bytes, *, expected_dataset_hash: str, expected_manifest_ha
     if header.get("record_count") != len(examples) or not examples:
         raise ShardError("record_count_mismatch", "header record_count disagrees with the shard body")
     return Shard(system=header["system"], tools=header["tools"], examples=examples, episode_ids=ids,
-                 training_manifest_hash=expected_manifest_hash, dataset_hash=actual)
+                 training_manifest_hash=expected_manifest_hash, dataset_hash=actual,
+                 source_model_version=str(header.get("source_model_version", "")))

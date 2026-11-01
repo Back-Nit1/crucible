@@ -114,6 +114,7 @@ class ArtifactManifest(_Frozen):
     adapter_hash: str = Field(pattern=HEX64)
     training_manifest_hash: str = Field(pattern=HEX64)
     dataset_hash: str = Field(pattern=HEX64)
+    data_source_model_version: str = Field(min_length=1)  # e.g. "scripted-v1": traces from an oracle policy, not a model
     dataset_record_count: int = Field(gt=0)
     plan_hash: str = Field(pattern=HEX64)
     hyperparameters: dict[str, object]

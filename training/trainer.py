@@ -61,7 +61,8 @@ class RunOutcome:
 def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: TrainBackend, hp: LoRAHyperparameters,
                  record_count: int, total_budget_seconds: float, gpu: str, rates: ResourceRates | None = None,
                  stop_after_steps: int | None = None, monotonic: Callable[[], float] = time.monotonic,
-                 clock: Callable[[], dt.datetime] | None = None, keep_checkpoints: int = 2) -> RunOutcome:
+                 clock: Callable[[], dt.datetime] | None = None, keep_checkpoints: int = 2,
+                 on_durable: Callable[[], None] = lambda: None) -> RunOutcome:
     """Run or resume `identity.run_id` until the final step, the per-launch budget, or `stop_after_steps`.
 
     * total_budget_seconds is the whole-run wall-clock ceiling (derived from the approved cost ceiling); earlier
@@ -101,6 +102,7 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
         store.prune(keep_checkpoints)
         last_saved = step
         store.record_progress(launch, end_step=step, duration_seconds=monotonic() - started)
+        on_durable()  # e.g. Modal Volume.commit(): the checkpoint is not durable until the volume says so
 
     while step < total_steps:
         losses.append(float(backend.train_step(batch_indices(step, hp, record_count))))
@@ -115,6 +117,7 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
         if last_saved != step:
             save()
         store.record_progress(launch, end_step=step, duration_seconds=monotonic() - started, close=True, status="paused")
+        on_durable()
         return RunOutcome("paused", step, total_steps, None, resumed_from, tuple(losses))
 
     duration = monotonic() - started
@@ -122,4 +125,5 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
     manifest = finalize_artifact(store=store, identity=identity, hp=hp, export_adapter=backend.export_adapter,
                                  record_count=record_count, total_steps=total_steps, gpu=gpu, rates=rates, clock=clock)
     store.record_progress(launch, end_step=step, duration_seconds=duration, close=True, status="final")
+    on_durable()
     return RunOutcome("final", step, total_steps, manifest, resumed_from, tuple(losses))

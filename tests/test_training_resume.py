@@ -6,7 +6,7 @@ import pytest
 from training.resume import CheckpointStore, ResumeError, RunIdentity
 
 BASE = dict(run_id="run-0001", plan_hash="a" * 64, base_model="Qwen/Qwen2.5-7B-Instruct", base_revision="b" * 40,
-            training_manifest_hash="c" * 64, dataset_hash="d" * 64, hyperparameters={"epochs": 1, "seed": 7},
+            training_manifest_hash="c" * 64, dataset_hash="d" * 64, data_source_model_version="scripted-v1", hyperparameters={"epochs": 1, "seed": 7},
             backend_signature="torch==2.6.0")
 
 
