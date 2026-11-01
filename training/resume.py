@@ -89,9 +89,12 @@ class Ledger(_Frozen):
     lineage: tuple[LineageEntry, ...] = ()
     skipped_corrupt: tuple[str, ...] = ()
 
-    def consumed_seconds_upper_bound(self) -> float:
-        """Closed launches count what was measured; a launch that never closed is charged its whole budget."""
-        return sum(l.duration_seconds if l.closed else max(l.duration_seconds, l.budget_seconds) for l in self.launches)
+    def consumed_seconds_upper_bound(self, now: dt.datetime) -> float:
+        """Closed launches count what was measured. A launch that never closed was killed at an unknown moment: it is
+        charged the wall clock since it started, capped at its allowance (it cannot have run longer than that)."""
+        return sum(l.duration_seconds if l.closed else
+                   max(l.duration_seconds, min(l.budget_seconds, (now - l.started_at).total_seconds()))
+                   for l in self.launches)
 
 
 class CheckpointBackend(Protocol):
@@ -257,7 +260,7 @@ class CheckpointStore:
         ledger = self.read_ledger()
         launches = []
         for launch in ledger.launches:
-            if not launch.closed:
+            if not launch.closed or launch.end_step > start_step:  # killed, or its newest checkpoint was unusable
                 launch = launch.model_copy(update={"closed": True, "end_step": min(launch.end_step, start_step)})
             launches.append(launch)
         index = len(launches)

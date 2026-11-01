@@ -141,13 +141,17 @@ def test_prune_keeps_newest_two_payloads_but_lineage_survives(tmp_path):
     assert [e.step for e in s.read_ledger().lineage] == [1, 2, 3, 4]
 
 
-def test_unclosed_launch_is_charged_its_whole_budget_and_closed_at_the_resumed_step(tmp_path):
+def test_unclosed_launch_is_charged_wall_clock_capped_at_its_budget_and_closed_at_the_resumed_step(tmp_path):
     s = store(tmp_path)
     i = s.begin_launch(budget_seconds=100, start_step=0)
     s.record_progress(i, end_step=4, duration_seconds=30)  # then the container is killed: never closed
-    assert s.read_ledger().consumed_seconds_upper_bound() == 100
+    start = dt.datetime(2026, 11, 1, tzinfo=dt.timezone.utc)
+    ledger = s.read_ledger()
+    assert ledger.consumed_seconds_upper_bound(start) == 30                                    # nothing known beyond progress
+    assert ledger.consumed_seconds_upper_bound(start + dt.timedelta(seconds=70)) == 70          # wall clock since start
+    assert ledger.consumed_seconds_upper_bound(start + dt.timedelta(hours=9)) == 100            # never more than the allowance
     j = s.begin_launch(budget_seconds=50, start_step=2)     # resumed from an older (corrupt-fallback) checkpoint
     ledger = s.read_ledger()
     assert ledger.launches[0].closed and ledger.launches[0].end_step == 2 and ledger.launches[0].duration_seconds == 30
     s.record_progress(j, end_step=6, duration_seconds=20, close=True)
-    assert s.read_ledger().consumed_seconds_upper_bound() == 50
+    assert s.read_ledger().consumed_seconds_upper_bound(start) == 50

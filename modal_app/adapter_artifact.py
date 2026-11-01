@@ -77,9 +77,10 @@ def adapter_content_hash(files: tuple[AdapterFile, ...] | list[AdapterFile]) -> 
 
 
 def hash_adapter_dir(directory: Path) -> tuple[AdapterFile, ...]:
+    """Hash every adapter file under `directory` (the manifest that describes them is not part of the adapter)."""
     root = directory.resolve()
     files = []
-    for path in sorted(p for p in root.rglob("*") if p.is_file()):
+    for path in sorted(p for p in root.rglob("*") if p.is_file() and p.name != MANIFEST_FILENAME):
         if path.is_symlink():
             raise ArtifactError("symlink_in_adapter", path.name)
         files.append(AdapterFile(path=path.relative_to(root).as_posix(), sha256=sha256_file(path),
