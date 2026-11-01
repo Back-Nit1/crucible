@@ -49,6 +49,7 @@ class Compat(BaseModel):
     catalog_hash: str
     rules_version: str  # hash/label of the enabled kill-rule registry (id:version)
     population_hash: str  # hash over genome hashes
+    policy_id: str = "scripted-v1"  # who acts: "scripted-v1" or "model:<model>:<checkpoint>:<prompt version>"
 
 
 class EpisodeOutcome(BaseModel):

@@ -3,9 +3,53 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from decimal import Decimal
 
 from agents.actions import EpisodeRecord
 from tasks.schemas import TaskSpec
+
+
+def _rate(num, den) -> dict:
+    return {"numerator": str(num), "denominator": den, "value": None if not den else str(Decimal(str(num)) / den)}
+
+
+def _quality(e: EpisodeRecord, name: str):
+    return next((Decimal(str(m["value"])) for m in e.score_components.get("quality_metrics", []) if m.get("name") == name), None)
+
+
+def _killed_by(e: EpisodeRecord, rule: str) -> bool:
+    return any(k.get("rule_id") == rule for k in e.kill_information)
+
+
+def rates(episodes: tuple[EpisodeRecord, ...], by_task: dict) -> dict:
+    """Every rate carries its numerator AND denominator; an empty denominator reports value null, never 0 or 1."""
+    feasible = [e for e in episodes if not by_task[e.task_id].is_impossible]
+    impossible = [e for e in episodes if by_task[e.task_id].is_impossible]
+    grounding = [v for e in episodes if (v := _quality(e, "review_grounding")) is not None]
+    trap = [v for e in episodes if by_task[e.task_id].is_review_trap if (v := _quality(e, "review_trap_choice")) is not None]
+    return {
+        "hallucination": _rate(sum(_killed_by(e, "K001_HALLUCINATED_PRODUCT") for e in episodes), len(episodes)),
+        "wrong_refusal": _rate(sum(e.termination == "no_match" for e in feasible), len(feasible)),
+        "correct_refusal": _rate(sum(e.termination == "no_match" and not e.killed for e in impossible), len(impossible)),
+        "review_grounding": _rate(sum(grounding, Decimal(0)), len(grounding)),
+        "review_trap_accuracy": _rate(sum(trap, Decimal(0)), len(trap)),
+        "budget_violation": _rate(sum(_killed_by(e, "K003_BUDGET_VIOLATION") for e in episodes), len(episodes)),
+        "model_failure": _rate(sum(e.termination == "model_failure" for e in episodes), len(episodes)),
+    }
+
+
+def model_usage(episodes: tuple[EpisodeRecord, ...]) -> dict:
+    """Model-reported usage over the steps that reported any (scripted episodes have none: all zero / null)."""
+    steps = [m for e in episodes for m in e.model_metadata]
+    lat = sorted(int(m.get("latency_ms", 0)) for m in steps)
+    pick = lambda q: lat[min(len(lat) - 1, int(q * len(lat)))] if lat else None
+    return {"steps": len(steps), "models": sorted({f"{m.get('model')}@{m.get('checkpoint')}" for m in steps}),
+            "prompt_tokens": sum(int(m.get("prompt_tokens", 0)) for m in steps),
+            "completion_tokens": sum(int(m.get("completion_tokens", 0)) for m in steps),
+            "retries": sum(int(m.get("retry_count", 0)) for m in steps),
+            "latency_ms": {"p50": pick(.5), "p95": pick(.95), "max": lat[-1] if lat else None},
+            "cost": str(sum((e.cost for e in episodes), Decimal(0))),
+            "mock_payments": sum(bool(e.payment_state.get("completed")) for e in episodes)}
 
 
 def summarize(*, result, tasks: tuple[TaskSpec, ...], episodes: tuple[EpisodeRecord, ...], proposals, curated, next_pop,
@@ -39,6 +83,7 @@ def summarize(*, result, tasks: tuple[TaskSpec, ...], episodes: tuple[EpisodeRec
                    "impossible_tasks_run": sum(by_task[e.task_id].is_impossible for e in episodes)},
         "fitness": {"best": str(st.summary.best_fitness), "mean": str(st.summary.mean_fitness),
                     "by_genome": {g: str(v) for g, v in sorted(st.checkpoint.fitness.items())}},
+        "policy": st.compat.policy_id, "rates": rates(episodes, by_task), "model_usage": model_usage(episodes),
         "survivors": list(st.summary.survivor_ids), "population": [
             {"id": g.id, "variant": g.system_prompt_variant, "parent": g.parent_id} for g in st.checkpoint.genomes],
         "loophole_hunter_proposals": [{"rule_id": c.rule_id, "state": c.state.value, "episodes": len(c.affected_episode_ids),
@@ -47,13 +92,15 @@ def summarize(*, result, tasks: tuple[TaskSpec, ...], episodes: tuple[EpisodeRec
                               "exclusions": dict(Counter(curated.exclusions.values()))},
         "next_population": [g.id for g in next_pop],
         "inert_fixtures": sorted(result.inert_fixtures),
-        "note": "Scripted shoppers read the task reference answer: this is pipeline evidence, not model performance.",
+        "note": ("Scripted shoppers read the task reference answer: this is pipeline evidence, not model performance."
+                 if st.compat.policy_id == "scripted-v1" else
+                 "Model-backed run: the policy saw only the buyer message, its own tool results and eligible memory."),
     }
 
 
 def to_markdown(s: dict) -> str:
     k, sf, e, f = s["kills"], s["safety"], s["episodes"], s["fitness"]
-    rows = ["# Generation " + s["generation_id"], "", f"Status: **{s['status']}** · scripted shoppers · mock payments only", "",
+    rows = ["# Generation " + s["generation_id"], "", f"Status: **{s['status']}** · policy `{s['policy']}` · mock payments only", "",
             "## Tasks", f"{s['tasks']['total']} total: {s['tasks']['feasible']} feasible, {s['tasks']['impossible']} impossible, "
             f"{s['tasks']['review_traps']} review-sensitive. Splits: {s['tasks']['by_split']}.", "",
             "## Episodes", f"{e['completed']}/{e['expected']} completed, {e['traced']} traced, {e['scored']} scored. "

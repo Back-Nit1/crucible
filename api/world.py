@@ -175,6 +175,8 @@ class AgentRunResult(BaseModel):
     model: str
     latency_ms: int | None = None
     cost_usd: Decimal | None = None
+    run_id: str | None = None  # set when produced by the buyer service: confirm via POST /agent/runs/{run_id}/confirm
+    status: str | None = None  # running | awaiting_confirmation | completed | failed
 
 
 class ModelUnavailable(Exception):

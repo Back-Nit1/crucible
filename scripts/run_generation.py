@@ -1,9 +1,12 @@
-"""Run (or resume) one scripted generation over the real frozen snapshot. Mock payments only.
+"""Run (or resume) one generation over a frozen snapshot with the scripted OR the model-backed policy. Mock payments only.
+This is the single generation entry point (modal_app/world_runner.py drives the same world.runtime).
 
   uv run python -m scripts.run_generation --env-file <.env> --provider elastic_snapshot --model scripted \\
       --payments mock --seed 20261101 --population 8 --tasks 12
   ... --interrupt-after 20      # stop after 20 episodes (status=interrupted); rerun the same command to resume
   ... --traces memory --checkpoint-dir /tmp/x   # offline trace store (no Elastic writes)
+  ... --provider synthetic --traces memory      # offline deterministic fixture (test-only synthetic products)
+  ... --model qwen --memory off|on              # model-backed; needs the Modal launch authorization (agents.qwen_client)
 
 Outputs: <out-dir>/<generation-id>/{summary.json,summary.md,sft.jsonl,training_manifest.json}; checkpoint in
 <checkpoint-dir>/gen-<id>.json. Same arguments => same tasks, population, ids and summary."""
@@ -21,8 +24,10 @@ KEYS = {"ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID"}
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--env-file")
-    ap.add_argument("--provider", default="elastic_snapshot", choices=["elastic_snapshot"])
-    ap.add_argument("--model", default="scripted", choices=["scripted"])
+    ap.add_argument("--provider", default="elastic_snapshot", choices=["elastic_snapshot", "synthetic"])
+    ap.add_argument("--model", default="scripted", choices=["scripted", "qwen"])
+    ap.add_argument("--memory", default="genome", choices=["genome", "on", "off"],
+                    help="force memory on/off for every genome (identical-pair base vs memory runs)")
     ap.add_argument("--payments", default="mock", choices=["mock"], help="world runs never use PayPal sandbox")
     ap.add_argument("--seed", type=int, default=20261101)
     ap.add_argument("--population", type=int, default=8)
@@ -49,23 +54,42 @@ def main(argv=None) -> int:
 
     calls = {"elastic": 0}
     es = None
-    if a.traces == "elastic" or os.environ.get("ELASTIC_API_KEY"):
+    if a.provider == "synthetic" and a.traces == "elastic":
+        ap.error("--provider synthetic is offline: use --traces memory")
+    if a.provider == "elastic_snapshot" and (a.traces == "elastic" or os.environ.get("ELASTIC_API_KEY")):
         from catalog.providers._http import request_json
 
         def counting(*args, **kw):
             calls["elastic"] += 1
             return request_json(*args, **kw)
         es = Elastic(os.environ.get("ELASTIC_ENDPOINT") or endpoint_from_cloud_id(os.environ["ELASTIC_CLOUD_ID"]), transport=counting)
-    catalog = FrozenCache(ElasticCatalogProvider(es))
-    manifests = load_manifest_hashes()
+    if a.provider == "synthetic":
+        from tests.fixtures.frozen import HASHES, SyntheticFrozen  # test-only synthetic data, never presented as Amazon data
+        catalog, manifests = SyntheticFrozen(), dict(HASHES)
+    else:
+        catalog = FrozenCache(ElasticCatalogProvider(es))
+        manifests = load_manifest_hashes()
     traces = ElasticTraceRepository(es) if a.traces == "elastic" else InMemoryTraceRepository()
     if a.traces == "elastic":
         es.update_traces_mapping()  # additive + idempotent
     tasks = generate_tasks(catalog, manifests, seed=a.seed, count=a.tasks)
-    genomes = build_population(a.population, a.seed, fixtures=not a.no_fixtures)
+    qwen = a.model == "qwen"
+    genomes = build_population(a.population, a.seed, fixtures=not (a.no_fixtures or qwen),
+                               checkpoint="qwen-base" if qwen else "scripted-v1")
+    if a.memory != "genome":
+        genomes = tuple(g.model_copy(update={"memory": g.memory.model_copy(update={"enabled": a.memory == "on"})}) for g in genomes)
+    policy = {}
+    if qwen:
+        from agents.model import QwenModelAdapter
+        from agents.qwen_client import ModalQwenClient
+        from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
+        from world.runtime import model_policy_factory, model_policy_id
+        adapter = QwenModelAdapter(ModalQwenClient.from_environment(), max_retries=1)  # raises unless GPU launch is authorized
+        policy = {"policy_factory": model_policy_factory(lambda g: adapter, generation_id=gen),
+                  "policy_id": model_policy_id(MODEL_ID, MODEL_REVISION[:7])}
     store = GenerationStore(FileBlobStore(a.checkpoint_dir))
     res = run_generation(generation_id=gen, seed=a.seed, genomes=genomes, tasks=tasks, manifests=manifests, catalog=catalog,
-                         store=store, traces=traces, max_episodes=a.interrupt_after, log=lambda m: print(m, file=sys.stderr))
+                         store=store, traces=traces, max_episodes=a.interrupt_after, log=lambda m: print(m, file=sys.stderr), **policy)
     if not res.complete:
         print(json.dumps({"generation_id": gen, "status": res.state.status.value, "executed": len(res.executed),
                           "remaining": len(res.state.remaining())}))
@@ -74,13 +98,23 @@ def main(argv=None) -> int:
         result=res, tasks=tasks, genomes=genomes, traces=traces, catalog=catalog, manifests=manifests, breed_seed=a.seed)
     summary = report.summarize(result=res, tasks=tasks, episodes=episodes, proposals=proposals, curated=curated, next_pop=next_pop,
                                params={"seed": a.seed, "population": a.population, "tasks": a.tasks, "model": a.model,
-                                       "payments": a.payments, "provider": a.provider, "fixtures": not a.no_fixtures})
+                                       "payments": a.payments, "provider": a.provider, "fixtures": not (a.no_fixtures or qwen),
+                                       "memory": a.memory})
     out = Path(a.out_dir) / gen
     report.write(summary, out)
     if a.traces == "elastic":
         from world.publish import publish_generation, publish_kill_rules
         publish_generation(es, res.state, summary)
         publish_kill_rules(es, summary["kills"]["by_rule"])
+        if qwen:  # measured model episodes only: scripted runs are pipeline evidence, not model evaluations
+            from eval.comparison import ContenderRun
+            from eval.publish import EvaluationContext, evaluation_docs, publish
+            from agents.prompts import PROMPT_VERSION
+            ctx = EvaluationContext(model=MODEL_ID, catalog_hash=res.state.compat.catalog_hash, prompt_version=PROMPT_VERSION,
+                                    judge_version="none", seed=a.seed, created_at=episodes[-1].ended_at, base_checkpoint="qwen-base")
+            run_ = ContenderRun(contender_id=gen + (":memory" if a.memory == "on" else ":base"), checkpoint=MODEL_REVISION,
+                                memory_enabled=a.memory == "on", episodes=episodes)
+            publish(es, "evaluations", evaluation_docs((run_,), {t.id: t for t in tasks}, ctx))
     (out / "sft.jsonl").write_text("".join(r.model_dump_json() + "\n" for r in curated.records))
     (out / "training_manifest.json").write_text(curated.manifest.model_dump_json(indent=2) + "\n")
     print(json.dumps({"generation_id": gen, "status": summary["status"], "executed_this_run": len(res.executed),

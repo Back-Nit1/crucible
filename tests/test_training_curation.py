@@ -42,7 +42,12 @@ def test_curation_excludes_evaluation_killed_invalid_and_duplicates_with_stable_
     leaked = episode.model_copy(update={"episode_id": "ep-test", "task_id": "task-test"})
     created = datetime(2026, 10, 31, tzinfo=timezone.utc)
     args = ((episode, duplicate, killed, leaked), {task.id: task, test_task.id: test_task}, InMemoryCatalog())
-    first = curate_survivors(*args, catalog_hash="abc", task_version="1", rule_version="1", created_at=created)
-    second = curate_survivors(*args, catalog_hash="abc", task_version="1", rule_version="1", created_at=created)
+    first = curate_survivors(*args, catalog_hash="abc", task_version="1", rule_version="1", created_at=created,
+                             model_version="scripted-v1")
+    second = curate_survivors(*args, catalog_hash="abc", task_version="1", rule_version="1", created_at=created,
+                              model_version="scripted-v1")
     assert len(first.records) == 1 and first.manifest == second.manifest
     assert first.exclusions == {"ep-dead": "killed", "ep-test": "evaluation_leakage", "ep-z": "duplicate_trace"}
+    assert first.manifest.model_version == "scripted-v1"
+    assert first.manifest.source_task_splits == {"ep-train": TaskSplit.TRAIN}
+    assert len(first.manifest.deduplication_hash) == 64

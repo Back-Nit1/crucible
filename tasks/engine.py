@@ -17,6 +17,7 @@ from tasks.schemas import (
     HardConstraints,
     ImpliedNeed,
     ReviewSignal,
+    SignalVerification,
     TaskSpec,
     TaskSplit,
 )
@@ -185,15 +186,51 @@ def build_task(
     review_signals: tuple[ReviewSignal, ...] = (), difficulty: Difficulty = Difficulty.MEDIUM,
 ) -> TaskSpec:
     products = tuple(catalog.iter_products(constraints.category, manifest_hash))
+    return build_task_from_products(
+        task_id=task_id,
+        catalog_snapshot_id=catalog_snapshot_id,
+        products=products,
+        constraints=constraints,
+        seed=seed,
+        split_config=split_config,
+        implied_needs=implied_needs,
+        ambiguities=ambiguities,
+        review_signals=review_signals,
+        difficulty=difficulty,
+    )
+
+
+def build_task_from_products(
+    *,
+    task_id: str,
+    catalog_snapshot_id: str,
+    products: Iterable[Product],
+    constraints: HardConstraints,
+    seed: int,
+    split_config: SplitConfig = SplitConfig(),
+    implied_needs: tuple[ImpliedNeed, ...] = (),
+    ambiguities: tuple[Ambiguity, ...] = (),
+    review_signals: tuple[ReviewSignal, ...] = (),
+    difficulty: Difficulty = Difficulty.MEDIUM,
+    manifest_hash: str | None = None,
+    split: TaskSplit | None = None,
+) -> TaskSpec:
+    """Build ground truth from an explicit, already-enumerated projection.
+
+    Production batches use this path so ranked search can never be mistaken for
+    complete enumeration. A split-specific projection permits product-disjoint
+    train, validation, test, and held-out tasks.
+    """
+    products = tuple(products)
     feasibility = compute_feasible_set(products, constraints)
     feasible = feasibility.product_ids
     best = select_best_value(products, feasible, constraints.max_total, implied_needs)
-    split = assign_split(task_id, constraints.category, seed, split_config)
+    assigned_split = split or assign_split(task_id, constraints.category, seed, split_config)
     closest = select_closest(products, constraints) if not feasible and feasibility.suitable_for_training else None
     return TaskSpec(
         id=task_id,
         catalog_snapshot_id=catalog_snapshot_id,
-        catalog_manifest_hash=catalog_manifest_hash(products),
+        catalog_manifest_hash=manifest_hash or catalog_manifest_hash(products),
         raw_message=render_request(constraints, implied_needs, ambiguities, seed),
         hard_constraints=constraints,
         implied_needs=implied_needs,
@@ -204,8 +241,8 @@ def build_task(
         is_impossible=feasibility.suitable_for_training and not feasible,
         closest_product_id=closest,
         review_signals=review_signals,
-        split=split,
-        held_out_category=split is TaskSplit.HELD_OUT_CATEGORY,
+        split=assigned_split,
+        held_out_category=assigned_split is TaskSplit.HELD_OUT_CATEGORY,
         seed=seed,
         suitable_for_deterministic_training=feasibility.suitable_for_training,
         unsuitable_reasons=feasibility.unsuitable_reasons,
@@ -219,6 +256,11 @@ def build_review_trap(task: TaskSpec, review_adjusted_best: str, catalog: Frozen
     if not task.review_signals:
         raise ValueError("ratings alone cannot create a review trap")
     for signal in task.review_signals:
+        if signal.verification_status not in {
+            SignalVerification.AUTOMATED,
+            SignalVerification.HUMAN_APPROVED,
+        }:
+            raise ValueError("review traps require verified signals")
         existing = catalog.get_review_ids(signal.product_id).ids
         if not set(signal.supporting_review_ids) <= existing:
             raise ValueError("review signal cites missing or misattributed review IDs")
@@ -236,6 +278,12 @@ class LeakageGuard:
         if task.id in self._task_ids:
             raise ValueError(f"duplicate task id {task.id}")
         products = set(task.feasible_set)
+        products.update(signal.product_id for signal in task.review_signals)
+        products.update(
+            product_id
+            for product_id in (task.closest_product_id, task.best_value_reference, task.review_adjusted_best)
+            if product_id is not None
+        )
         protected = {TaskSplit.TEST, TaskSplit.HELD_OUT_CATEGORY}
         for split, seen in self._products.items():
             if task.split != split and (task.split in protected or split in protected) and products & seen:

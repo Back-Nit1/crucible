@@ -34,6 +34,7 @@ class PendingOrder(BaseModel):
     order_id: str
     quote_id: str | None = None
     quote_basis: str = "item_price_only"
+    quote: Quote | None = None  # the full verified quote the order was created from (shipping/tax stay None if unknown)
 
 
 def idempotency_key(task_id: str, agent_id: str, product_id: str, variant: str) -> str:
@@ -87,13 +88,19 @@ class GuardedPayments:
         order_id = self.backend.create_order(q.total, q.currency, backend_key)
         self._pending[key] = PendingOrder(id=key, product_id=product_id, variant=variant, total=q.total,
                                           currency=q.currency, order_id=order_id, quote_id=q.quote_id,
-                                          quote_basis=q.basis)
+                                          quote_basis=q.basis, quote=q)
         return self._pending[key]
+
+    def pending(self, pending_id: str) -> PendingOrder | None:
+        return self._pending.get(pending_id)
 
     def confirm_and_pay(self, pending_id: str, user_confirmed: bool) -> Capture:
         if not user_confirmed:
             raise NotConfirmed(pending_id)
         order = self._pending[pending_id]
+        if order.quote is not None and not order.quote.is_fresh(self.clock()):  # the quote the buyer saw has expired
+            self._pending.pop(pending_id, None)
+            raise QuoteStale(order.quote.quote_id)
         product = self.catalog.get_product(order.product_id)
         try:  # a price/quote change since the proposal invalidates the pending order
             if product is None:

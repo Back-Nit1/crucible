@@ -1,0 +1,187 @@
+{
+  "body_sent": {
+    "message": "need a widget under $30 all in",
+    "request_id": "run-00000001"
+  },
+  "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+  "request": "POST /agent/runs",
+  "response": {
+    "cost_known": true,
+    "cost_usd": "0",
+    "events": [
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "budget_source": "model_parse",
+        "category": "widgets",
+        "currency": "USD",
+        "max_total": "1",
+        "seq": 0,
+        "type": "intent_parsed"
+      },
+      {
+        "assumptions": [
+          "cap is all-in"
+        ],
+        "at": "2026-11-01T12:00:00Z",
+        "seq": 1,
+        "type": "assumptions",
+        "unknown_constraints": [
+          "stock",
+          "size"
+        ]
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "W000",
+          "W001",
+          "W002",
+          "W003",
+          "W004",
+          "W005",
+          "W006",
+          "W007"
+        ],
+        "seq": 2,
+        "summary": "returned 8 catalog products",
+        "tool": "search_catalog",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "W000"
+        ],
+        "seq": 3,
+        "summary": "product detail found",
+        "tool": "get_product",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "W001"
+        ],
+        "seq": 4,
+        "summary": "product detail found",
+        "tool": "get_product",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "W000",
+          "W001"
+        ],
+        "seq": 5,
+        "summary": "compared 2 products",
+        "tool": "compare",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "W000"
+        ],
+        "seq": 6,
+        "summary": "no realistic match reported",
+        "tool": "report_no_match",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "brand": null,
+        "category": "widgets",
+        "currency": "USD",
+        "price": "10",
+        "product_id": "W000",
+        "provenance": {
+          "as_of": "2023-09-30T00:00:00Z",
+          "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "snapshot": true,
+          "source": "synthetic-test-fixture",
+          "source_id": "W000"
+        },
+        "recommended": false,
+        "seq": 7,
+        "size_options": null,
+        "stock": {
+          "status": "unknown",
+          "units_by_variant": {}
+        },
+        "title": "alpha widgets pro alpha model",
+        "type": "product_card"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "brand": null,
+        "category": "widgets",
+        "currency": "USD",
+        "price": "17",
+        "product_id": "W001",
+        "provenance": {
+          "as_of": "2023-09-30T00:00:00Z",
+          "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "snapshot": true,
+          "source": "synthetic-test-fixture",
+          "source_id": "W001"
+        },
+        "recommended": false,
+        "seq": 8,
+        "size_options": null,
+        "stock": {
+          "status": "unknown",
+          "units_by_variant": {}
+        },
+        "title": "bravo widgets pro bravo model",
+        "type": "product_card"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "product_ids": [
+          "W000",
+          "W001"
+        ],
+        "rows": {
+          "brand": {
+            "W000": null,
+            "W001": null
+          },
+          "price": {
+            "W000": "10 USD",
+            "W001": "17 USD"
+          },
+          "source": {
+            "W000": "synthetic-test-fixture",
+            "W001": "synthetic-test-fixture"
+          },
+          "stock": {
+            "W000": "unknown",
+            "W001": "unknown"
+          }
+        },
+        "seq": 9,
+        "type": "comparison"
+      },
+      {
+        "assumptions": [
+          "cap"
+        ],
+        "at": "2026-11-01T12:00:00Z",
+        "closest_product_id": "W000",
+        "closest_verified": true,
+        "reason": "nothing under $1",
+        "seq": 10,
+        "type": "no_match",
+        "why_it_misses": "costs 10"
+      }
+    ],
+    "latency_ms": 0,
+    "model": "scripted@script-",
+    "next_seq": 11,
+    "run_id": "run-00000001",
+    "status": "completed",
+    "tokens": 0
+  },
+  "status": 200
+}

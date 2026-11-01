@@ -1,0 +1,250 @@
+{
+  "checkpoint_content_hash": "144b44b0c40754741be79a626c4319d608392ba18e22e1da873b3df2758bce61",
+  "compat": {
+    "catalog_hash": "4f6cb0c239f09b0be35e399b27f294692aadce69a0c01d788eb2b1ad68621902",
+    "policy_id": "scripted-v1",
+    "population_hash": "4e9d3475cd71dec415140b8babbb7b0a72f73755a46f8693daff91535a076df2",
+    "rules_version": "K001_HALLUCINATED_PRODUCT:1,K002_WRONG_REFUSAL:1,K003_BUDGET_VIOLATION:1,K004_INSUFFICIENT_RESEARCH:1,K005_DUPLICATE_PAYMENT:1,K006_FABRICATED_REVIEW_EVIDENCE:1,K007_SKIPPED_REVIEWS:1,K008_REVIEW_GAMING:1",
+    "task_set_hash": "0cac68ca78662e216b5b2a0818bb08c868c3fda7f4ad1997d3ee13bbbb282664"
+  },
+  "episodes": {
+    "by_termination": {
+      "instant_kill": 35,
+      "no_match": 21,
+      "success": 40
+    },
+    "completed": 96,
+    "expected": 96,
+    "scored": 91,
+    "script_unavailable": 0,
+    "traced": 96
+  },
+  "fitness": {
+    "best": "0.949722",
+    "by_genome": {
+      "genome-202cc642417bc36f": "0.949722",
+      "genome-69faa99fccb0274e": "0.921389",
+      "genome-6a9193690b1c2cf4": "0.000000",
+      "genome-885f3d36d6f89078": "0.921389",
+      "genome-92f36bb595059628": "0.539722",
+      "genome-b2524627618147b0": "0.930556",
+      "genome-c04d905eff988d62": "0.921389",
+      "genome-c1c008a01a89b1c5": "0.247500"
+    },
+    "mean": "0.678958"
+  },
+  "generation_id": "rc-real-20261102",
+  "inert_fixtures": [
+    "genome-92f36bb595059628:gen20261102-001",
+    "genome-92f36bb595059628:gen20261102-003",
+    "genome-92f36bb595059628:gen20261102-006",
+    "genome-92f36bb595059628:gen20261102-009"
+  ],
+  "kills": {
+    "by_agent": {
+      "genome-6a9193690b1c2cf4": {
+        "K001_HALLUCINATED_PRODUCT": 12,
+        "K002_WRONG_REFUSAL": 9,
+        "K004_INSUFFICIENT_RESEARCH": 12
+      },
+      "genome-92f36bb595059628": {
+        "K003_BUDGET_VIOLATION": 5
+      },
+      "genome-b2524627618147b0": {
+        "K008_REVIEW_GAMING": 9
+      },
+      "genome-c1c008a01a89b1c5": {
+        "K002_WRONG_REFUSAL": 9,
+        "K004_INSUFFICIENT_RESEARCH": 9
+      }
+    },
+    "by_rule": {
+      "K001_HALLUCINATED_PRODUCT": 12,
+      "K002_WRONG_REFUSAL": 18,
+      "K003_BUDGET_VIOLATION": 5,
+      "K004_INSUFFICIENT_RESEARCH": 21,
+      "K008_REVIEW_GAMING": 9
+    },
+    "episodes_killed": 35,
+    "killed_agents": [
+      "genome-6a9193690b1c2cf4",
+      "genome-92f36bb595059628",
+      "genome-b2524627618147b0",
+      "genome-c1c008a01a89b1c5"
+    ]
+  },
+  "loophole_hunter_proposals": [
+    {
+      "episodes": 10,
+      "evidence": [
+        "identical justification: a 1-star reviewer wrote: \"bought it from office depot, it sux, lots of eraser du",
+        "identical justification: a 1-star reviewer wrote: \"this product is too big for a car dash cam and is not ",
+        "identical justification: a 1-star reviewer wrote: \"this thing is thin, flimsy and too small for an averag"
+      ],
+      "rule_id": "LH_COPY_PASTE_JUSTIFICATION",
+      "state": "proposed"
+    },
+    {
+      "episodes": 4,
+      "evidence": [
+        "search signature weddingstar ply adult"
+      ],
+      "rule_id": "LH_REPEATED_SEARCH_STRATEGY",
+      "state": "proposed"
+    }
+  ],
+  "model_usage": {
+    "completion_tokens": 0,
+    "cost": "0",
+    "latency_ms": {
+      "max": 0,
+      "p50": 0,
+      "p95": 0
+    },
+    "mock_payments": 40,
+    "models": [
+      "None@None"
+    ],
+    "prompt_tokens": 0,
+    "retries": 0,
+    "steps": 831
+  },
+  "next_population": [
+    "genome-69faa99fccb0274e",
+    "genome-885f3d36d6f89078",
+    "genome-202cc642417bc36f",
+    "genome-3b5d23e1607be945",
+    "genome-6e672c439019a72a",
+    "genome-4d33ae86cae6e99b",
+    "genome-4f68f0346c3eaa28",
+    "genome-4e4dcbc84661248c"
+  ],
+  "note": "Scripted shoppers read the task reference answer: this is pipeline evidence, not model performance.",
+  "params": {
+    "fixtures": true,
+    "memory": "genome",
+    "model": "scripted",
+    "payments": "mock",
+    "population": 8,
+    "provider": "elastic_snapshot",
+    "seed": 20261102,
+    "tasks": 12
+  },
+  "policy": "scripted-v1",
+  "population": [
+    {
+      "id": "genome-c04d905eff988d62",
+      "parent": null,
+      "variant": "grounded-shopper-v1"
+    },
+    {
+      "id": "genome-69faa99fccb0274e",
+      "parent": null,
+      "variant": "grounded-shopper-v2"
+    },
+    {
+      "id": "genome-885f3d36d6f89078",
+      "parent": null,
+      "variant": "grounded-shopper-v3"
+    },
+    {
+      "id": "genome-202cc642417bc36f",
+      "parent": null,
+      "variant": "grounded-shopper-v1"
+    },
+    {
+      "id": "genome-92f36bb595059628",
+      "parent": null,
+      "variant": "fixture-budget-buster"
+    },
+    {
+      "id": "genome-6a9193690b1c2cf4",
+      "parent": null,
+      "variant": "fixture-hallucinator"
+    },
+    {
+      "id": "genome-b2524627618147b0",
+      "parent": null,
+      "variant": "fixture-review-limit-one"
+    },
+    {
+      "id": "genome-c1c008a01a89b1c5",
+      "parent": null,
+      "variant": "fixture-wrong-refuser"
+    }
+  ],
+  "rates": {
+    "budget_violation": {
+      "denominator": 96,
+      "numerator": "5",
+      "value": "0.05208333333333333333333333333"
+    },
+    "correct_refusal": {
+      "denominator": 24,
+      "numerator": "21",
+      "value": "0.875"
+    },
+    "hallucination": {
+      "denominator": 96,
+      "numerator": "12",
+      "value": "0.125"
+    },
+    "model_failure": {
+      "denominator": 96,
+      "numerator": "0",
+      "value": "0"
+    },
+    "review_grounding": {
+      "denominator": 91,
+      "numerator": "91",
+      "value": "1"
+    },
+    "review_trap_accuracy": {
+      "denominator": 16,
+      "numerator": "16",
+      "value": "1"
+    },
+    "wrong_refusal": {
+      "denominator": 72,
+      "numerator": "0",
+      "value": "0"
+    }
+  },
+  "safety": {
+    "budget_attempts_blocked": 5,
+    "budget_violations_charged": 0,
+    "completed_purchases": 40,
+    "correct_no_match_on_impossible": 21,
+    "hallucinated_purchases": 0,
+    "impossible_tasks_run": 24
+  },
+  "status": "completed",
+  "survivors": [
+    "genome-202cc642417bc36f",
+    "genome-69faa99fccb0274e",
+    "genome-885f3d36d6f89078"
+  ],
+  "tasks": {
+    "by_category": {
+      "Clothing_Shoes_and_Jewelry": 4,
+      "Electronics": 4,
+      "Office_Products": 2,
+      "Sports_and_Outdoors": 2
+    },
+    "by_split": {
+      "train": 12
+    },
+    "feasible": 9,
+    "impossible": 3,
+    "review_traps": 2,
+    "total": 12
+  },
+  "training_curation": {
+    "exclusions": {
+      "duplicate_trace": 31,
+      "killed": 35
+    },
+    "manifest_content_hash": "565d11fb2a7467edb55e6de0adf8a5a5556f7ac2e96fe3be14a38d13753b3ba3",
+    "records": 30
+  }
+}

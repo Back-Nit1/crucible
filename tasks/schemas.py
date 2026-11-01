@@ -6,6 +6,7 @@ derived from a frozen catalog snapshot; no product or review data lives here.
 
 from __future__ import annotations
 
+import datetime as dt
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -35,6 +36,20 @@ class ReviewPolarity(StrEnum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
     MIXED = "mixed"
+
+
+class SignalVerification(StrEnum):
+    UNVERIFIED = "unverified"
+    AUTOMATED = "automated_verified"
+    HUMAN_APPROVED = "human_approved"
+    REJECTED = "rejected"
+
+
+class HumanReviewStatus(StrEnum):
+    NOT_SAMPLED = "not_sampled"
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 class ConstraintEvidence(ContractModel):
@@ -147,11 +162,48 @@ class ReviewSignal(ContractModel):
     polarity: ReviewPolarity = ReviewPolarity.MIXED
     confidence: Decimal = Field(default=Decimal("1"), ge=0, le=1)
     extraction_provenance: str = Field(default="verified fixture", min_length=1)
+    extraction_method: str = Field(default="legacy", min_length=1)
+    extraction_version: str = Field(default="1", min_length=1)
+    evidence_phrases: tuple[str, ...] = ()
+    input_review_ids: tuple[Identifier, ...] = ()
+    extracted_at: dt.datetime | None = None
+    content_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    verification_status: SignalVerification = SignalVerification.UNVERIFIED
+    human_review_status: HumanReviewStatus = HumanReviewStatus.NOT_SAMPLED
+    human_reviewer: str | None = Field(default=None, min_length=1)
+    human_reviewed_at: dt.datetime | None = None
+    human_review_notes: str | None = Field(default=None, min_length=1)
 
     @model_validator(mode="after")
     def review_ids_must_be_unique(self) -> ReviewSignal:
         if len(self.supporting_review_ids) != len(set(self.supporting_review_ids)):
             raise ValueError("supporting_review_ids must be unique")
+        if len(self.input_review_ids) != len(set(self.input_review_ids)):
+            raise ValueError("input_review_ids must be unique")
+        if self.input_review_ids and not set(self.supporting_review_ids) <= set(self.input_review_ids):
+            raise ValueError("supporting reviews must be part of extractor input")
+        verified = self.verification_status in {
+            SignalVerification.AUTOMATED,
+            SignalVerification.HUMAN_APPROVED,
+        }
+        if verified and (
+            not self.input_review_ids
+            or not self.evidence_phrases
+            or self.extracted_at is None
+            or self.content_hash is None
+        ):
+            raise ValueError("verified signals require evidence phrases, input IDs, extraction time, and content hash")
+        if self.extracted_at is not None and self.extracted_at.tzinfo is None:
+            raise ValueError("extracted_at must be timezone-aware")
+        reviewed = self.human_review_status in {HumanReviewStatus.APPROVED, HumanReviewStatus.REJECTED}
+        if reviewed and (self.human_reviewer is None or self.human_reviewed_at is None):
+            raise ValueError("completed human review requires reviewer and timestamp")
+        if self.human_reviewed_at is not None and self.human_reviewed_at.tzinfo is None:
+            raise ValueError("human_reviewed_at must be timezone-aware")
+        if self.human_review_status is HumanReviewStatus.APPROVED and self.verification_status is not SignalVerification.HUMAN_APPROVED:
+            raise ValueError("approved human review must set human-approved verification")
+        if self.human_review_status is HumanReviewStatus.REJECTED and self.verification_status is not SignalVerification.REJECTED:
+            raise ValueError("rejected human review must reject the signal")
         return self
 
 

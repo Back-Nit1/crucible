@@ -29,15 +29,15 @@ class InMemoryMemoryProvider:
         self._records: list[tuple[EpisodeRecord, TaskSplit, str, float]] = []
 
     def store(self, episode: EpisodeRecord, *, split: TaskSplit, category: str, fitness: float) -> None:
-        if split is TaskSplit.TEST or episode.killed or fitness < 0:
+        if split in {TaskSplit.TEST, TaskSplit.HELD_OUT_CATEGORY} or episode.killed or fitness < 0:
             return
         self._records.append((episode, split, category, fitness))
 
     def retrieve(self, request: RetrievalRequest) -> tuple[EpisodeRecord, ...]:
-        if request.split is TaskSplit.TEST or request.k <= 0:
+        if request.split in {TaskSplit.TEST, TaskSplit.HELD_OUT_CATEGORY} or request.k <= 0:
             return ()
         eligible = [item for item in self._records
-                    if item[1] is not TaskSplit.TEST and not item[0].killed
+                    if item[1] not in {TaskSplit.TEST, TaskSplit.HELD_OUT_CATEGORY} and not item[0].killed
                     and item[3] >= request.minimum_fitness]
         eligible.sort(key=lambda item: (item[2] != request.category, -item[3], item[0].episode_id))
         return tuple(item[0] for item in eligible[:request.k])

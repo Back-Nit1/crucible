@@ -1,0 +1,197 @@
+{
+  "body_sent": null,
+  "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+  "request": "GET /agent/runs/run-00000001?after=5",
+  "response": {
+    "cost_known": true,
+    "cost_usd": "0",
+    "events": [
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "synthetic:W000:x",
+          "synthetic:W000:3",
+          "synthetic:W000:7",
+          "synthetic:W000:2",
+          "synthetic:W000:6",
+          "synthetic:W000:1",
+          "synthetic:W000:5",
+          "synthetic:W000:0",
+          "synthetic:W000:4"
+        ],
+        "seq": 6,
+        "summary": "returned 9 reviews",
+        "tool": "get_reviews",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "synthetic:W000:0"
+        ],
+        "seq": 7,
+        "summary": "grounded 1 claims",
+        "tool": "summarize_review_evidence",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "references": [
+          "060dfb6af6a3a2d8de52fb2f82ae14d0",
+          "MOCK-ORDER-1"
+        ],
+        "seq": 8,
+        "summary": "pending order created",
+        "tool": "propose_purchase",
+        "type": "research"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "brand": null,
+        "category": "widgets",
+        "currency": "USD",
+        "price": "10",
+        "product_id": "W000",
+        "provenance": {
+          "as_of": "2023-09-30T00:00:00Z",
+          "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "snapshot": true,
+          "source": "synthetic-test-fixture",
+          "source_id": "W000"
+        },
+        "recommended": true,
+        "seq": 9,
+        "size_options": null,
+        "stock": {
+          "status": "unknown",
+          "units_by_variant": {}
+        },
+        "title": "alpha widgets pro alpha model",
+        "type": "product_card"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "brand": null,
+        "category": "widgets",
+        "currency": "USD",
+        "price": "17",
+        "product_id": "W001",
+        "provenance": {
+          "as_of": "2023-09-30T00:00:00Z",
+          "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "snapshot": true,
+          "source": "synthetic-test-fixture",
+          "source_id": "W001"
+        },
+        "recommended": false,
+        "seq": 10,
+        "size_options": null,
+        "stock": {
+          "status": "unknown",
+          "units_by_variant": {}
+        },
+        "title": "bravo widgets pro bravo model",
+        "type": "product_card"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "product_ids": [
+          "W000",
+          "W001"
+        ],
+        "rows": {
+          "brand": {
+            "W000": null,
+            "W001": null
+          },
+          "price": {
+            "W000": "10 USD",
+            "W001": "17 USD"
+          },
+          "source": {
+            "W000": "synthetic-test-fixture",
+            "W001": "synthetic-test-fixture"
+          },
+          "stock": {
+            "W000": "unknown",
+            "W001": "unknown"
+          }
+        },
+        "seq": 11,
+        "type": "comparison"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "claim": "Reviewer reports it works great.",
+        "concern": "durability",
+        "date": "2023-01-01",
+        "excerpt": "it works great",
+        "product_id": "W000",
+        "provenance": {
+          "as_of": "2023-09-30T00:00:00Z",
+          "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "snapshot": true,
+          "source": "synthetic-test-fixture",
+          "source_id": "W000"
+        },
+        "rating": 5.0,
+        "review_id": "synthetic:W000:0",
+        "seq": 12,
+        "source_review_id": null,
+        "type": "review_citation"
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "basis": "item_price_only",
+        "budget_cap": "30",
+        "budget_checked_on": "item_price_total",
+        "currency": "USD",
+        "discounts": "0",
+        "expires_at": "2026-11-01T12:15:00Z",
+        "fresh": true,
+        "product_id": "W000",
+        "quote_id": "q-865d693a7a5c56666311a122",
+        "quoted_at": "2026-11-01T12:00:00Z",
+        "seq": 13,
+        "shipping": null,
+        "subtotal": "10",
+        "tax": null,
+        "total": "10",
+        "type": "quote",
+        "unknown_components": [
+          "shipping",
+          "tax"
+        ],
+        "variant": "default",
+        "within_budget": true
+      },
+      {
+        "at": "2026-11-01T12:00:00Z",
+        "basis": "item_price_only",
+        "currency": "USD",
+        "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+        "quote_id": "q-865d693a7a5c56666311a122",
+        "requires_explicit_confirmation": true,
+        "seq": 14,
+        "summary": "Buy alpha widgets pro alpha model for 10 USD? Shipping and tax are unknown, so this is the item price only (shipping, tax not included). Nothing is charged until you confirm.",
+        "total": "10",
+        "type": "confirmation_request"
+      },
+      {
+        "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
+        "at": "2026-11-01T12:00:00Z",
+        "mode": "mock",
+        "seq": 15,
+        "status": "PAYER_ACTION_REQUIRED",
+        "type": "paypal_approval"
+      }
+    ],
+    "latency_ms": 0,
+    "model": "scripted@script-",
+    "next_seq": 16,
+    "run_id": "run-00000001",
+    "status": "awaiting_confirmation",
+    "tokens": 0
+  },
+  "status": 200
+}

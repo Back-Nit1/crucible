@@ -14,7 +14,8 @@ from pathlib import Path
 
 from scripts._env import load
 
-NEEDED = ["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "KERNEL_API_KEY", "PAYPAL_SANDBOX_BUYER_EMAIL", "PAYPAL_SANDBOX_BUYER_PASSWORD"]
+NEEDED = ["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "PAYPAL_ENV", "KERNEL_API_KEY", "PAYPAL_SANDBOX_BUYER_EMAIL",
+          "PAYPAL_SANDBOX_BUYER_PASSWORD"]
 OUT = Path("docs/spikes/results/paypal_live_check.json")
 
 
@@ -27,8 +28,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--env-file", required=True)
     a = ap.parse_args(argv)
-    load(a.env_file, set(NEEDED) | {"PAYPAL_ENV"})
+    load(a.env_file, set(NEEDED))
     missing = [k for k in NEEDED if not os.environ.get(k)]
+    if os.environ.get("PAYPAL_ENV") not in (None, "", "sandbox"):
+        missing.append("PAYPAL_ENV(must be 'sandbox')")  # name only: the value is never printed
     if missing:
         print(json.dumps({"status": "blocked", "missing_env_names": missing}))
         return 3

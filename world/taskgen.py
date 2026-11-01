@@ -6,13 +6,16 @@ stock/size). A review-sensitive task needs a persona-relevant concern backed by 
 keyword match on low-rated reviews ("durability" concern), recorded as such in `extraction_provenance`."""
 from __future__ import annotations
 
+import datetime as dt
+import hashlib
+import json
 import random
 import re
 from decimal import ROUND_CEILING, Decimal
 
 from catalog.providers.base import FrozenCatalogProvider, Product
 from tasks.engine import SplitConfig, build_review_trap, build_task, compute_feasible_set, select_best_value
-from tasks.schemas import (HardConstraints, ImpliedNeed, ReviewPolarity, ReviewSignal, TaskSpec)
+from tasks.schemas import (HardConstraints, ImpliedNeed, ReviewPolarity, ReviewSignal, SignalVerification, TaskSpec)
 
 TASK_VERSION = "taskgen-v1"
 CONCERN = "durability"
@@ -28,6 +31,22 @@ def durability_reviews(catalog: FrozenCatalogProvider, product_id: str):
     """Real low-rated reviews of the product whose text reports a failure (deterministic keyword match)."""
     return sorted((r for r in catalog.get_reviews(product_id, None, 100) if r.rating <= 2 and _BREAKS.search(r.text)),
                   key=lambda r: r.id)
+
+
+def _signal(product_id: str, bad) -> ReviewSignal:
+    """Automated-verified signal: the matched keyword of each cited (<=2-star) review is recorded as evidence."""
+    cited = bad[:3]
+    phrases = tuple(sorted({m.group(0).lower() for r in cited if (m := _BREAKS.search(r.text))}))
+    ids = tuple(r.id for r in cited)
+    claim = f"{len(bad)} low-rated review(s) report the product failing or breaking"
+    digest = hashlib.sha256(json.dumps([TASK_VERSION, CONCERN, product_id, ids, phrases, claim]).encode()).hexdigest()
+    return ReviewSignal(
+        concern=CONCERN, product_id=product_id, polarity=ReviewPolarity.NEGATIVE, claim=claim, supporting_review_ids=ids,
+        persona_relevance="shopper who needs it to last",
+        extraction_provenance="deterministic keyword match on <=2-star reviews (taskgen-v1)",
+        extraction_method="keyword_low_rating", extraction_version=TASK_VERSION, evidence_phrases=phrases,
+        input_review_ids=ids, extracted_at=dt.datetime(2026, 11, 1, tzinfo=dt.UTC), content_hash=digest,
+        verification_status=SignalVerification.AUTOMATED)
 
 
 def _trap_candidate(catalog, products: list[Product], budget: Decimal, constraints: HardConstraints):
@@ -77,11 +96,7 @@ def generate_tasks(catalog: FrozenCatalogProvider, manifests: dict[str, str], *,
                 if not found:
                     continue
                 best, bad, alt = found
-                signal = ReviewSignal(
-                    concern=CONCERN, product_id=best, polarity=ReviewPolarity.NEGATIVE,
-                    claim=f"{len(bad)} low-rated review(s) report the product failing or breaking",
-                    supporting_review_ids=tuple(r.id for r in bad[:3]), persona_relevance="shopper who needs it to last",
-                    extraction_provenance="deterministic keyword match on <=2-star reviews (taskgen-v1)")
+                signal = _signal(best, bad)
                 task = build_task(task_id=tid, catalog_snapshot_id=snapshot_id, catalog=catalog,
                                   manifest_hash=manifests[cat], constraints=hard, seed=tseed, split_config=split_config,
                                   implied_needs=(ImpliedNeed(concern=CONCERN),), review_signals=(signal,))

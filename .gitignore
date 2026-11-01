@@ -26,3 +26,4 @@ docs/media/raw/
 secrets/
 *.pem
 /runs/
+docs/runs/*/sft.jsonl
