@@ -125,6 +125,11 @@ def _eligible_trap(
         signal = plan.signal
         if signal.product_id not in product_ids or plan.review_adjusted_best not in product_ids:
             continue
+        prices = {product.id: product.price for product in products}
+        cap = max(prices[signal.product_id], prices[plan.review_adjusted_best])
+        cheapest = min((pid for pid, price in prices.items() if price <= cap), key=lambda pid: (prices[pid], pid))
+        if cheapest == plan.review_adjusted_best:  # the trap needs a naive pick that differs from the review-adjusted one
+            continue
         if set(signal.supporting_review_ids) <= catalog.get_review_ids(signal.product_id).ids:
             return plan
     return None
