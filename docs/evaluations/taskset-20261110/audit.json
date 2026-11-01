@@ -25,8 +25,8 @@
     "memory_eligibility": {
       "examined": 0,
       "items": [],
-      "note": null,
-      "status": "pass",
+      "note": "no memory pool supplied",
+      "status": "not_run",
       "violations": 0
     },
     "product_overlap": {
@@ -53,12 +53,12 @@
     "training_source_leakage": {
       "examined": 0,
       "items": [],
-      "note": null,
-      "status": "pass",
+      "note": "no training manifest supplied",
+      "status": "not_run",
       "violations": 0
     }
   },
-  "content_hash": "4d32ee6c7cb666ff9fce9d14c11195d54758a75d27a2e9edcf7cf8a40f53a581",
+  "content_hash": "75a3da0c4094fd3e45d3c23e02f8eac450958874842c43e13113193b0dde9cab",
   "passed": true,
   "protected_task_ids": [
     "batch-20261110-0002",

@@ -42,8 +42,9 @@ def main(argv=None) -> int:
                                review_trap_percent=a.trap_percent)
     protected, reference = partition(batch.tasks)
     protected, excluded = dedupe_protected(protected, reference)
-    report = audit(protected=protected, reference=reference, category_manifests=manifests, memory_traces=(),
-                   training_manifests=())
+    # memory pool and training manifests do not exist yet: those checks are reported not_run (and re-run at `plan` time)
+    report = audit(protected=protected, reference=reference, category_manifests=manifests,
+                   allow_not_run=frozenset({"memory_eligibility", "training_source_leakage"}))
     out = Path(a.out_dir)
     out.mkdir(parents=True, exist_ok=True)
     meta = {"protected_hash": write_tasks(out / "protected.jsonl", protected),
