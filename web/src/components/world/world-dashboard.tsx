@@ -124,7 +124,7 @@ export function WorldDashboard({
       </Panel>
 
       <Panel className="mt-6">
-        <PanelHeader eyebrow="Registry" title="Active kill rules" action={<span className="text-xs text-slate-500">{killRules.length} versioned rules</span>} />
+        <PanelHeader eyebrow="Registry" title="Active kill rules" action={<Link href="/world/safety" className="text-xs text-emerald-300 hover:underline">Inspect evidence →</Link>} />
         <PanelBody className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {killRules.map((rule) => <article key={rule.rule_id} className="rounded-xl border border-white/8 p-4"><div className="flex justify-between gap-3"><p className="font-mono text-xs text-rose-200">{rule.rule_id}</p><span className="text-xs text-slate-600">v{rule.version}</span></div><p className="mt-3 text-xs leading-5 text-slate-400">{rule.description}</p><p className="mt-3 text-xs text-slate-600">{rule.kills} co-fired kills</p></article>)}
         </PanelBody>
