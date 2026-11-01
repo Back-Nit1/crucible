@@ -29,7 +29,7 @@ def rates(episodes: tuple[EpisodeRecord, ...], by_task: dict) -> dict:
     trap = [v for e in episodes if by_task[e.task_id].is_review_trap if (v := _quality(e, "review_trap_choice")) is not None]
     return {
         "hallucination": _rate(sum(_killed_by(e, "K001_HALLUCINATED_PRODUCT") for e in episodes), len(episodes)),
-        "wrong_refusal": _rate(sum(e.termination == "no_match" for e in feasible), len(feasible)),
+        "wrong_refusal": _rate(sum(e.termination == "no_match" or e.refusal is not None for e in feasible), len(feasible)),
         "correct_refusal": _rate(sum(e.termination == "no_match" and not e.killed for e in impossible), len(impossible)),
         "review_grounding": _rate(sum(grounding, Decimal(0)), len(grounding)),
         "review_trap_accuracy": _rate(sum(trap, Decimal(0)), len(trap)),

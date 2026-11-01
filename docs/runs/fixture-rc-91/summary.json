@@ -195,8 +195,8 @@
     },
     "wrong_refusal": {
       "denominator": 32,
-      "numerator": "0",
-      "value": "0"
+      "numerator": "8",
+      "value": "0.25"
     }
   },
   "safety": {

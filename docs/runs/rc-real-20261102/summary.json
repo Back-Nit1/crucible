@@ -34,12 +34,7 @@
     "mean": "0.678958"
   },
   "generation_id": "rc-real-20261102",
-  "inert_fixtures": [
-    "genome-92f36bb595059628:gen20261102-001",
-    "genome-92f36bb595059628:gen20261102-003",
-    "genome-92f36bb595059628:gen20261102-006",
-    "genome-92f36bb595059628:gen20261102-009"
-  ],
+  "inert_fixtures": [],
   "kills": {
     "by_agent": {
       "genome-6a9193690b1c2cf4": {
@@ -206,8 +201,8 @@
     },
     "wrong_refusal": {
       "denominator": 72,
-      "numerator": "0",
-      "value": "0"
+      "numerator": "18",
+      "value": "0.25"
     }
   },
   "safety": {

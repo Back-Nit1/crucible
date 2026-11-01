@@ -197,3 +197,17 @@ def test_scripted_reference_answer_traces_are_never_retrievable_as_memory(world)
         for m in req.messages:
             if m.role == "assistant" and m.tool_name is None:
                 assert not json.loads(m.content)["retrieved_episode_id"].startswith("g-scripted:")
+
+
+def test_wrong_refusal_rate_counts_killed_refusals_too(world):
+    from world import report
+    from world.runtime import audit_and_curate
+    cat, tasks, _, _ = world
+    traces, store = InMemoryTraceRepository(), GenerationStore(MemoryBlobStore())
+    fixtures = build_population(8, SEED)                                 # includes the deliberate wrong-refuser fixture
+    res = run_generation(generation_id="g-fx", seed=SEED, genomes=fixtures, tasks=tasks, manifests=HASHES, catalog=cat,
+                         store=store, traces=traces)
+    eps, props, cur, nxt = audit_and_curate(result=res, tasks=tasks, genomes=fixtures, traces=traces, catalog=cat,
+                                            manifests=HASHES, breed_seed=SEED)
+    s = report.summarize(result=res, tasks=tasks, episodes=eps, proposals=props, curated=cur, next_pop=nxt, params={})
+    assert s["kills"]["by_rule"].get("K002_WRONG_REFUSAL", 0) > 0 and int(s["rates"]["wrong_refusal"]["numerator"]) > 0
