@@ -1,5 +1,5 @@
 """Modal inference server for the pinned Qwen checkpoint (the remote half of agents.qwen_client), optionally serving a
-verified LoRA adapter produced by modal_app.training.
+verified LoRA adapter produced by modal_app.qwen_training.
 
 NOTHING here runs unless you deploy it. The GPU is attached only when CRUCIBLE_ENABLE_L4_PROBE=1 at deploy time, and
 deploying is gated on: rotated Modal token confirmed, payment method on the workspace, and the user's approval of the
@@ -27,7 +27,7 @@ FUNCTION_NAME = "Qwen.generate"
 MODEL_PATH = f"/models/{MODEL_ID.rsplit('/', 1)[-1]}-{MODEL_REVISION[:7]}"
 ENABLED = os.environ.get("CRUCIBLE_ENABLE_L4_PROBE") == "1"
 REQUEST_TIMEOUT_SECONDS = 300
-ADAPTER_VOLUME = "crucible-qwen-adapters"  # written by modal_app.training; read-only here
+ADAPTER_VOLUME = "crucible-qwen-adapters"  # written by modal_app.qwen_training; read-only here
 ADAPTER_MOUNT = "/vol"
 ADAPTER_RUNS_ROOT = f"{ADAPTER_MOUNT}/runs"
 

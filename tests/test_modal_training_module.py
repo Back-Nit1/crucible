@@ -9,7 +9,7 @@ def load(monkeypatch, enabled):
         monkeypatch.setenv("CRUCIBLE_ENABLE_L4_TRAIN", "1")
     else:
         monkeypatch.delenv("CRUCIBLE_ENABLE_L4_TRAIN", raising=False)
-    import modal_app.training as mod
+    import modal_app.qwen_training as mod
     return importlib.reload(mod)
 
 

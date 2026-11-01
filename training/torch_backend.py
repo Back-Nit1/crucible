@@ -1,7 +1,7 @@
 """Production LoRA / QLoRA backend (PyTorch + Transformers + PEFT [+ bitsandbytes]). Imported lazily: nothing in the
 offline suite needs torch, and the CPU-only laptop path refuses to build a 7B model (see `require_cuda_for_large`).
 
-Pinned library set (also the Modal image pins; see modal_app.training.TRAIN_PINS):
+Pinned library set (also the Modal image pins; see modal_app.qwen_training.TRAIN_PINS):
   torch 2.6.0, transformers 4.49.0, accelerate 1.4.0, peft 0.14.0, bitsandbytes 0.45.3 (linux/CUDA only).
 
 Every piece of mutable training state is captured and restored: PEFT adapter weights, AdamW moments, scheduler

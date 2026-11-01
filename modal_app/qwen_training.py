@@ -4,9 +4,12 @@ NOTHING here runs unless you deploy AND call it. The GPU is attached only when C
 without it the function has no GPU and fails closed ("refusing to train ... on CPU"). Calling it is gated locally by
 training.gates.authorize_training and re-checked inside the container (training.service.check_request).
 
-  CRUCIBLE_ENABLE_L4_TRAIN=1 uv run modal deploy modal_app/training.py     # user-approved only
+  CRUCIBLE_ENABLE_L4_TRAIN=1 uv run modal deploy modal_app/qwen_training.py     # user-approved only
   uv run python -m scripts.train_lora --launch ...                          # gated, bounded, resumable
   uv run modal app stop crucible-qwen-training                              # always stop afterwards
+
+The file is named qwen_training (not training) on purpose: `modal deploy` may import it as a top-level module, which would
+shadow the `training` package inside the container.
 
 State lives on the `crucible-qwen-adapters` Volume: runs/<run_id>/{identity.json,ledger.json,dataset.jsonl,
 checkpoints/,final/}. `final/` (adapter + artifact_manifest.json) is what modal_app.qwen_inference serves."""

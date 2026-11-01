@@ -58,7 +58,7 @@ def launch_commands(args: argparse.Namespace) -> list[str]:
         f"export {TRAIN_MANIFEST_VAR}=<training manifest content_hash printed in training_plan.json>",
         f"export {TRAIN_CEILING_VAR}=<your approved USD ceiling for this run>",
         "export CRUCIBLE_MODAL_TOKEN_ROTATED=1 CRUCIBLE_MODAL_BILLING_CONFIRMED=1   # only after rotating the token and adding billing",
-        "CRUCIBLE_ENABLE_L4_TRAIN=1 uv run modal deploy modal_app/training.py",
+        "CRUCIBLE_ENABLE_L4_TRAIN=1 uv run modal deploy modal_app/qwen_training.py",
         base + " --launch --max-steps 4 --stop-after-steps 2   # smoke: interrupt after 2 steps",
         base + " --launch --max-steps 4                         # resume the same run id to the end",
         "uv run modal app stop crucible-qwen-training",
