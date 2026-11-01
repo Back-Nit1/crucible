@@ -3,6 +3,23 @@
 # The Next.js `web` service is owned by the web app and added to this file when it exists.
 services:
   - type: web
+    name: crucible-web
+    runtime: node
+    rootDir: web
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start -- --hostname 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "24.11.1"
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false # Public API origin only; set before build. Never place credentials here.
+      - key: NEXT_PUBLIC_DATA_MODE
+        value: live
+  - type: web
     name: crucible-api
     runtime: python
     plan: free
