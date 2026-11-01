@@ -114,7 +114,15 @@ def calculate_metrics(
                                            len(pass_groups), len(by_task))
     held = [(e, t) for e, t in eligible if t.split is TaskSplit.HELD_OUT_CATEGORY]
     metrics["held_out_category_performance"] = _rate(sum(_successful(e) for e, _ in held), len(held), total)
-    latency_ms = sum((e.ended_at - e.started_at).total_seconds() * 1000 for e, _ in eligible)
+    latency_ms = sum(
+        sum(
+            (Decimal(str(item.get("latency_ms", 0))) for item in e.model_metadata),
+            Decimal(0),
+        )
+        if e.model_metadata
+        else Decimal(str((e.ended_at - e.started_at).total_seconds() * 1000))
+        for e, _ in eligible
+    )
     metrics["latency_ms"] = _rate(Decimal(str(latency_ms)), len(eligible), total, "mean_ms")
     metrics["cost_per_task"] = _rate(sum((e.cost for e, _ in eligible), Decimal(0)),
                                       len(eligible), total, "mean_currency_units")
