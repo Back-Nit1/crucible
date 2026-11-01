@@ -33,6 +33,7 @@ class ModelStep(BaseModel):
     action: Action
     token_count: int = Field(default=0, ge=0)
     cost: Decimal = Field(default=Decimal("0"), ge=0)
+    metadata: dict[str, object] = Field(default_factory=dict)
 
 
 class ActionPolicy(Protocol):
@@ -127,12 +128,16 @@ def run_episode(
     started = now()
     tokens = 0
     cost = Decimal(0)
+    model_metadata: list[dict[str, object]] = []
     termination = EpisodeTermination.MODEL_FAILURE
     failure = "model returned no terminal action"
     pre_kill: tuple[dict[str, object], ...] = ()
     if memory is not None:
-        memory.retrieve(RetrievalRequest(task.id, task.split, task.hard_constraints.category,
-                                         task.raw_message, 3, 0))
+        examples = memory.retrieve(RetrievalRequest(task.id, task.split, task.hard_constraints.category,
+                                                     task.raw_message, 3, 0))
+        accept_memory = getattr(policy, "accept_memory", None)
+        if callable(accept_memory):
+            accept_memory(examples)
     for attempt in range(config.max_tool_calls):
         retry = 0
         step = None
@@ -147,6 +152,7 @@ def run_episode(
             break
         tokens += step.token_count
         cost += step.cost
+        model_metadata.append(step.metadata)
         if tokens > config.max_tokens or cost > config.max_cost:
             termination = EpisodeTermination.TOOL_LIMIT
             failure = "token or cost budget exceeded"
@@ -212,4 +218,5 @@ def run_episode(
         recommended_products=recommended, refusal=refusal, payment_state={"completed": termination == EpisodeTermination.SUCCESS},
         score_components=score_components, killed=bool(kill_information), kill_information=kill_information,
         termination=termination, token_count=tokens, cost=cost, started_at=started, ended_at=now(),
+        model_metadata=tuple(model_metadata),
     )

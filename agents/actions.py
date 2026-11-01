@@ -126,6 +126,7 @@ class EpisodeRecord(ActionModel):
     termination: str
     token_count: int = Field(default=0, ge=0)
     cost: Decimal = Field(default=Decimal("0"), ge=0)
+    model_metadata: tuple[dict[str, object], ...] = ()
     started_at: dt.datetime
     ended_at: dt.datetime
 
