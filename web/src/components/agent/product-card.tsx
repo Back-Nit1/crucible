@@ -77,7 +77,7 @@ export function ProductCard({
       </div>
 
       <div className="mt-5 grid gap-3 text-xs sm:grid-cols-3">
-        <div className="rounded-lg border border-white/7 bg-black/15 p-3">
+        <div className="min-w-0 rounded-lg border border-white/7 bg-black/15 p-3">
           <Database className="mb-2 size-3.5 text-cyan-300" aria-hidden="true" />
           <p className="text-slate-600">Source</p>
           <p className="mt-1 break-words text-slate-300">{product.provenance.source}</p>
@@ -85,17 +85,17 @@ export function ProductCard({
             {product.provenance.source_id ?? "Source product ID unavailable"}
           </p>
         </div>
-        <div className="rounded-lg border border-white/7 bg-black/15 p-3">
+        <div className="min-w-0 rounded-lg border border-white/7 bg-black/15 p-3">
           <CalendarClock className="mb-2 size-3.5 text-cyan-300" aria-hidden="true" />
           <p className="text-slate-600">As of</p>
           <p className="mt-1 text-slate-300">
             {new Date(product.provenance.as_of).toLocaleString()}
           </p>
-          <p className="mt-1 font-mono text-[0.62rem] text-slate-600">
+          <p className="mt-1 break-all font-mono text-[0.62rem] text-slate-600 [overflow-wrap:anywhere]">
             {product.provenance.catalog_manifest_hash ?? "Manifest hash unavailable"}
           </p>
         </div>
-        <div className="rounded-lg border border-white/7 bg-black/15 p-3">
+        <div className="min-w-0 rounded-lg border border-white/7 bg-black/15 p-3">
           <PackageSearch className="mb-2 size-3.5 text-amber-300" aria-hidden="true" />
           <p className="text-slate-600">Category / stock / size</p>
           <p className="mt-1 text-slate-300">{product.category}</p>

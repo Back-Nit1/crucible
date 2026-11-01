@@ -231,7 +231,7 @@ export function AgentWorkspace({
                 <StatusBadge tone="info">
                   {result.model ?? "Model identity unavailable"}
                 </StatusBadge>
-                <span className="self-center font-mono text-[0.65rem] text-slate-600">
+                <span className="w-full min-w-0 break-all font-mono text-[0.65rem] text-slate-600 sm:w-auto sm:self-center">
                   run {result.run_id} · {result.latency_ms} ms · {result.tokens} tokens ·{" "}
                   {result.cost_known ? `${result.cost_usd ?? 0} USD` : "cost unknown"}
                 </span>
