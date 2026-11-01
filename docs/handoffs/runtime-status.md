@@ -12,10 +12,10 @@ Tests: `UV_CACHE_DIR=/tmp/crucible-integrated-uv uv run pytest -q` -> see the la
 | 4 traces/memory | done | `memory/episodes.py`; live Elastic round trip in a disposable index passed |
 | 5 checkpoints | done | `world/store.py` |
 | 6 operational generation | **done (live)** | `docs/runs/gen-20261101-p8-t12/` — 96 episodes, 96 traces in Elastic, interrupted at 40 then resumed |
-| 7 Modal scheduler | pending | |
-| 8 PayPal + Kernel live | blocked: no sandbox buyer credentials | |
-| 9 API | pending | |
-| 10 deployment | pending | |
+| 7 Modal scheduler | done (remote smoke passed) | `modal_app/world_runner.py`; remote 24-episode run, interrupt at 10 then resume (14), rerun no-op; ~$0.004 total; schedule OFF (needs `CRUCIBLE_ENABLE_SCHEDULE=1`) |
+| 8 PayPal + Kernel live | **blocked**: `PAYPAL_SANDBOX_BUYER_EMAIL` and `PAYPAL_SANDBOX_BUYER_PASSWORD` are not in `.env` | `scripts/paypal_live_check.py` ready, exits 3 naming the missing variables; no live approve/capture/duplicate-capture/latency numbers exist |
+| 9 API | done | `api/world.py`, `api/readers.py`; 14 contract tests; real-data samples in `docs/api/samples/` |
+| 10 deployment | foundation done, nothing deployed | `render.yaml` (free), `docs/DEPLOYMENT.md`, `/health` `/ready` `/config`, JSON access logs, Postman world folder |
 
 ## Contracts Agent 2 can consume
 - `catalog.providers.base.FrozenCatalogProvider`: `iter_products(category, manifest_hash)`, `get_review_ids(product_id) -> ReviewIds(product_found, ids)`; `SnapshotMismatch`, `IncompleteReviewIds`. `tasks.engine.build_task(..., catalog, manifest_hash, ...)` now takes them (the old `search("")` enumeration is gone). Test fixture: `tests/fixtures/scoring.py::InMemoryCatalog`, `FIXTURE_MANIFEST`.
@@ -46,3 +46,16 @@ uv run python -m scripts.rehash_manifests --env-file <path/to/.env>      # dry r
 uv run python -m pytest -m live tests/test_memory_live.py                # needs ELASTIC_* in the environment
 ```
 Scripted shoppers read the task reference answer: all reported scores are pipeline evidence, not model performance.
+
+## API contracts for the web app (Agent 2)
+`GET /world/generations[/{id}]`, `/world/episodes` (filters: generation_id, agent_id, split, category, killed, kill_rule_id, min/max_fitness; sort: `fitness|episode_id|agent_id|generation_id|category|killed`, `-` prefix = desc; `offset`/`limit<=200`), `/world/episodes/{id}` (ordered `replay`, `kills` with evidence, `score_components`, `genome`), `/world/leaderboard`, `/world/kills`, `/world/kill-rules`, `/models/evaluations`, `/models/checkpoints`, `/payments/ledger` (mock/sandbox only), `POST /agent/run` (`AgentRunResult`; 503 `model_unavailable` until a runner is injected via `create_app(runner=...)`), `/health`, `/ready`, `/config`. Errors are `{"error": {"code", "message"}}`. Samples: `docs/api/samples/*.json`. Postman folder "World, models, ledger".
+`/models/*` read Elastic indices `evaluations` and `checkpoints` (documents shaped `{id, ...}`); they are empty until Agent 2's eval/training publishes into them.
+
+## Evidence (this session)
+- Merged state: `main` = platform + core + packaging; `feat/operational-world` = 20+ commits on top (`git log --oneline main..`).
+- Tests: 209 passed, 4 deselected live tests (`-m live`: memory round trip, frozen catalog vs manifests, PayPal x2 — the Elastic ones pass, the PayPal ones need credentials).
+- Operational generation `gen-20261101-p8-t12`: 12 tasks (9 feasible, 3 impossible, 2 review-sensitive), 8 genomes (4 honest, 4 fixtures), 96 episodes, 96 traces in Elastic (interrupted at 40, resumed 56, 0 duplicates), 36 killed (K001 12, K002 18, K003 6, K008 9, K004 21 as co-fire), 3 survivors, 0 hallucinated purchases, 0 budget violations charged (6 attempts blocked at the guard), 21/24 correct no-match on impossible episodes (the other 3 were the hallucinator fixture), 49 grounded SFT records.
+- Elastic currently holds 144+ traces (this generation 96 plus two Modal smoke generations of 24 each). `generations`/`kill_rules` documents exist for the local generation only.
+
+## Remaining blockers / risks
+1. Sandbox buyer credentials (Phase 8). 2. Modal GPU needs a payment method (training/inference not possible). 3. No model runner for `/agent/run`. 4. Agent 2 branch not merged; see "Findings for Agent 2". 5. Hash of manifests changed with the review-id migration, so any task set generated before it is not valid for the current snapshot. 6. Render not deployed (needs user decision on service creation); the free tier sleeps.
