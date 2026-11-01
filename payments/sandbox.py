@@ -147,6 +147,22 @@ class SandboxPayments:
         return Capture(order_id=order["id"], capture_id=cap["id"], amount=amount, currency=ccy,
                        status=cap["status"], replayed=replayed)
 
+    # --- verification probes (live-check script and tests; never used by checkout) -------------------
+    def order_captures(self, order_id: str) -> list[tuple[str, Decimal, str, str]]:
+        """(capture_id, amount, currency, status) for every capture PayPal records on the order: the ground truth."""
+        order = self._call("GET", f"/v2/checkout/orders/{order_id}")
+        caps = (order.get("purchase_units") or [{}])[0].get("payments", {}).get("captures", [])
+        return [(c["id"], Decimal(c["amount"]["value"]), c["amount"]["currency_code"], c["status"]) for c in caps]
+
+    def duplicate_capture_code(self, order_id: str) -> str:
+        """Capture again under a NEW PayPal-Request-Id (what a buggy client would do). Expected result:
+        'ORDER_ALREADY_CAPTURED'. 'CAPTURED_AGAIN' means PayPal accepted a second capture."""
+        try:
+            self._call("POST", f"/v2/checkout/orders/{order_id}/capture", request_id=f"dup-probe-{order_id}-{time.time_ns()}", json={})
+        except PaymentError as e:
+            return e.code
+        return "CAPTURED_AGAIN"
+
     @staticmethod
     def _approve_link(order: dict) -> str:
         # `payer-action` with payment_source.paypal.experience_context; `approve` on legacy shape

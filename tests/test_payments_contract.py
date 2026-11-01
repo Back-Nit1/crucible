@@ -54,7 +54,7 @@ class FakePayPal:
             oid = f"ORD{len(self.orders) + 1}"
             order = {"id": oid, "status": "PAYER_ACTION_REQUIRED", "intent": "CAPTURE",
                      "purchase_units": [body["purchase_units"][0]],
-                     "links": [{"href": f"https://sandbox.paypal.test/pay/{oid}",
+                     "links": [{"href": f"https://www.sandbox.paypal.com/checkoutnow?token={oid}",
                                 "rel": "payer-action", "method": "GET"}]}
             self.orders[oid] = self.by_req[rid] = order
             return httpx.Response(201, json=order)
