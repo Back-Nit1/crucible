@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 from agents.actions import Compare, GetProduct, SummarizeReviewEvidence
 from agents.buyer import BuyerAgent, BuyerOutcome
 from catalog.providers.base import FrozenCatalogProvider, Product
-from payments.errors import PaymentError
+from payments.errors import OrderNotApproved, PaymentError
 from payments.guards import GuardedPayments, GuardViolation
 
 RUN_ID = re.compile(r"^[A-Za-z0-9_.-]{8,64}$")
@@ -149,8 +149,11 @@ class ConfirmationRequest(_Event):
 class PayPalApproval(_Event):
     type: Literal["paypal_approval"] = "paypal_approval"
     mode: Literal["sandbox", "mock"]
-    status: str
-    approval_url: str | None  # mock backends return a non-routable placeholder; sandbox returns the buyer's PayPal link
+    status: str  # PayPal order status as observed: PAYER_ACTION_REQUIRED | APPROVED | COMPLETED ...; approval is NOT capture
+    approval_url: str | None  # only while approval is still needed; mock returns a non-routable placeholder
+    approval_required: bool = True
+    order_id: str | None = None  # PayPal order reference (not a secret)
+    pending_order_id: str | None = None
 
 
 class Receipt(_Event):
@@ -161,6 +164,8 @@ class Receipt(_Event):
     amount: Decimal
     currency: str
     status: str
+    payment_status: str | None = None  # the capture status PayPal reported
+    idempotency: Literal["created", "replayed"] = "created"  # replayed = an earlier capture was returned, nothing new charged
 
 
 class ErrorEvent(_Event):
@@ -219,6 +224,17 @@ def _excerpt(text: str) -> str:
 def _mode(backend) -> Literal["sandbox", "mock"]:
     from payments.mock import MockPayments
     return "mock" if isinstance(backend, MockPayments) else "sandbox"
+
+
+_DONE = {"APPROVED", "COMPLETED", "VOIDED"}
+
+
+def approval_event(backend, pending) -> PayPalApproval:
+    status = backend.get_status(pending.order_id)
+    need = status not in _DONE
+    return PayPalApproval(mode=_mode(backend), status=status, approval_required=need, order_id=pending.order_id,
+                          pending_order_id=pending.id,
+                          approval_url=backend.approval_url(pending.order_id) if need else None)  # buyer's own link: never logged
 
 
 def render(outcome: BuyerOutcome, catalog: FrozenCatalogProvider, payments: GuardedPayments, backend, now: dt.datetime) -> list[_Event]:
@@ -281,8 +297,7 @@ def render(outcome: BuyerOutcome, catalog: FrozenCatalogProvider, payments: Guar
         tail = "" if q.is_all_in else f" Shipping and tax are unknown, so this is the item price only ({', '.join(unknown)} not included)."
         ev.append(ConfirmationRequest(pending_order_id=po.id, quote_id=q.quote_id, total=q.total, currency=q.currency, basis=q.basis,
                                       summary=f"Buy {what} for {q.total} {q.currency}?{tail} Nothing is charged until you confirm."))
-        ev.append(PayPalApproval(mode=_mode(backend), status=backend.get_status(po.order_id),
-                                 approval_url=backend.approval_url(po.order_id)))  # buyer's own approval link: never logged
+        ev.append(approval_event(backend, po))
     if outcome.intent is not None:
         stated = list(outcome.intent.assumptions)
         facts = [f for f in ("stock", "size") if not any(_stock(p).status != "unknown" for p in products.values())] + unknown
@@ -311,6 +326,7 @@ ERRORS = {
     "step_limit": ("The agent could not finish in time. Try a more specific request.", "rephrase"),
     "payment_not_approved": ("Approve the payment in PayPal first, then confirm again.", "none"),
     "payment_failed": ("The payment provider rejected the payment.", "none"),
+    "payment_unavailable": ("PayPal did not respond in time. Confirm again: it will not charge twice.", "retry"),
     "pending_order_not_found": ("There is nothing to confirm for this run.", "none"),
 }
 
@@ -331,6 +347,7 @@ class BuyerService:
         self.agent, self.catalog, self.payments, self.backend, self.clock = agent, catalog, payments, backend, clock
         self._runs: OrderedDict[str, BuyerRun] = OrderedDict()
         self._lock = threading.Lock()
+        self._confirming: dict[str, threading.Lock] = {}  # one capture attempt per run at a time
 
     @property
     def configured(self) -> bool:
@@ -341,7 +358,7 @@ class BuyerService:
             self._runs[run.run_id] = run
             self._runs.move_to_end(run.run_id)
             while len(self._runs) > MAX_RUNS:
-                self._runs.popitem(last=False)
+                self._confirming.pop(self._runs.popitem(last=False)[0], None)
 
     def _append(self, run_id: str, events: list[_Event], status: RunStatus | None = None) -> BuyerRun:
         with self._lock:
@@ -379,23 +396,53 @@ class BuyerService:
             run = self._runs.get(run_id)
             return None if run is None else run.model_copy(update={"events": [e for e in run.events if e.seq > after]})
 
+    def sync_approval(self, run_id: str) -> None:
+        """Poll hook: when the buyer has approved in PayPal, say so (a new event). Never captures."""
+        with self._lock:
+            run = self._runs.get(run_id)
+            last = None if run is None or run.status != "awaiting_confirmation" else \
+                next((e for e in reversed(run.events) if e.type == "paypal_approval"), None)
+        if last is None or not last.approval_required or last.order_id is None:
+            return
+        try:
+            pending = self.payments.pending(last.pending_order_id)
+            ev = approval_event(self.backend, pending) if pending else None
+        except PaymentError:
+            return  # transient: the next poll tries again
+        if ev is not None and ev.status != last.status:
+            self._append(run_id, [ev])
+            if ev.status == "APPROVED":
+                self.payments.record_approval(pending.id, ev.status)
+
     def confirm(self, run_id: str, body: ConfirmBody) -> BuyerRun:
         with self._lock:
             run = self._runs.get(run_id)
+            lock = self._confirming.setdefault(run_id, threading.Lock()) if run else None
         if run is None:
             raise HTTPException(404, "run_not_found")
+        with lock:  # concurrent confirms queue up; the loser sees the receipt and returns it
+            return self._confirm(run_id, run, body)
+
+    def _confirm(self, run_id: str, run: BuyerRun, body: ConfirmBody) -> BuyerRun:
         offered = next((e for e in run.events if e.type == "confirmation_request"), None)
         if offered is None or offered.pending_order_id != body.pending_order_id:
             self._append(run_id, [error_event("pending_order_not_found")])
             raise HTTPException(404, "pending_order_not_found")
         if any(e.type == "receipt" for e in run.events):  # already captured: idempotent, no second capture attempt
             return self.get(run_id)
+        if self.payments.pending(body.pending_order_id) is None:  # dropped by a stale/changed quote: needs a new quote
+            self._append(run_id, [error_event("pending_order_not_found")])
+            raise HTTPException(404, "pending_order_not_found")
         try:
             cap = self.payments.confirm_and_pay(body.pending_order_id, body.user_confirmed)
         except PaymentError as exc:
-            not_approved = exc.code == "ORDER_NOT_APPROVED"
-            self._append(run_id, [error_event("payment_not_approved" if not_approved else "payment_failed")],
-                         None if not_approved else "failed")
+            if isinstance(exc, OrderNotApproved):
+                code, status = "payment_not_approved", None
+            elif exc.retryable:  # recoverable: same run, same order, same request id on the next confirm
+                code, status = "payment_unavailable", None
+            else:
+                code, status = "payment_failed", "failed"
+            self._append(run_id, [error_event(code)], status)
             raise
         except GuardViolation as exc:
             code = {"NotConfirmed": "confirmation_required"}.get(type(exc).__name__) or \
@@ -404,7 +451,8 @@ class BuyerService:
             self._append(run_id, [error_event(code)], None if code == "confirmation_required" else "failed")
             raise
         self._append(run_id, [Receipt(mode=_mode(self.backend), order_id=cap.order_id, capture_id=cap.capture_id, amount=cap.amount,
-                                      currency=cap.currency, status=cap.status)], "completed")
+                                      currency=cap.currency, status=cap.status, payment_status=cap.status,
+                                      idempotency="replayed" if cap.replayed else "created")], "completed")
         return self.get(run_id)
 
 
@@ -417,6 +465,7 @@ def buyer_router(service: BuyerService) -> APIRouter:
 
     @r.get("/agent/runs/{run_id}", response_model=BuyerRun)
     def poll(run_id: str, after: Annotated[int, Query(ge=-1)] = -1):
+        service.sync_approval(run_id)
         run = service.get(run_id, after)
         if run is None:
             raise HTTPException(404, "run_not_found")
