@@ -1,0 +1,14 @@
+{
+  "blocker": "gpu_launch_not_authorized: missing confirmations: CRUCIBLE_MODAL_TOKEN_ROTATED, CRUCIBLE_MODAL_BILLING_CONFIRMED, CRUCIBLE_MODAL_APPROVED_CEILING_USD",
+  "experiment": "qwen-bounded-probe",
+  "gpu_spend_usd": "0",
+  "metrics": null,
+  "model": {
+    "id": "Qwen/Qwen2.5-7B-Instruct",
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+  },
+  "prompt_manifest_sha256": "b7445bb3195e10959504dc2e4262940eb69cac9d8a96b6c600b90566c9973f38",
+  "records": [],
+  "schema_version": 1,
+  "status": "blocked_not_run"
+}
