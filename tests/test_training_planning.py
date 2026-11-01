@@ -66,3 +66,16 @@ def test_empty_manifest_cannot_be_planned_and_inspection_sample_is_seeded():
             maximum_approved_cost=Decimal("1"),
         )
     assert deterministic_inspection_sample(result.records, count=1, seed=9) == result.records
+
+
+def test_step_arithmetic_and_method_quantization_consistency():
+    from training.planning import LoRAHyperparameters, plan_hash
+    hp = LoRAHyperparameters(epochs=2, micro_batch_size=2, gradient_accumulation_steps=4)
+    assert (hp.examples_per_step(), hp.steps_per_epoch(30), hp.total_steps(30)) == (8, 4, 8)
+    assert LoRAHyperparameters(epochs=2, max_steps=3).total_steps(30) == 3  # hard cap for the smoke run
+    with pytest.raises(ValueError):
+        LoRAHyperparameters(method="qlora_sft", quantization="none")
+    assert LoRAHyperparameters(method="lora_sft", quantization="none").quantization == "none"
+    plan = build_lora_plan(curated().manifest, base_model="m", base_revision="a" * 40, gpu="L4",
+                           maximum_approved_cost=Decimal("1"))
+    assert plan_hash(plan) == plan_hash(plan.model_copy()) and len(plan_hash(plan)) == 64

@@ -67,9 +67,16 @@ def modal_transport(app_name: str = "crucible-qwen-inference", cls_name: str = "
     return _Transport()
 
 
-def _to_qwen_messages(request: ModelRequest) -> list[dict[str, object]]:
+def qwen_tools(tools) -> list[dict[str, object]]:
+    return [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}}
+            for t in tools]
+
+
+def to_qwen_messages(messages) -> list[dict[str, object]]:
+    """Runtime Message history -> Qwen chat messages. The trainer renders its data through this same function, so
+    what the adapter is trained on is byte-for-byte the format the inference client sends."""
     out: list[dict[str, object]] = []
-    for m in request.messages:
+    for m in messages:
         if m.role == "tool":
             out.append({"role": "tool", "content": json.dumps(m.tool_result, sort_keys=True, default=str)})
         elif m.tool_name:
@@ -103,9 +110,8 @@ class ModalQwenClient:
             raise InferenceError("cost_ceiling_reached", f"spent {self.spent} of approved {self.cost_ceiling}")
         try:
             payload = QwenRequest(
-                system=request.system_prompt, messages=_to_qwen_messages(request),
-                tools=[{"type": "function", "function": {"name": t.name, "description": t.description,
-                                                         "parameters": t.parameters}} for t in request.tools],
+                system=request.system_prompt, messages=to_qwen_messages(request.messages),
+                tools=qwen_tools(request.tools),
                 seed=((request.seed or 0) + retry) % 2**32, temperature=float(request.temperature),
                 max_new_tokens=self.max_new_tokens).model_dump(mode="json")
         except ValidationError as exc:
