@@ -189,3 +189,88 @@ def test_memory_contender_receives_retrieved_examples_and_base_does_not(world, t
         seen[cid] |= any("retrieved_episode_id" in (m.content or "") for m in r.messages)
     assert seen == {"base-qwen": False, "base-qwen-memory": True}
     assert not any(t.episode_id.startswith(EVAL) for t in memory._inner.repo.traces)   # evaluation episodes never enter memory
+
+
+def test_report_refuses_a_test_double_as_a_measurement_and_labels_it_otherwise(world, tmp_path):
+    from eval.leakage import audit
+    from eval.report import NotAMeasurement, build_report, to_markdown
+    cat, tasks, reference = world
+    manifest, _, _ = go(world, tmp_path)
+    store = EvaluationStore(tmp_path, EVAL)
+    rep = audit(protected=tasks, reference=reference, allow_not_run=frozenset({"memory_eligibility", "training_source_leakage", "catalog_manifest_match"}))
+    tmap = {t.id: t for t in tasks}
+    with pytest.raises(NotAMeasurement):
+        build_report(manifest, store, tmap, audit=rep)
+    report = build_report(manifest, store, tmap, audit=rep, allow_test_double=True)
+    assert report["evidence_class"] == "test_double_not_a_measurement" and report["unique_records"] == report["expected_records"] == 8
+    c = report["contenders"][0]
+    assert c["webshop"]["status"] == "blocked_not_run" and c["webshop"]["mean_reward"] is None
+    assert c["metrics"]["success_rate"]["denominator"] == "8" and c["latency"]["episodes"] == 8
+    md = to_markdown(report)
+    assert "test_double_not_a_measurement" in md and "MockPayments" in md and "snapshot prices" in md
+    (tmp_path / "ev-test" / "episodes" / "base-qwen").joinpath(f"{manifest.tasks[0].id}__11.json").unlink()
+    with pytest.raises(Incomplete):
+        build_report(manifest, store, tmap, audit=rep, allow_test_double=True)
+
+
+def _measured(world, tmp_path, double=False):
+    from eval.leakage import audit
+    from eval.report import build_report
+    cat, tasks, reference = world
+    manifest, _, _ = go(world, tmp_path)
+    rep = audit(protected=tasks, reference=reference, category_manifests=HASHES, memory_traces=(), training_manifests=())
+    store = EvaluationStore(tmp_path, EVAL)
+    finalize(manifest, store)
+    return build_report(manifest, store, {t.id: t for t in tasks}, audit=rep, allow_test_double=True), manifest
+
+
+def test_publication_refuses_test_doubles_and_failed_audits_and_is_idempotent(world, tmp_path):
+    from eval.publish import PublicationRefused, measured_docs
+    report, manifest = _measured(world, tmp_path)
+    with pytest.raises(PublicationRefused, match="measured model"):
+        measured_docs(report)
+    report["evidence_class"] = "measured_model"          # what a real Qwen run would carry
+    docs = measured_docs(report)
+    assert [i for i, _ in docs] == ["ev-test:base-qwen"]
+    assert docs == measured_docs(report)                  # deterministic: no clock, same ids and bodies
+    d = docs[0][1]
+    assert d["seeds"] == [11, 12] and d["task_set_hash"] == manifest.task_set_hash and d["payment_backend"] == "mock"
+    assert d["webshop"] == {"status": "blocked_not_run", "reason": "WebShop was not run for this contender",
+                            "unmet_requirements": ["WebShop was not run for this contender"]}
+    assert d["metrics"]["pass_at_k"] == d["metrics"]["pass_at_1"] and d["lineage"]["evaluation_manifest_hash"] == manifest.manifest_hash
+    bad = {**report, "leakage_audit": {**report["leakage_audit"], "passed": False}}
+    with pytest.raises(PublicationRefused, match="leakage"):
+        measured_docs(bad)
+    with pytest.raises(PublicationRefused, match="not complete"):
+        measured_docs({**report, "unique_records": 1})
+
+
+def test_double_publish_to_the_api_contract_creates_no_duplicates(world, tmp_path):
+    from eval.publish import measured_docs, publish
+    from tests.test_eval_publish import FakeEs
+    report, _ = _measured(world, tmp_path)
+    report["evidence_class"] = "measured_model"
+    es = FakeEs()
+    publish(es, "evaluations", measured_docs(report))
+    first = dict(es.docs["evaluations"])
+    publish(es, "evaluations", measured_docs(report))
+    assert es.docs["evaluations"] == first and len(first) == 1
+
+
+def test_trained_checkpoint_needs_a_validated_artifact_and_real_evaluations(world, tmp_path):
+    import hashlib
+    from eval.contenders import AdapterReference
+    from eval.publish import trained_checkpoint_doc
+    from eval.contenders import ContenderError
+    from training.planning import LoRAPlan
+    artifact = tmp_path / "a.safetensors"
+    artifact.write_bytes(b"w")
+    sha = hashlib.sha256(b"w").hexdigest()
+    ref = AdapterReference(adapter_ref=str(artifact), adapter_sha256=sha, base_model="Qwen/Qwen2.5-7B-Instruct", base_revision=REV,
+                           training_manifest_hash="b" * 64)
+    plan = LoRAPlan.model_construct(base_model=ref.base_model, base_revision=REV, training_manifest_hash="b" * 64)
+    with pytest.raises(ContenderError, match="no published evaluation"):
+        trained_checkpoint_doc(ref, plan, [("x", {"adapter_sha256": None, "training_manifest_hash": None})], created_at=NOW)
+    artifact.write_bytes(b"tampered")
+    with pytest.raises(ContenderError, match="hash does not match"):
+        trained_checkpoint_doc(ref, plan, [], created_at=NOW)

@@ -68,7 +68,7 @@ class ContenderConfig(_Strict):
     @property
     def request_checkpoint(self) -> str:
         """What every model request pins; a client that cannot serve it must refuse (no silent fallback to base)."""
-        return self.adapter_sha256 or self.base_revision
+        return f"qwen-lora-{self.adapter_sha256[:12]}" if self.adapter_sha256 else self.base_revision  # label published by the trainer
 
     @property
     def identity_hash(self) -> str:

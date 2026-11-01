@@ -239,15 +239,18 @@ def run_evaluation(manifest: EvaluationManifest, tasks: dict[str, TaskSpec], *, 
     return out
 
 
-def finalize(manifest: EvaluationManifest, store: EvaluationStore) -> dict[str, tuple[EpisodeRecord, ...]]:
-    """contender id -> its episodes, only if expected == unique records and every pair is covered by every contender."""
+def complete_artifacts(manifest: EvaluationManifest, store: EvaluationStore) -> dict[Key, EpisodeArtifact]:
+    """All artifacts, only if expected == unique and every contender covers every (task, seed) pair."""
     done = store.load_episodes(manifest)
     if len(done) != manifest.expected_records:
         raise Incomplete(f"cannot finalize: expected {manifest.expected_records} records, found {len(done)} unique")
-    runs = {}
-    for c in manifest.contenders:
-        eps = tuple(done[(c.id, t, s)].episode for t, s in manifest.pairs)
-        runs[c.id] = eps
+    return done
+
+
+def finalize(manifest: EvaluationManifest, store: EvaluationStore) -> dict[str, tuple[EpisodeRecord, ...]]:
+    """contender id -> its episodes in manifest order; marks the manifest completed."""
+    done = complete_artifacts(manifest, store)
+    runs = {c.id: tuple(done[(c.id, t, s)].episode for t, s in manifest.pairs) for c in manifest.contenders}
     store.save_manifest(manifest.with_state(
         status=RunStatus.COMPLETED, resume=manifest.resume.model_copy(update={"completed_records": len(done)})))
     return runs
