@@ -234,7 +234,7 @@ def _sandbox() -> Rig:
     fake = FakePayPal()
     http = httpx.Client(base_url="https://api-m.sandbox.paypal.com",
                         transport=httpx.MockTransport(fake.handler))
-    r = Rig(SandboxPayments("id", SECRET, client=http), fake.approve)
+    r = Rig(SandboxPayments("id", SECRET, client=http, sleep=lambda _: None), fake.approve)
     r.fake = fake
     return r
 
