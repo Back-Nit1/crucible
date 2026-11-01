@@ -105,6 +105,7 @@ class BlobStore(Protocol):
     def write(self, key: str, data: bytes) -> None: ...  # atomic replace
     def create_exclusive(self, key: str, data: bytes) -> bool: ...  # True if created, False if it already existed
     def delete(self, key: str) -> None: ...
+    def keys(self) -> list[str]: ...
 
 
 class MemoryBlobStore:
@@ -122,6 +123,9 @@ class MemoryBlobStore:
 
     def delete(self, key):
         self.blobs.pop(key, None)
+
+    def keys(self):
+        return sorted(self.blobs)
 
 
 class FileBlobStore:
@@ -174,6 +178,11 @@ class FileBlobStore:
         if self.after_write:
             self.after_write()
 
+    def keys(self):
+        if self.before_read:
+            self.before_read()
+        return sorted(p.name for p in self.root.iterdir() if not p.name.startswith(".tmp-"))
+
 
 class GenerationStore:
     def __init__(self, blobs: BlobStore):
@@ -182,6 +191,18 @@ class GenerationStore:
     @staticmethod
     def key(generation_id: str) -> str:
         return f"gen-{generation_id}.json"
+
+    def generations(self) -> list[tuple[str, GenerationState | None]]:
+        """(generation id, state) for every stored generation, oldest id first; unreadable state is None (reported, not hidden)."""
+        out = []
+        for k in self.blobs.keys():
+            if k.startswith("gen-") and k.endswith(".json"):
+                gid = k[len("gen-"):-len(".json")]
+                try:
+                    out.append((gid, self.load(gid)))
+                except CorruptCheckpoint:
+                    out.append((gid, None))
+        return out
 
     def load(self, generation_id: str) -> GenerationState | None:
         raw = self.blobs.read(self.key(generation_id))

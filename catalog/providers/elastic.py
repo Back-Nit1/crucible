@@ -221,8 +221,10 @@ class ElasticCatalogProvider:
         return [_review(h["_source"]) for h in self.es.call("POST", idx, body)["hits"]["hits"]]
 
 
-def load_manifest_hashes(directory: Path = MANIFEST_DIR) -> dict[str, str]:
-    """category -> snapshot sha256 from the committed manifests (the snapshot identity tasks are pinned to)."""
+def load_manifest_hashes(directory: Path | None = None) -> dict[str, str]:
+    """category -> snapshot sha256 from the committed manifests (the snapshot identity tasks are pinned to).
+    Remote runners mount the manifests elsewhere and point CRUCIBLE_MANIFEST_DIR at them."""
+    directory = Path(directory or os.environ.get("CRUCIBLE_MANIFEST_DIR") or MANIFEST_DIR)
     return {m["category"]: m["sha256"] for m in (json.loads(f.read_text()) for f in sorted(directory.glob("*.json")))}
 
 
