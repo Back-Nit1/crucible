@@ -1,0 +1,387 @@
+{
+  "manifest_version": "1.0",
+  "evaluation_id": "eval-20261110-base",
+  "created_at": "2026-11-01T21:19:51.666890Z",
+  "tasks": [
+    {
+      "id": "batch-20261110-0002",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0003",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0005",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0008",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0009",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0010",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0013",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0014",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0016",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0019",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0020",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0023",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0024",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0025",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0026",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0027",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0028",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0029",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0032",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0033",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0034",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0035",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0038",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0039",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0040",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0041",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0044",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0045",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0046",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0051",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0052",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0054",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0057",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0058",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0059",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0062",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0063",
+      "split": "test",
+      "category": "Office_Products",
+      "held_out_category": false,
+      "catalog_manifest_hash": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb"
+    },
+    {
+      "id": "batch-20261110-0064",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0065",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0066",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0070",
+      "split": "test",
+      "category": "Electronics",
+      "held_out_category": false,
+      "catalog_manifest_hash": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4"
+    },
+    {
+      "id": "batch-20261110-0071",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0072",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0073",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0074",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    },
+    {
+      "id": "batch-20261110-0075",
+      "split": "test",
+      "category": "Clothing_Shoes_and_Jewelry",
+      "held_out_category": false,
+      "catalog_manifest_hash": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a"
+    },
+    {
+      "id": "batch-20261110-0078",
+      "split": "held_out_category",
+      "category": "Sports_and_Outdoors",
+      "held_out_category": true,
+      "catalog_manifest_hash": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+    }
+  ],
+  "task_set_hash": "d46e5a6e0162fea09e3d692b48b0fee6579dc786dd04e7cd359080eef0c067fa",
+  "seeds": [
+    20261201,
+    20261202,
+    20261203
+  ],
+  "catalog_hash": "64b2769ac4f435a2e90dc564d4303e67bdc8a80e0d5cb0386c56e5507a8600c8",
+  "versions": {
+    "prompt": "shopper-prompts-v1",
+    "rules": "K001_HALLUCINATED_PRODUCT:1,K002_WRONG_REFUSAL:1,K003_BUDGET_VIOLATION:1,K004_INSUFFICIENT_RESEARCH:1,K005_DUPLICATE_PAYMENT:1,K006_FABRICATED_REVIEW_EVIDENCE:1,K007_SKIPPED_REVIEWS:1,K008_REVIEW_GAMING:1",
+    "judge": "none",
+    "task_generator": "taskgen-v1"
+  },
+  "contenders": [
+    {
+      "id": "base-qwen",
+      "kind": "base",
+      "model_id": "Qwen/Qwen2.5-7B-Instruct",
+      "base_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "adapter_ref": null,
+      "adapter_sha256": null,
+      "training_manifest_hash": null,
+      "memory_enabled": false,
+      "memory_k": 2,
+      "prompt_version": "shopper-prompts-v1",
+      "system_prompt_variant": "grounded-shopper-v1",
+      "temperature": "0",
+      "endpoint": "modal:crucible-qwen-inference/Qwen",
+      "optional": false,
+      "spend_authorized": false
+    }
+  ],
+  "memory_pool_hash": null,
+  "memory_pool_size": 0,
+  "pass_k": 1,
+  "payment_backend": "mock",
+  "status": "planned",
+  "result_artifacts": {
+    "protected_tasks": "docs/evaluations/taskset-20261110/protected.jsonl",
+    "protected_hash": "dd8677589b898e67a586d00dbfa4d20202879a764ce623314c17e099ba137ba4",
+    "taskset": "docs/evaluations/taskset-20261110",
+    "memory_pool": "",
+    "audit_hash": "75a3da0c4094fd3e45d3c23e02f8eac450958874842c43e13113193b0dde9cab"
+  },
+  "resume": {
+    "expected_records": 141,
+    "completed_records": 0,
+    "attempts": 0,
+    "last_checkpoint_at": null,
+    "error": null
+  }
+}

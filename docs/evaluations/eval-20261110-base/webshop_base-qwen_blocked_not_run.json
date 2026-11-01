@@ -1,0 +1,31 @@
+{
+  "result_version": "webshop-result-1.0",
+  "status": "blocked_not_run",
+  "contender_id": "base-qwen",
+  "contender_identity_hash": "8d1693f141d22b2a7b2f4f8dda7cb8f72359837cb9c496ea4b8f97376e2b3e12",
+  "webshop_repo": "https://github.com/princeton-nlp/WebShop",
+  "webshop_revision": "64fa2a5c15c7daa698b9ac93f5bb5437b634c9bd",
+  "license": "MIT",
+  "benchmark_sessions_total": 500,
+  "sessions": [],
+  "seeds": [],
+  "max_steps": 100,
+  "episodes": [],
+  "success_numerator": null,
+  "denominator": null,
+  "excluded": null,
+  "mean_reward": null,
+  "score_x100": null,
+  "full_benchmark": false,
+  "not_run_reason": "WEBSHOP_HOME is not set to a clone of https://github.com/princeton-nlp/WebShop",
+  "unmet_requirements": [
+    "WEBSHOP_HOME is not set to a clone of https://github.com/princeton-nlp/WebShop"
+  ],
+  "setup_commands": [
+    "git clone https://github.com/princeton-nlp/WebShop \"$WEBSHOP_HOME\" && git -C \"$WEBSHOP_HOME\" checkout 64fa2a5c15c7daa698b9ac93f5bb5437b634c9bd",
+    "conda create -n webshop python=3.8.13 && conda activate webshop      # Apple silicon: follow README_INSTALL_ARM-MAC.md",
+    "cd \"$WEBSHOP_HOME\" && ./setup.sh -d small      # installs deps, downloads data via gdown, builds the search index (needs JDK 11)",
+    "export WEBSHOP_HOME=<clone dir> WEBSHOP_PYTHON=<conda env python>   # then re-run scripts.run_evaluation --webshop-sessions 0-49"
+  ],
+  "created_at": "2026-11-01T21:19:51.879831Z"
+}
