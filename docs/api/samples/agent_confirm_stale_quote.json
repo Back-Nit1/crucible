@@ -1,0 +1,15 @@
+{
+  "body_sent": {
+    "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+    "user_confirmed": true
+  },
+  "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+  "request": "POST /agent/runs/run-00000001/confirm",
+  "response": {
+    "error": {
+      "code": "quote_stale",
+      "message": "q-865d693a7a5c56666311a122"
+    }
+  },
+  "status": 409
+}

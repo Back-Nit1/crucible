@@ -1,0 +1,14 @@
+{
+  "body_sent": {
+    "message": "need a widget under $30 all in"
+  },
+  "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+  "request": "POST /agent/runs",
+  "response": {
+    "error": {
+      "code": "model_unavailable",
+      "message": "no model endpoint is configured"
+    }
+  },
+  "status": 503
+}
