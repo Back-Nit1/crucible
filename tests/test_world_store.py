@@ -115,3 +115,14 @@ def test_single_writer_lease(store):
         store.acquire("g1", "runner-b")
     store.release("g1")
     store.acquire("g1", "runner-b")
+
+
+def test_stale_lease_is_taken_over_but_a_live_one_is_not(store):
+    import datetime as dt
+    t0 = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)
+    store.acquire("g1", "runner-a", now=t0)
+    with pytest.raises(GenerationLocked):
+        store.acquire("g1", "runner-b", now=t0 + dt.timedelta(minutes=29))
+    store.acquire("g1", "runner-b", now=t0 + dt.timedelta(minutes=31))  # runner-a was preempted
+    with pytest.raises(GenerationLocked, match="runner-b"):
+        store.acquire("g1", "runner-c", now=t0 + dt.timedelta(minutes=32))

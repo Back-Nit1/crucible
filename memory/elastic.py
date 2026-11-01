@@ -35,3 +35,14 @@ class ElasticTraceRepository:
             if eligible(t, min_fitness):
                 out.append(t)
         return out
+
+    def by_generation(self, generation_id: str) -> list[TraceRecord]:
+        """Dashboard/audit path: all traces of a generation, every split. Malformed docs are skipped (and counted by callers
+        through the length mismatch against the checkpoint)."""
+        out = []
+        for src, _ in self.es.scan("traces", {"term": {"generation_id": generation_id}}, "episode_id"):
+            try:
+                out.append(TraceRecord(**src))
+            except (ValidationError, TypeError):
+                continue
+        return out

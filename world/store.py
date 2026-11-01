@@ -6,6 +6,7 @@ so a crash leaves either the previous committed state or the new one - never a t
 `remaining_episode_keys()` and refuses a store written under different task/catalog/rules/population versions."""
 from __future__ import annotations
 
+import datetime as dt
 import hashlib
 import json
 import os
@@ -247,10 +248,23 @@ class GenerationStore:
         self.save(generation_id, state)
         return state
 
-    # --- single-writer lease ------------------------------------------------------------------------------
-    def acquire(self, generation_id: str, owner: str) -> None:
-        if not self.blobs.create_exclusive(f"lock-{generation_id}", owner.encode()):
-            raise GenerationLocked(f"{generation_id} is owned by {(self.blobs.read(f'lock-{generation_id}') or b'?').decode()}")
+    # --- single-writer lease (expires, so a preempted runner cannot wedge the generation forever) -------------
+    def acquire(self, generation_id: str, owner: str, ttl: dt.timedelta = dt.timedelta(minutes=30),
+                now: dt.datetime | None = None) -> None:
+        now, key = now or dt.datetime.now(dt.UTC), f"lock-{generation_id}"
+        if self.blobs.create_exclusive(key, f"{owner}|{now.isoformat()}".encode()):
+            return
+        held = (self.blobs.read(key) or b"?|").decode()
+        holder, _, since = held.partition("|")
+        try:
+            stale = now - dt.datetime.fromisoformat(since) > ttl
+        except ValueError:
+            stale = True  # unreadable lease: treat as abandoned
+        if not stale:
+            raise GenerationLocked(f"{generation_id} is owned by {holder}")
+        self.blobs.delete(key)  # takeover; if two takers race, only one create_exclusive wins
+        if not self.blobs.create_exclusive(key, f"{owner}|{now.isoformat()}".encode()):
+            raise GenerationLocked(f"{generation_id} was taken over concurrently")
 
     def release(self, generation_id: str) -> None:
         self.blobs.delete(f"lock-{generation_id}")

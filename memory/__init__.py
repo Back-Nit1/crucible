@@ -40,6 +40,9 @@ class TraceRepository(Protocol):
     def similar(self, task_text: str, k: int = 3, min_fitness: float = 0.0) -> list[TraceRecord]:
         """Top-k best matches among traces with killed=false, fitness>=min_fitness and split != test."""
 
+    def by_generation(self, generation_id: str) -> list[TraceRecord]:
+        """Every stored trace of one generation (all splits, killed or not), ordered by episode_id."""
+
 
 PROTECTED_SPLITS = ("test", "held_out_category")  # never retrievable: they would leak evaluation tasks into memory
 
@@ -65,3 +68,6 @@ class InMemoryTraceRepository:
         jac = lambda t: len(q & _words(t.task_text)) / (len(q | _words(t.task_text)) or 1)
         pool = [t for t in self.traces if eligible(t, min_fitness)]
         return sorted(pool, key=lambda t: (-jac(t), -t.fitness))[:k]
+
+    def by_generation(self, generation_id: str) -> list[TraceRecord]:
+        return sorted((t for t in self.traces if t.generation_id == generation_id), key=lambda t: t.episode_id)

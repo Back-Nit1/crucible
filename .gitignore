@@ -25,3 +25,4 @@ docs/media/raw/
 *.mp4
 secrets/
 *.pem
+runs/
