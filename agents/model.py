@@ -71,6 +71,7 @@ class ModelOutput(ModelContract):
     checkpoint: str = Field(min_length=1)
     seed_supported: bool = False
     cost: Decimal = Field(default=Decimal("0"), ge=0)
+    cost_known: bool = True  # False: `cost` is a placeholder 0 and the real spend is unknown
     raw_output_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     retry_count: int = Field(default=0, ge=0)
 
@@ -154,7 +155,15 @@ class QwenInferenceResponse(ModelContract):
     model: str = Field(min_length=1)
     checkpoint: str = Field(min_length=1)
     seed_supported: bool = False
-    cost: Decimal = Field(default=Decimal("0"), ge=0)
+    cost: Decimal | None = Field(default=Decimal("0"), ge=0)  # None = unknown (never silently reported as free)
+
+
+class InferenceError(RuntimeError):
+    """Structured, secret-free inference failure. `retryable` errors may be retried within the adapter's bound."""
+
+    def __init__(self, code: str, message: str, *, retryable: bool = False):
+        super().__init__(f"{code}: {message}")
+        self.code, self.retryable = code, retryable
 
 
 class QwenInferenceClient(Protocol):
@@ -197,8 +206,17 @@ class QwenModelAdapter:
 
     def generate(self, request: ModelRequest) -> ModelOutput:
         attempts: list[dict[str, object]] = []
+        offered = {tool.name for tool in request.tools}
         for retry in range(self.max_retries + 1):
-            response = self.client.invoke(request, retry)
+            try:
+                response = self.client.invoke(request, retry)
+            except InferenceError as exc:
+                audit = {"request_id": request.request_id, "sequence": request.sequence, "retry": retry, "error": exc.code}
+                attempts.append(audit)
+                self.audit.append(audit)
+                if not exc.retryable or retry == self.max_retries:
+                    raise
+                continue
             raw_hash = hashlib.sha256(response.raw_output.encode()).hexdigest()
             audit = {
                 "request_id": request.request_id,
@@ -211,6 +229,8 @@ class QwenModelAdapter:
             }
             try:
                 calls = _native_calls(response.raw_output)
+                if calls[0].name not in offered:
+                    raise ValueError("tool was not offered in this request")
                 parse_action(calls[0])
             except (ValueError, TypeError, json.JSONDecodeError) as exc:
                 audit["error"] = type(exc).__name__
@@ -227,7 +247,8 @@ class QwenModelAdapter:
                 model=response.model,
                 checkpoint=response.checkpoint,
                 seed_supported=response.seed_supported,
-                cost=response.cost,
+                cost=response.cost or Decimal(0),
+                cost_known=response.cost is not None,
                 raw_output_hash=raw_hash,
                 retry_count=retry,
             )
