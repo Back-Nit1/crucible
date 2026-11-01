@@ -1,0 +1,10 @@
+{
+  "body": {
+    "items": [],
+    "limit": 50,
+    "offset": 0,
+    "total": 0
+  },
+  "request": "GET /models/evaluations",
+  "status": 200
+}

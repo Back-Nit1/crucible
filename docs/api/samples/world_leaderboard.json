@@ -1,0 +1,44 @@
+{
+  "body": {
+    "items": [
+      {
+        "agent_id": "genome-0963d13b22fa49e6",
+        "episodes": 12,
+        "generation_id": "gen-20261101-p8-t12",
+        "kill_rules": [],
+        "killed_episodes": 0,
+        "mean_fitness": 0.949722,
+        "rank": 1,
+        "survivor": true,
+        "variant": "grounded-shopper-v3"
+      },
+      {
+        "agent_id": "genome-779992c7bf1875f7",
+        "episodes": 12,
+        "generation_id": "gen-20261101-p8-t12",
+        "kill_rules": [],
+        "killed_episodes": 0,
+        "mean_fitness": 0.949722,
+        "rank": 2,
+        "survivor": true,
+        "variant": "grounded-shopper-v1"
+      },
+      {
+        "agent_id": "genome-898a760044bb9863",
+        "episodes": 12,
+        "generation_id": "gen-20261101-p8-t12",
+        "kill_rules": [],
+        "killed_episodes": 0,
+        "mean_fitness": 0.939722,
+        "rank": 3,
+        "survivor": true,
+        "variant": "grounded-shopper-v1"
+      }
+    ],
+    "limit": 50,
+    "offset": 0,
+    "total": 8
+  },
+  "request": "GET /world/leaderboard?generation_id=gen-20261101-p8-t12",
+  "status": 200
+}

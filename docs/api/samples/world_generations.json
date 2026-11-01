@@ -1,0 +1,23 @@
+{
+  "body": {
+    "items": [
+      {
+        "catalog_hash": "4f6cb0c239f09b0be35e399b27f294692aadce69a0c01d788eb2b1ad68621902",
+        "error": null,
+        "generation_id": "gen-20261101-p8-t12",
+        "kills": 4,
+        "population_size": 8,
+        "runner": "local",
+        "seed": 20261101,
+        "status": "completed",
+        "survivors": 3,
+        "tasks": 12
+      }
+    ],
+    "limit": 50,
+    "offset": 0,
+    "total": 1
+  },
+  "request": "GET /world/generations",
+  "status": 200
+}

@@ -1,0 +1,393 @@
+{
+  "body": {
+    "agent_id": "genome-304e914adc5fa1d7",
+    "catalog_hash": "743cd22c8264b3d676e9e6b0a9a30ba177e190e8c40d187f51100c96f0a10341",
+    "category": "Office_Products",
+    "episode_id": "gen-20261101-p8-t12:genome-304e914adc5fa1d7:gen20261101-003",
+    "final_answer": "Recommend B08Z93YKZN. Assumptions: budget is the all-in cap; listing treated as available (snapshot has no stock data)",
+    "fitness": 0.94,
+    "generation_id": "gen-20261101-p8-t12",
+    "genome": {
+      "id": "genome-304e914adc5fa1d7",
+      "memory": {
+        "enabled": false,
+        "k": 2
+      },
+      "model_checkpoint": "scripted-v1",
+      "mutation": null,
+      "parent_id": null,
+      "reviews": {
+        "critical_fraction": "0.8",
+        "minimum_reviews": 4
+      },
+      "search": {
+        "minimum_candidates": 5,
+        "query_reformulations": 3,
+        "use_filters": true
+      },
+      "system_prompt_variant": "fixture-review-limit-one",
+      "temperature": "1"
+    },
+    "kill_rule_id": "K008_REVIEW_GAMING",
+    "kill_rule_version": 1,
+    "killed": true,
+    "kills": [
+      {
+        "description": "Review use matches a deterministic gaming pattern",
+        "evidence": [
+          "B08Z93YKZN used a one-review query",
+          "B08Z93YKZN consulted 1 review(s); requires 2",
+          "B08Z93YKZN cites only its top-rated reviews"
+        ],
+        "rule_id": "K008_REVIEW_GAMING",
+        "rule_version": 1
+      }
+    ],
+    "payment_events": [
+      {
+        "amount": "2.4",
+        "error": null,
+        "event": "order_created",
+        "product_id": "B08Z93YKZN",
+        "refs": [
+          "12c089b890ae2ce0403692de771a789a",
+          "MOCK-ORDER-1"
+        ],
+        "sequence": 10,
+        "variant": "default"
+      },
+      {
+        "event": "captured",
+        "refs": [
+          "MOCK-ORDER-1",
+          "MOCK-CAP-MOCK-ORDER-1"
+        ],
+        "sequence": 11,
+        "summary": "payment COMPLETED"
+      }
+    ],
+    "products_considered": [
+      "B08Z93YKZN",
+      "B07F7T3D73",
+      "B0C1N63BN5",
+      "B097CF46RC",
+      "B07D8SX9SC"
+    ],
+    "replay": [
+      {
+        "arguments": {
+          "assumptions": [
+            "budget is the all-in cap; no size or stock constraint is assumed"
+          ],
+          "category": "Office_Products",
+          "max_total": "7.99",
+          "raw_message": "ok so I need Office_Products under $7.99 all in. thx"
+        },
+        "error_code": null,
+        "result_references": [],
+        "result_summary": "parsed category Office_Products with cap 7.99",
+        "sequence": 0,
+        "timestamp": "2026-11-01T00:00:02Z",
+        "tool": "parse_intent"
+      },
+      {
+        "arguments": {
+          "filters": {
+            "category": "Office_Products",
+            "max_price": 7.99
+          },
+          "query": "eraser grip pentel"
+        },
+        "error_code": null,
+        "result_references": [
+          "B08Z93YKZN",
+          "B07F7T3D73",
+          "B0C1N63BN5",
+          "B097CF46RC",
+          "B07D8SX9SC"
+        ],
+        "result_summary": "returned 5 catalog products",
+        "sequence": 1,
+        "timestamp": "2026-11-01T00:00:03Z",
+        "tool": "search_catalog"
+      },
+      {
+        "arguments": {
+          "product_id": "B08Z93YKZN"
+        },
+        "error_code": null,
+        "result_references": [
+          "B08Z93YKZN"
+        ],
+        "result_summary": "product detail found",
+        "sequence": 2,
+        "timestamp": "2026-11-01T00:00:04Z",
+        "tool": "get_product"
+      },
+      {
+        "arguments": {
+          "product_id": "B07F7T3D73"
+        },
+        "error_code": null,
+        "result_references": [
+          "B07F7T3D73"
+        ],
+        "result_summary": "product detail found",
+        "sequence": 3,
+        "timestamp": "2026-11-01T00:00:05Z",
+        "tool": "get_product"
+      },
+      {
+        "arguments": {
+          "product_id": "B0C1N63BN5"
+        },
+        "error_code": null,
+        "result_references": [
+          "B0C1N63BN5"
+        ],
+        "result_summary": "product detail found",
+        "sequence": 4,
+        "timestamp": "2026-11-01T00:00:06Z",
+        "tool": "get_product"
+      },
+      {
+        "arguments": {
+          "product_id": "B097CF46RC"
+        },
+        "error_code": null,
+        "result_references": [
+          "B097CF46RC"
+        ],
+        "result_summary": "product detail found",
+        "sequence": 5,
+        "timestamp": "2026-11-01T00:00:07Z",
+        "tool": "get_product"
+      },
+      {
+        "arguments": {
+          "product_id": "B07D8SX9SC"
+        },
+        "error_code": null,
+        "result_references": [
+          "B07D8SX9SC"
+        ],
+        "result_summary": "product detail found",
+        "sequence": 6,
+        "timestamp": "2026-11-01T00:00:08Z",
+        "tool": "get_product"
+      },
+      {
+        "arguments": {
+          "product_ids": [
+            "B08Z93YKZN",
+            "B07F7T3D73",
+            "B0C1N63BN5",
+            "B097CF46RC",
+            "B07D8SX9SC"
+          ]
+        },
+        "error_code": null,
+        "result_references": [
+          "B08Z93YKZN",
+          "B07F7T3D73",
+          "B0C1N63BN5",
+          "B097CF46RC",
+          "B07D8SX9SC"
+        ],
+        "result_summary": "compared 5 products",
+        "sequence": 7,
+        "timestamp": "2026-11-01T00:00:09Z",
+        "tool": "compare"
+      },
+      {
+        "arguments": {
+          "focus": null,
+          "limit": 1,
+          "product_id": "B08Z93YKZN",
+          "sort": "critical"
+        },
+        "error_code": null,
+        "result_references": [
+          "amazon2023:B08Z93YKZN:B0047CT6SE:AHK5RA24O3UGG7JHXYT26HAPBTFQ:1649954278805"
+        ],
+        "result_summary": "returned 1 reviews",
+        "sequence": 8,
+        "timestamp": "2026-11-01T00:00:10Z",
+        "tool": "get_reviews"
+      },
+      {
+        "arguments": {
+          "claims": [
+            {
+              "claim": "A 5-star reviewer wrote: \"I always keep one of these in my are kit. They don\u2019t leave an oily or greasy residue after use like some erasers do. I usually cut mine in a diagonal slope at t\"",
+              "concern": "durability",
+              "review_ids": [
+                "amazon2023:B08Z93YKZN:B0047CT6SE:AHK5RA24O3UGG7JHXYT26HAPBTFQ:1649954278805"
+              ]
+            }
+          ],
+          "product_id": "B08Z93YKZN",
+          "user_context": "ok so I need Office_Products under $7.99 all in. thx"
+        },
+        "error_code": null,
+        "result_references": [
+          "amazon2023:B08Z93YKZN:B0047CT6SE:AHK5RA24O3UGG7JHXYT26HAPBTFQ:1649954278805"
+        ],
+        "result_summary": "grounded 1 claims",
+        "sequence": 9,
+        "timestamp": "2026-11-01T00:00:11Z",
+        "tool": "summarize_review_evidence"
+      },
+      {
+        "arguments": {
+          "assumptions": [
+            "budget is the all-in cap; listing treated as available (snapshot has no stock data)"
+          ],
+          "expected_total": "2.4",
+          "product_id": "B08Z93YKZN",
+          "variant": "default"
+        },
+        "error_code": null,
+        "result_references": [
+          "12c089b890ae2ce0403692de771a789a",
+          "MOCK-ORDER-1"
+        ],
+        "result_summary": "pending order created",
+        "sequence": 10,
+        "timestamp": "2026-11-01T00:00:14Z",
+        "tool": "propose_purchase"
+      },
+      {
+        "arguments": {
+          "pending_order_id": "12c089b890ae2ce0403692de771a789a",
+          "user_confirmed": true
+        },
+        "error_code": null,
+        "result_references": [
+          "MOCK-ORDER-1",
+          "MOCK-CAP-MOCK-ORDER-1"
+        ],
+        "result_summary": "payment COMPLETED",
+        "sequence": 11,
+        "timestamp": "2026-11-01T00:00:17Z",
+        "tool": "confirm_and_pay"
+      }
+    ],
+    "review_ids_cited": [
+      "amazon2023:B08Z93YKZN:B0047CT6SE:AHK5RA24O3UGG7JHXYT26HAPBTFQ:1649954278805"
+    ],
+    "score_components": {
+      "efficiency_penalty": "0.06",
+      "fitness": "0.94",
+      "gate": 1,
+      "quality": "1",
+      "quality_metrics": [
+        {
+          "evidence": [
+            "caller-supplied deterministic intent field comparison"
+          ],
+          "name": "intent_extraction",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "assumptions present and externally checked when supplied"
+          ],
+          "name": "assumptions",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "catalog attributes matched mapped implied needs"
+          ],
+          "name": "implied_needs_fit",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "selection compared with best-value reference"
+          ],
+          "name": "value",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "selected products with reviews have review calls"
+          ],
+          "name": "reviews_consulted",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "review citations checked against product-scoped IDs"
+          ],
+          "name": "review_grounding",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "all cited IDs checked for existence"
+          ],
+          "name": "review_id_existence",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "persona-relevant signal IDs recalled"
+          ],
+          "name": "review_signal_recall",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "review-adjusted best selected when task is a trap"
+          ],
+          "name": "review_adjusted_choice",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "review trap choice checked"
+          ],
+          "name": "review_trap_choice",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "detail-open and comparison counts checked"
+          ],
+          "name": "research_sufficiency",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "not applicable to recommendation outcome"
+          ],
+          "name": "no_match_quality",
+          "value": "1",
+          "weight": "1"
+        }
+      ]
+    },
+    "scored": true,
+    "seed": 20261101,
+    "split": "train",
+    "task_id": "gen20261101-003",
+    "task_text": "ok so I need Office_Products under $7.99 all in. thx",
+    "termination": "instant_kill",
+    "tool_call_count": 12
+  },
+  "request": "GET /world/episodes/gen-20261101-p8-t12:genome-304e914adc5fa1d7:gen20261101-003",
+  "status": 200
+}

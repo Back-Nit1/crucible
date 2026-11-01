@@ -1,0 +1,44 @@
+{
+  "body": {
+    "items": [
+      {
+        "amount": null,
+        "episode_id": "gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-000",
+        "event": "captured",
+        "mode": "mock",
+        "product_id": null,
+        "references": [
+          "MOCK-ORDER-1",
+          "MOCK-CAP-MOCK-ORDER-1"
+        ]
+      },
+      {
+        "amount": "7.99",
+        "episode_id": "gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-000",
+        "event": "order_created",
+        "mode": "mock",
+        "product_id": "B071K5BQPF",
+        "references": [
+          "f97da234f6dc50dd765ebab8c0ab1aca",
+          "MOCK-ORDER-1"
+        ]
+      },
+      {
+        "amount": null,
+        "episode_id": "gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-002",
+        "event": "captured",
+        "mode": "mock",
+        "product_id": null,
+        "references": [
+          "MOCK-ORDER-1",
+          "MOCK-CAP-MOCK-ORDER-1"
+        ]
+      }
+    ],
+    "limit": 3,
+    "offset": 0,
+    "total": 96
+  },
+  "request": "GET /payments/ledger?generation_id=gen-20261101-p8-t12&limit=3",
+  "status": 200
+}

@@ -1,0 +1,89 @@
+{
+  "body": {
+    "items": [
+      {
+        "agent_id": "genome-0963d13b22fa49e6",
+        "category": "Sports_and_Outdoors",
+        "episode_id": "gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-001",
+        "final_answer": "No realistic match: nothing in Sports_and_Outdoors satisfies every hard constraint within 3.98. Assumptions: budget is the all-in cap",
+        "fitness": 1.0,
+        "generation_id": "gen-20261101-p8-t12",
+        "kill_rule_id": null,
+        "kill_rule_version": null,
+        "killed": false,
+        "products_considered": [
+          "B0B1MY439W",
+          "B0BHD3TNCN",
+          "B07YZ4SMGR",
+          "B07JB9LNSG",
+          "B0976XCLGB",
+          "B07VXV6CDH",
+          "B07R3J5SYG",
+          "B07ZTHY62V",
+          "B07WP65XLW",
+          "B09S6SLYSZ"
+        ],
+        "review_ids_cited": [],
+        "scored": true,
+        "split": "train",
+        "task_id": "gen20261101-001",
+        "termination": "no_match",
+        "tool_call_count": 6
+      },
+      {
+        "agent_id": "genome-0963d13b22fa49e6",
+        "category": "Clothing_Shoes_and_Jewelry",
+        "episode_id": "gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-007",
+        "final_answer": "No realistic match: nothing in Clothing_Shoes_and_Jewelry satisfies every hard constraint within 7.98. Assumptions: budget is the all-in cap",
+        "fitness": 1.0,
+        "generation_id": "gen-20261101-p8-t12",
+        "kill_rule_id": null,
+        "kill_rule_version": null,
+        "killed": false,
+        "products_considered": [
+          "B08JX9G17V",
+          "B08YDWZ3C3",
+          "B09JB9XMW1"
+        ],
+        "review_ids_cited": [],
+        "scored": true,
+        "split": "train",
+        "task_id": "gen20261101-007",
+        "termination": "no_match",
+        "tool_call_count": 6
+      },
+      {
+        "agent_id": "genome-0963d13b22fa49e6",
+        "category": "Office_Products",
+        "episode_id": "gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-010",
+        "final_answer": "No realistic match: nothing in Office_Products satisfies every hard constraint within 2.39. Assumptions: budget is the all-in cap",
+        "fitness": 1.0,
+        "generation_id": "gen-20261101-p8-t12",
+        "kill_rule_id": null,
+        "kill_rule_version": null,
+        "killed": false,
+        "products_considered": [
+          "B08Z93YKZN",
+          "B07F7T3D73",
+          "B0C1N63BN5",
+          "B08YMVG2QG",
+          "B097CF46RC",
+          "B07D7CF9RZ",
+          "B07D8SX9SC",
+          "B08PD98HYG"
+        ],
+        "review_ids_cited": [],
+        "scored": true,
+        "split": "train",
+        "task_id": "gen20261101-010",
+        "termination": "no_match",
+        "tool_call_count": 6
+      }
+    ],
+    "limit": 3,
+    "offset": 0,
+    "total": 96
+  },
+  "request": "GET /world/episodes?generation_id=gen-20261101-p8-t12&limit=3&sort=-fitness",
+  "status": 200
+}

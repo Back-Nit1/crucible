@@ -1,0 +1,267 @@
+{
+  "body": {
+    "agent_id": "genome-0963d13b22fa49e6",
+    "catalog_hash": "9591d0e11236e58b1fb62cc504f05f9249ba564cbeb7af0ec3d9437cb2478a3a",
+    "category": "Sports_and_Outdoors",
+    "episode_id": "gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-001",
+    "final_answer": "No realistic match: nothing in Sports_and_Outdoors satisfies every hard constraint within 3.98. Assumptions: budget is the all-in cap",
+    "fitness": 1.0,
+    "generation_id": "gen-20261101-p8-t12",
+    "genome": {
+      "id": "genome-0963d13b22fa49e6",
+      "memory": {
+        "enabled": false,
+        "k": 2
+      },
+      "model_checkpoint": "scripted-v1",
+      "mutation": null,
+      "parent_id": null,
+      "reviews": {
+        "critical_fraction": "0.5",
+        "minimum_reviews": 2
+      },
+      "search": {
+        "minimum_candidates": 2,
+        "query_reformulations": 1,
+        "use_filters": false
+      },
+      "system_prompt_variant": "grounded-shopper-v3",
+      "temperature": "0.7"
+    },
+    "kill_rule_id": null,
+    "kill_rule_version": null,
+    "killed": false,
+    "kills": [],
+    "payment_events": [],
+    "products_considered": [
+      "B0B1MY439W",
+      "B0BHD3TNCN",
+      "B07YZ4SMGR",
+      "B07JB9LNSG",
+      "B0976XCLGB",
+      "B07VXV6CDH",
+      "B07R3J5SYG",
+      "B07ZTHY62V",
+      "B07WP65XLW",
+      "B09S6SLYSZ"
+    ],
+    "replay": [
+      {
+        "arguments": {
+          "assumptions": [
+            "budget is the all-in cap; no size or stock constraint is assumed"
+          ],
+          "category": "Sports_and_Outdoors",
+          "max_total": "3.98",
+          "raw_message": "hey, im after Sports_and_Outdoors under $3.98 all in. thx"
+        },
+        "error_code": null,
+        "result_references": [],
+        "result_summary": "parsed category Sports_and_Outdoors with cap 3.98",
+        "sequence": 0,
+        "timestamp": "2026-11-01T00:00:02Z",
+        "tool": "parse_intent"
+      },
+      {
+        "arguments": {
+          "filters": {
+            "category": "Sports_and_Outdoors"
+          },
+          "query": "tervis travel lid"
+        },
+        "error_code": null,
+        "result_references": [
+          "B0B1MY439W",
+          "B0BHD3TNCN",
+          "B07YZ4SMGR",
+          "B07JB9LNSG",
+          "B0976XCLGB",
+          "B07VXV6CDH",
+          "B07R3J5SYG",
+          "B07ZTHY62V",
+          "B07WP65XLW",
+          "B09S6SLYSZ"
+        ],
+        "result_summary": "returned 10 catalog products",
+        "sequence": 1,
+        "timestamp": "2026-11-01T00:00:03Z",
+        "tool": "search_catalog"
+      },
+      {
+        "arguments": {
+          "product_id": "B0B1MY439W"
+        },
+        "error_code": null,
+        "result_references": [
+          "B0B1MY439W"
+        ],
+        "result_summary": "product detail found",
+        "sequence": 2,
+        "timestamp": "2026-11-01T00:00:04Z",
+        "tool": "get_product"
+      },
+      {
+        "arguments": {
+          "product_id": "B0BHD3TNCN"
+        },
+        "error_code": null,
+        "result_references": [
+          "B0BHD3TNCN"
+        ],
+        "result_summary": "product detail found",
+        "sequence": 3,
+        "timestamp": "2026-11-01T00:00:05Z",
+        "tool": "get_product"
+      },
+      {
+        "arguments": {
+          "product_ids": [
+            "B0B1MY439W",
+            "B0BHD3TNCN"
+          ]
+        },
+        "error_code": null,
+        "result_references": [
+          "B0B1MY439W",
+          "B0BHD3TNCN"
+        ],
+        "result_summary": "compared 2 products",
+        "sequence": 4,
+        "timestamp": "2026-11-01T00:00:06Z",
+        "tool": "compare"
+      },
+      {
+        "arguments": {
+          "assumptions": [
+            "budget is the all-in cap"
+          ],
+          "closest_product_id": "B0B1MY439W",
+          "reason": "nothing in Sports_and_Outdoors satisfies every hard constraint within 3.98",
+          "why_it_misses": "closest listing is 3.99 against a cap of 3.98"
+        },
+        "error_code": null,
+        "result_references": [
+          "B0B1MY439W"
+        ],
+        "result_summary": "no realistic match reported",
+        "sequence": 5,
+        "timestamp": "2026-11-01T00:00:07Z",
+        "tool": "report_no_match"
+      }
+    ],
+    "review_ids_cited": [],
+    "score_components": {
+      "efficiency_penalty": "0.00",
+      "fitness": "1.00",
+      "gate": 1,
+      "quality": "1",
+      "quality_metrics": [
+        {
+          "evidence": [
+            "caller-supplied deterministic intent field comparison"
+          ],
+          "name": "intent_extraction",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "assumptions present and externally checked when supplied"
+          ],
+          "name": "assumptions",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "implied_needs_fit",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "value",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "reviews_consulted",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "review_grounding",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "review_signal_recall",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "review_adjusted_choice",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "review_id_existence",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "review_trap_choice",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "no_match_quality",
+          "value": "1",
+          "weight": "1"
+        },
+        {
+          "evidence": [
+            "deterministic impossible-task outcome"
+          ],
+          "name": "research_sufficiency",
+          "value": "1",
+          "weight": "1"
+        }
+      ]
+    },
+    "scored": true,
+    "seed": 20261101,
+    "split": "train",
+    "task_id": "gen20261101-001",
+    "task_text": "hey, im after Sports_and_Outdoors under $3.98 all in. thx",
+    "termination": "no_match",
+    "tool_call_count": 6
+  },
+  "request": "GET /world/episodes/gen-20261101-p8-t12:genome-0963d13b22fa49e6:gen20261101-001",
+  "status": 200
+}

@@ -285,13 +285,13 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None) -> APIR
             by[(t.generation_id, t.agent_id)].append(t)
         rows = []
         for (gid, agent), ts in by.items():
-            fit = [t.fitness for t in ts if t.scored]
+            fit = [t.fitness if t.scored else 0.0 for t in ts]  # an unscored/killed-early episode counts as 0, never skipped
             surv = set(((gens.get(gid) or {}).get("summary") or {}).get("survivors", []))
             rows.append(dict(agent_id=agent, variant=str(ts[0].genome.get("system_prompt_variant", "unknown")), generation_id=gid,
                              episodes=len(ts), mean_fitness=round(sum(fit) / len(fit), 6) if fit else 0.0,
                              killed_episodes=sum(t.killed for t in ts), kill_rules=sorted({t.kill_reason for t in ts if t.kill_reason}),
                              survivor=agent in surv))
-        rows.sort(key=lambda x: (-x["mean_fitness"], x["agent_id"]))
+        rows.sort(key=lambda x: (x["killed_episodes"] > 0, -x["mean_fitness"], x["agent_id"]))  # agents with any kill rank below clean ones
         return _page([LeaderboardRow(rank=i + 1, **x) for i, x in enumerate(rows)][offset:offset + limit], len(rows), offset, limit)
 
     @r.get("/world/kills", response_model=Page[KillLogRow], tags=["world"])
