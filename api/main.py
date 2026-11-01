@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from catalog.router import ProductResult, ProviderRouter, ProviderUnavailable, ReviewsResult, SearchResult
+from api.buyer import AgentRunFailed, BuyerService, ModelNotConfigured, buyer_router, to_agent_run_result
 from api.world import ModelUnavailable, WorldDataUnavailable, world_router
 from payments.errors import PaymentError
 from payments.guards import (BudgetViolation, GuardedPayments, GuardViolation, NotConfirmed, OutOfStock,
@@ -130,7 +131,35 @@ def default_reader():
     return ElasticReader(Elastic(url))
 
 
-def create_app(router: ProviderRouter | None = None, backend=None, reader=None, runner=None) -> FastAPI:
+def default_buyer(router: ProviderRouter, backend) -> BuyerService:
+    """Buyer service over the frozen Elastic snapshot. The model is attached only if Modal launch is authorized;
+    otherwise the service answers every run with the typed `model_unavailable` error (no silent fallback)."""
+    from agents.buyer import BuyerAgent
+    from agents.model import InferenceError, QwenModelAdapter
+    from agents.qwen_client import ModalQwenClient
+    catalog = router.providers.get("elastic_snapshot")
+    if catalog is None:
+        raise ProviderUnavailable("elastic_snapshot")
+    payments = GuardedPayments(backend, catalog, require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1")
+    try:
+        agent = BuyerAgent(QwenModelAdapter(ModalQwenClient.from_environment(), max_retries=1), catalog, payments)
+    except InferenceError:
+        agent = None
+    return BuyerService(agent, catalog, payments, backend)
+
+
+class _BuyerBackedRunner:
+    """`/agent/run` over the buyer service (used when no runner is injected)."""
+
+    def __init__(self, get_buyer):
+        self.get_buyer = get_buyer
+
+    def run(self, request):
+        from api.buyer import BuyerRunRequest
+        return to_agent_run_result(self.get_buyer().start(BuyerRunRequest(message=request.message)))
+
+
+def create_app(router: ProviderRouter | None = None, backend=None, reader=None, runner=None, buyer: BuyerService | None = None) -> FastAPI:
     app = FastAPI(title="Crucible Agent API", version="0.1.0")
     state: dict = {}
 
@@ -144,6 +173,13 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
             state["payments"] = GuardedPayments(state["backend"], _RouterCatalog(get_router()),
                                                 require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1")
         return state["payments"]
+
+    def get_buyer() -> BuyerService:
+        if "buyer" not in state:
+            get_payments()  # fixes the shared backend
+            state["buyer"] = buyer or (default_buyer(get_router(), state["backend"]) if _launch_authorized()
+                                       else BuyerService(None, None, None, None))  # typed model_unavailable, no provider touched
+        return state["buyer"]
 
     @app.middleware("http")
     async def _access_log(request: Request, call_next):
@@ -186,6 +222,16 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
         log.exception("unhandled error")  # detail goes to logs only
         return _err(500, "internal_error", "internal error")
 
+    @app.exception_handler(ModelNotConfigured)
+    async def _no_buyer_model(_: Request, e: ModelNotConfigured):
+        return _err(503, "model_unavailable", "no model endpoint is configured")
+
+    @app.exception_handler(AgentRunFailed)
+    async def _run_failed(_: Request, e: AgentRunFailed):
+        from api.buyer import ERRORS
+        status = 503 if e.code in {"model_unavailable", "timeout", "transport_error"} else 502
+        return _err(status, e.code, ERRORS.get(e.code, ("The agent run failed.",))[0])
+
     @app.exception_handler(ModelUnavailable)
     async def _no_model(_: Request, e: ModelUnavailable):
         return _err(503, "model_unavailable", "no model endpoint is configured")
@@ -212,7 +258,8 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
         return {"status": "ok", "version": APP_VERSION, "checks": {
             "elastic_configured": bool(env.get("ELASTIC_API_KEY") and (env.get("ELASTIC_ENDPOINT") or env.get("ELASTIC_CLOUD_ID"))),
             "paypal_sandbox_configured": bool(env.get("PAYPAL_CLIENT_ID") and env.get("PAYPAL_CLIENT_SECRET")),
-            "model_configured": runner is not None, "demo_mode": demo_mode()}}
+            "model_configured": runner is not None or (buyer is not None and buyer.configured) or _launch_authorized(),
+            "demo_mode": demo_mode()}}
 
     @app.get("/config")
     def public_config():
@@ -258,8 +305,23 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
             return _err(404, "pending_order_not_found", req.pending_order_id)
         return g.confirm_and_pay(req.pending_order_id, req.user_confirmed)
 
-    app.include_router(world_router(_LazyReader(reader), runner))
+    class _Lazy:
+        def __getattr__(self, name):
+            return getattr(get_buyer(), name)
+
+    app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer)))
+    app.include_router(buyer_router(_Lazy()))
     return app
+
+
+def _launch_authorized() -> bool:
+    from agents.model import InferenceError
+    from agents.qwen_client import require_launch_authorization
+    try:
+        require_launch_authorization()
+        return True
+    except InferenceError:
+        return False
 
 
 class _LazyReader:
