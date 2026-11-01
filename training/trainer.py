@@ -62,7 +62,7 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
                  record_count: int, total_budget_seconds: float, gpu: str, rates: ResourceRates | None = None,
                  stop_after_steps: int | None = None, monotonic: Callable[[], float] = time.monotonic,
                  clock: Callable[[], dt.datetime] | None = None, keep_checkpoints: int = 2,
-                 on_durable: Callable[[], None] = lambda: None) -> RunOutcome:
+                 on_durable: Callable[[], None] = lambda: None, max_launch_seconds: float | None = None) -> RunOutcome:
     """Run or resume `identity.run_id` until the final step, the per-launch budget, or `stop_after_steps`.
 
     * total_budget_seconds is the whole-run wall-clock ceiling (derived from the approved cost ceiling); earlier
@@ -91,7 +91,8 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
     remaining = total_budget_seconds - store.read_ledger().consumed_seconds_upper_bound(clock())
     if remaining <= 0 and step < total_steps:
         raise ResumeError("budget_exhausted", "the approved wall-clock budget for this run is already spent")
-    launch = store.begin_launch(budget_seconds=max(remaining, 1e-6), start_step=step)
+    limit = min(remaining, max_launch_seconds) if max_launch_seconds else remaining  # this launch's own allowance
+    launch = store.begin_launch(budget_seconds=max(limit, 1e-6), start_step=step)
     started, last_saved = monotonic(), step
     pause = False
 
@@ -110,7 +111,7 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
         if step == total_steps or step % hp.checkpoint_every_steps == 0:
             save()
         if step < total_steps and ((stop_after_steps is not None and step - resumed_from >= stop_after_steps)
-                                   or monotonic() - started >= remaining):
+                                   or monotonic() - started >= limit):
             pause = True
             break
     if pause:
