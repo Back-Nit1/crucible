@@ -95,3 +95,16 @@ Evidence: `docs/spikes/platform-day1.md`. Config: `config/providers.yaml`.
 - Modal: GPU functions require a payment method on the workspace; blocked, $0 spent. The Qwen tool-call numbers are therefore **not measured**; the license (Apache-2.0) and pinned revision `a09a3545...` stand from the earlier spike.
 - The Qwen probe moved from `eval/` to `modal_app/qwen_toolcalls.py` (eval/ belongs to agent 2).
 - Not verified: that `.env`'s Modal token is the rotated replacement (it authenticates).
+
+## 2026-10-31 integration owner (agent 1): operational world
+- **Merge**: `feat/platform-m1-m3` fast-forwarded, `feat/core-m2-m5` merged `--no-ff`; baseline 140 passed held. `feat/core-generation` and `feat/integration-runtime` (earlier parallel attempts) were **not** merged; read only for design reference. The packaging commit landed on `main` just before `feat/operational-world` was branched.
+- **Frozen contracts**: `FrozenCatalogProvider.iter_products(category, manifest_hash)` replaces `search("")` enumeration; the manifest hash is the snapshot identity (sha256 of sorted product + canonical review ids) and a wrong hash raises `SnapshotMismatch`. Review ids for grounding come from `get_review_ids` (paged with `search_after`, proven complete against the exact hit count, typed result for a missing product).
+- **Canonical review id** = `amazon2023:<parent_asin:asin:user:ts>[:n]` (n numbers byte-identical source repeats). I first wrote a hash-based id, then found the live index already used this scheme (migrated by an earlier session) and adopted it rather than re-migrating. 17 collisions are gone (14,541 review docs; manifests rehashed from the live index).
+- **Gate**: `OUT_OF_STOCK` only when a task requires a variant. Amazon data has no stock/size; without this every purchase would score G=0.
+- **Quote**: budget and PayPal amount use `quote.total`; unknown shipping/tax are `None`; frozen training uses an `item_price_only` quote that never claims to be all-in. The amount is bound into the backend idempotency key so a re-priced order cannot replay an old order.
+- **Traces**: stored for every episode (dashboards), but retrieval (query filter + client-side re-check) excludes `test`, `held_out_category`, killed, unscored and sub-threshold traces; malformed documents are dropped.
+- **Checkpoint**: content-hashed JSON, temp+`os.replace`; Modal Volume = same store with `commit`/`reload` hooks. Lease expires after 30 min so a preempted runner cannot wedge a generation.
+- **Scripted agents** are privileged (they read the reference answer). Fixture genomes deliberately trigger K001/K002/K003/K008; K004/K006/K007 are pre-empted by the action state machine (`InvalidActionOrder`) and cannot be reached by a legal episode.
+- **Modal**: CPU-only (`cpu=1, memory=1GiB`), `max_containers=1`, schedule attached only when `CRUCIBLE_ENABLE_SCHEDULE=1` at `modal deploy`. The Elastic key is sent to Modal as a per-run secret from the launcher's environment.
+- **Phase 8 blocked**: `PAYPAL_SANDBOX_BUYER_EMAIL/PASSWORD` absent from `.env`; `scripts.paypal_live_check` is ready and stops with exit 3, printing names only.
+- **`/agent/run`** answers 503 `model_unavailable` until a model runner is injected; no placeholder agent answers shoppers.

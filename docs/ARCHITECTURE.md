@@ -211,3 +211,30 @@ flowchart LR
 Implemented: provider interface + router (source/as_of/snapshot stamps), Elastic hybrid retrieval, Channel3 live provider,
 PayPal sandbox backend with guards and mock parity, memory retrieval with test-split exclusion, typed API.
 Not yet: Kernel approval run, Modal world/train/serve, Render deploy, web UI, Astropods, Zapier.
+
+## Operational world (integration, `feat/operational-world`)
+```mermaid
+flowchart LR
+  subgraph Frozen snapshot
+    es[(Elastic: products, reviews)]
+  end
+  es -->|iter_products(category, manifest_hash)<br/>get_review_ids| prov[ElasticCatalogProvider<br/>FrozenCatalogProvider]
+  prov --> cache[FrozenCache]
+  cache --> tg[world.taskgen<br/>feasible / impossible / review-sensitive]
+  tg --> run[world.runtime.run_generation]
+  pop[world.runtime.build_population<br/>honest + fixture genomes] --> run
+  run -->|ScriptedPolicy -> agents.runner.run_episode| eng[state machine + tools<br/>GuardedPayments(MockPayments, Quote)<br/>scoring + kill rules]
+  eng --> mem[memory.episodes.RepositoryMemoryProvider]
+  mem -->|full EpisodeRecord + split, catalog hash,<br/>seed, genome, kills| traces[(Elastic traces)]
+  run --> store[world.store.GenerationStore<br/>atomic checkpoint + lease]
+  store -.Modal Volume.-> vol[(crucible-world-checkpoints)]
+  run --> fin[finalize: cull + survivors]
+  fin --> lh[Loophole Hunter proposals]
+  fin --> cur[training.curation -> SFT manifest]
+  fin --> pub[world.publish -> Elastic generations / kill_rules]
+  traces --> rd[api.readers.ElasticReader] --> apiw[api.world: /world/*, /models/*, /payments/ledger]
+  modal[modal_app.world_runner<br/>run | resume | status | opt-in schedule] --> run
+```
+Quote path: `GuardedPayments` asks a `QuoteProvider` for a `Quote` (subtotal, shipping, tax, discounts, total, currency, expiry), budgets and
+creates the order from `quote.total`, re-quotes before capture and invalidates the pending order on any change. Frozen training uses
+`ItemPriceQuotes` (labelled `item_price_only`); `REQUIRE_ALL_IN_QUOTE=1` refuses it.
