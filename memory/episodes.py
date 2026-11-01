@@ -51,6 +51,15 @@ def episode_from_trace(trace: TraceRecord) -> EpisodeRecord:
     return EpisodeRecord.model_validate(trace.episode)
 
 
+PRIVILEGED_CHECKPOINT_PREFIX = "scripted"  # scripted shoppers read the task's reference answer
+
+
+def privileged(t: TraceRecord) -> bool:
+    """A trace produced by a policy that saw reference answers. It is pipeline evidence, never retrievable as memory:
+    a model prompt must not be able to inherit an answer key through a 'similar past episode'."""
+    return str(t.genome.get("model_checkpoint", "")).startswith(PRIVILEGED_CHECKPOINT_PREFIX)
+
+
 class RepositoryMemoryProvider:
     """agents.memory.MemoryProvider over any TraceRepository. `record` keeps every episode (dashboards, replay);
     `store` / `retrieve` enforce the memory rules: no test/held-out, killed, unscored or below-threshold traces."""
@@ -73,7 +82,7 @@ class RepositoryMemoryProvider:
         if request.split.value in PROTECTED_SPLITS or request.k <= 0:
             return ()
         pool = self.repo.similar(request.query, k=max(12, request.k * 4), min_fitness=request.minimum_fitness)
-        keep = [t for t in pool if eligible(t, request.minimum_fitness) and t.task_id != request.task_id]
+        keep = [t for t in pool if eligible(t, request.minimum_fitness) and t.task_id != request.task_id and not privileged(t)]
         keep.sort(key=lambda t: (t.category != request.category, -t.fitness, t.episode_id))  # deterministic ties
         out = []
         for t in keep[: request.k]:

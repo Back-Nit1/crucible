@@ -28,7 +28,7 @@ def world():
     cat = SyntheticFrozen()
     tasks = generate_tasks(cat, HASHES, seed=SEED, count=8, review_traps=1)
     genomes = tuple(g.model_copy(update={"memory": MemorySettings(enabled=i % 2 == 0, k=2)})
-                    for i, g in enumerate(build_population(4, SEED, fixtures=False)))
+                    for i, g in enumerate(build_population(4, SEED, fixtures=False, checkpoint="qwen-base")))
     scripts = {}
     for g in genomes:
         for t in tasks:
@@ -177,3 +177,23 @@ def test_summary_carries_every_denominator_and_the_policy_identity(world):
     assert s["rates"]["hallucination"]["denominator"] == 32 and s["rates"]["model_failure"]["numerator"] == "0"
     assert s["model_usage"]["steps"] > 0 and s["model_usage"]["models"] == ["scripted@script-v1"]
     assert "Model-backed run" in s["note"] and all("denominator" in v for v in s["rates"].values())
+
+
+def test_scripted_reference_answer_traces_are_never_retrievable_as_memory(world):
+    """A scripted shopper read the answer key; its traces must not reach a model prompt via 'similar past episodes'."""
+    cat, tasks, genomes, scripts = world
+    traces = InMemoryTraceRepository()
+    scripted = tuple(g.model_copy(update={"memory": MemorySettings(enabled=False)}) for g in build_population(4, SEED, fixtures=False))
+    run_generation(generation_id="g-scripted", seed=SEED, genomes=scripted, tasks=tasks, manifests=HASHES, catalog=cat,
+                   store=GenerationStore(MemoryBlobStore()), traces=traces)
+    assert any(t.scored and not t.killed for t in traces.traces)                 # plenty of otherwise-eligible traces exist
+    mem = RepositoryMemoryProvider(traces)
+    task = tasks[0]
+    got = mem.retrieve(RetrievalRequest("new-task", TaskSplit.TRAIN, task.hard_constraints.category, task.raw_message, 3, 0))
+    assert got == ()
+    adapter = ScriptedModelAdapter(scripts)                                       # and a model generation sharing that store
+    run(world, GenerationStore(MemoryBlobStore()), traces, adapter)
+    for req in adapter.requests:
+        for m in req.messages:
+            if m.role == "assistant" and m.tool_name is None:
+                assert not json.loads(m.content)["retrieved_episode_id"].startswith("g-scripted:")
