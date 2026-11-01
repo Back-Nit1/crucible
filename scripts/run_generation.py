@@ -106,6 +106,15 @@ def main(argv=None) -> int:
         from world.publish import publish_generation, publish_kill_rules
         publish_generation(es, res.state, summary)
         publish_kill_rules(es, summary["kills"]["by_rule"])
+        if qwen:  # measured model episodes only: scripted runs are pipeline evidence, not model evaluations
+            from eval.comparison import ContenderRun
+            from eval.publish import EvaluationContext, evaluation_docs, publish
+            from agents.prompts import PROMPT_VERSION
+            ctx = EvaluationContext(model=MODEL_ID, catalog_hash=res.state.compat.catalog_hash, prompt_version=PROMPT_VERSION,
+                                    judge_version="none", seed=a.seed, created_at=episodes[-1].ended_at, base_checkpoint="qwen-base")
+            run_ = ContenderRun(contender_id=gen + (":memory" if a.memory == "on" else ":base"), checkpoint=MODEL_REVISION,
+                                memory_enabled=a.memory == "on", episodes=episodes)
+            publish(es, "evaluations", evaluation_docs((run_,), {t.id: t for t in tasks}, ctx))
     (out / "sft.jsonl").write_text("".join(r.model_dump_json() + "\n" for r in curated.records))
     (out / "training_manifest.json").write_text(curated.manifest.model_dump_json(indent=2) + "\n")
     print(json.dumps({"generation_id": gen, "status": summary["status"], "executed_this_run": len(res.executed),
