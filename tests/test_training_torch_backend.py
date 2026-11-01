@@ -106,3 +106,20 @@ def test_cpu_refused_for_quantized_or_large_models(tiny_model_dir):
     with pytest.raises(BackendError) as err:
         load_base_model(tiny_model_dir, LoRAHyperparameters(), device="cpu")
     assert err.value.code == "cpu_refused"
+
+
+def test_trained_adapter_loads_in_the_real_inference_engine_and_base_stays_base(tiny_model_dir, tmp_path):
+    from modal_app.qwen_protocol import QwenRequest
+    from modal_app.qwen_service import TransformersEngine
+    sh, data, manifest = shard()
+    out, store = run(tmp_path, tiny_model_dir, sh, data, manifest)
+    engine = TransformersEngine(tiny_model_dir, device="cpu")
+    request = QwenRequest(system="s", messages=[{"role": "user", "content": "need running shoes variant 1, under $100"}],
+                          tools=sh.tools, seed=1, temperature=0, max_new_tokens=24)
+    base_before = engine.generate(request, None).raw_output
+    engine.load_adapter(out.manifest.checkpoint_id, store.final_dir)  # the exact directory training published
+    adapted = engine.generate(request, out.manifest.checkpoint_id).raw_output
+    base_after = engine.generate(request, None).raw_output  # adapters are loaded; base requests must still be base
+    assert base_after == base_before and adapted != base_before
+    assert engine.generate(request, out.manifest.checkpoint_id).raw_output == adapted  # greedy => deterministic
+    engine.unload_adapter(out.manifest.checkpoint_id)
