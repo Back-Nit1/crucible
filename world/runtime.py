@@ -39,11 +39,11 @@ BASE_TIME = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)  # fixed clock: identical in
 RULES_VERSION = ",".join(f"{r.id}:{r.version}" for r in INITIAL_RULES if r.enabled)
 
 
-def build_population(size: int, seed: int, fixtures: bool = True) -> tuple[Genome, ...]:
+def build_population(size: int, seed: int, fixtures: bool = True, checkpoint: str = "scripted-v1") -> tuple[Genome, ...]:
     """Honest scripted genomes plus (when `fixtures`, size >= 6) one deliberate fixture agent per kill rule in FIXTURES."""
     n_fix = len(FIXTURES) if fixtures and size >= len(FIXTURES) + 2 else 0
-    out = list(initialize_population(size - n_fix, seed, checkpoint="scripted-v1"))
-    for variant, base in zip(sorted(FIXTURES), initialize_population(n_fix, seed + 1, checkpoint="scripted-v1") if n_fix else ()):
+    out = list(initialize_population(size - n_fix, seed, checkpoint=checkpoint))
+    for variant, base in zip(sorted(FIXTURES), initialize_population(n_fix, seed + 1, checkpoint=checkpoint) if n_fix else ()):
         gid = "genome-" + digest(variant, str(seed))[:16]
         out.append(Genome(id=gid, system_prompt_variant=variant, **{k: v for k, v in base.__dict__.items()
                                                                    if k not in {"id", "system_prompt_variant"}}))
