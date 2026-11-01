@@ -21,6 +21,7 @@ class Metric(EvalModel):
     denominator: Decimal
     excluded: int = Field(ge=0)
     unit: str = "rate"
+    failure_reasons: dict[str, int] = Field(default_factory=dict)  # why numerator < denominator / why records were excluded
 
     @property
     def value(self) -> Decimal | None:
@@ -32,7 +33,8 @@ class EvaluationReport(EvalModel):
     episode_count: int = Field(ge=0)
     configured_pass_k: int = Field(ge=1)
     metrics: dict[str, Metric]
-    variance_across_seeds: dict[str, Decimal | None]
+    variance_across_seeds: dict[str, Decimal | None]   # population variance of the per-seed metric value; None = not computable
+    seeds: tuple[int, ...] = ()
 
     def to_json(self) -> str:
         payload = self.model_dump(mode="json")
@@ -60,9 +62,24 @@ def _quality(episode: EpisodeRecord, name: str) -> Decimal | None:
     return None
 
 
-def _rate(numerator: int | Decimal, denominator: int, total: int, unit: str = "rate") -> Metric:
+def _rate(numerator: int | Decimal, denominator: int, total: int, unit: str = "rate",
+          reasons: dict[str, int] | None = None) -> Metric:
     return Metric(numerator=Decimal(numerator), denominator=Decimal(denominator),
-                  excluded=total - denominator, unit=unit)
+                  excluded=total - denominator, unit=unit, failure_reasons=dict(sorted((reasons or {}).items())))
+
+
+def _failure_reasons(episodes) -> dict[str, int]:
+    """Termination / kill-rule counts for episodes that did not succeed."""
+    reasons: dict[str, int] = defaultdict(int)
+    for episode in episodes:
+        if _successful(episode):
+            continue
+        reasons[f"termination:{episode.termination}"] += 1
+        for item in episode.kill_information:
+            reasons[f"kill:{item.get('rule_id')}"] += 1
+        if not episode.killed and episode.termination in {"success", "no_match"}:
+            reasons["gate_failed"] += 1
+    return reasons
 
 
 def _successful(episode: EpisodeRecord) -> bool:
@@ -79,7 +96,7 @@ def calculate_metrics(
     eligible = [(episode, task) for episode, task in known if task is not None]
     success = sum(_successful(episode) for episode, _ in eligible)
     metrics: dict[str, Metric] = {
-        "success_rate": _rate(success, len(eligible), total),
+        "success_rate": _rate(success, len(eligible), total, reasons=_failure_reasons(e for e, _ in eligible)),
         "hallucination_rate": _rate(sum(_kill(e, "K001_HALLUCINATED_PRODUCT") for e, _ in eligible), len(eligible), total),
         "budget_violation_rate": _rate(sum(_kill(e, "K003_BUDGET_VIOLATION") for e, _ in eligible), len(eligible), total),
     }
@@ -114,18 +131,15 @@ def calculate_metrics(
                                            len(pass_groups), len(by_task))
     held = [(e, t) for e, t in eligible if t.split is TaskSplit.HELD_OUT_CATEGORY]
     metrics["held_out_category_performance"] = _rate(sum(_successful(e) for e, _ in held), len(held), total)
-    latency_ms = sum(
-        sum(
-            (Decimal(str(item.get("latency_ms", 0))) for item in e.model_metadata),
-            Decimal(0),
-        )
-        if e.model_metadata
-        else Decimal(str((e.ended_at - e.started_at).total_seconds() * 1000))
-        for e, _ in eligible
-    )
-    metrics["latency_ms"] = _rate(Decimal(str(latency_ms)), len(eligible), total, "mean_ms")
-    metrics["cost_per_task"] = _rate(sum((e.cost for e, _ in eligible), Decimal(0)),
-                                      len(eligible), total, "mean_currency_units")
+    # Latency and cost come only from recorded model metadata. Episode timestamps are a synthetic deterministic clock and
+    # an episode with no model steps (or unknown per-step cost) has no measurement: it is excluded, never counted as zero.
+    timed = [e for e, _ in eligible if e.model_metadata and all("latency_ms" in m for m in e.model_metadata)]
+    metrics["latency_ms"] = _rate(sum((sum((Decimal(str(m["latency_ms"])) for m in e.model_metadata), Decimal(0)) for e in timed),
+                                      Decimal(0)), len(timed), total, "mean_ms_model_inference",
+                                  reasons={"no_model_latency_recorded": len(eligible) - len(timed)} if len(eligible) > len(timed) else None)
+    priced = [e for e in timed if all(m.get("cost_known") is not False for m in e.model_metadata)]
+    metrics["cost_per_task"] = _rate(sum((e.cost for e in priced), Decimal(0)), len(priced), total, "mean_usd_list_rate_estimate",
+                                     reasons={"cost_unknown": len(eligible) - len(priced)} if len(eligible) > len(priced) else None)
 
     variance: dict[str, Decimal | None] = {name: None for name in metrics}
     seeds = sorted({e.seed for e, _ in eligible})
@@ -138,5 +152,5 @@ def calculate_metrics(
             if len(valid) == len(values):
                 mean = sum(valid, Decimal(0)) / Decimal(len(valid))
                 variance[name] = sum(((value - mean) ** 2 for value in valid), Decimal(0)) / Decimal(len(valid))
-    return EvaluationReport(episode_count=total, configured_pass_k=pass_k,
-                            metrics=metrics, variance_across_seeds=variance)
+    return EvaluationReport(episode_count=total, configured_pass_k=pass_k, metrics=metrics,
+                            variance_across_seeds=variance, seeds=tuple(seeds))
