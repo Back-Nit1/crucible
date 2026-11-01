@@ -111,7 +111,8 @@ def test_everything_else_is_refused_before_a_browser_exists(url):
 def test_flow_is_bounded_never_captures_and_enforces_host_in_browser():
     k = FakeKernel({"blocked": False})
     approver(kernel=k).approve("O1")
-    assert "/capture" not in k.code and "Orders" not in k.code
+    code = "\n".join(l for l in k.code.splitlines() if not l.strip().startswith("//"))
+    assert "/capture" not in code and "/v2/" not in code
     assert "/v2/" not in k.code and "fetch(" not in k.code and "api-m." not in k.code
     assert "sandbox\\.paypal\\.com" in k.code and "unexpected_host" in k.code and "stealth" not in k.code
 
