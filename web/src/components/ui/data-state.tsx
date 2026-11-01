@@ -1,3 +1,5 @@
+"use client";
+
 import { AlertTriangle, DatabaseZap, RotateCcw } from "lucide-react";
 
 export function EmptyState({ title, message }: { title: string; message: string }) {
