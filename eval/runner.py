@@ -51,6 +51,20 @@ class Incomplete(RuntimeError):
     """Finalization was refused: expected records do not equal the unique records on disk."""
 
 
+def atomic_write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)  # atomic: a reader sees the old file or the whole new one
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+
+
 class EvaluationStore:
     """<root>/<evaluation_id>/{manifest.json, episodes/<contender>/<task>__<seed>.json, quarantine/...}"""
 
@@ -58,17 +72,7 @@ class EvaluationStore:
         self.dir = Path(root) / evaluation_id
 
     def _write(self, path: Path, text: str) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
-        try:
-            with os.fdopen(fd, "w") as handle:
-                handle.write(text)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(tmp, path)  # atomic: a reader sees the old file or the whole new one
-        except BaseException:
-            Path(tmp).unlink(missing_ok=True)
-            raise
+        atomic_write(path, text)
 
     def episode_path(self, key: Key, quarantine: bool = False) -> Path:
         cid, tid, seed = key
