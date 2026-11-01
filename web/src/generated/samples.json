@@ -1,6 +1,1966 @@
 {
   "source": "docs/api/samples",
   "fixtures": {
+    "agent_confirm_not_approved": {
+      "body_sent": {
+        "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+        "user_confirmed": true
+      },
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "POST /agent/runs/run-00000001/confirm",
+      "response": {
+        "error": {
+          "code": "payment_failed",
+          "message": "ORDER_NOT_APPROVED"
+        }
+      },
+      "status": 402,
+      "body": {
+        "error": {
+          "code": "payment_failed",
+          "message": "ORDER_NOT_APPROVED"
+        }
+      }
+    },
+    "agent_confirm_refused_no_confirmation": {
+      "body_sent": {
+        "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+        "user_confirmed": false
+      },
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "POST /agent/runs/run-00000001/confirm",
+      "response": {
+        "error": {
+          "code": "confirmation_required",
+          "message": "060dfb6af6a3a2d8de52fb2f82ae14d0"
+        }
+      },
+      "status": 428,
+      "body": {
+        "error": {
+          "code": "confirmation_required",
+          "message": "060dfb6af6a3a2d8de52fb2f82ae14d0"
+        }
+      }
+    },
+    "agent_confirm_stale_quote": {
+      "body_sent": {
+        "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+        "user_confirmed": true
+      },
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "POST /agent/runs/run-00000001/confirm",
+      "response": {
+        "error": {
+          "code": "quote_stale",
+          "message": "q-865d693a7a5c56666311a122"
+        }
+      },
+      "status": 409,
+      "body": {
+        "error": {
+          "code": "quote_stale",
+          "message": "q-865d693a7a5c56666311a122"
+        }
+      }
+    },
+    "agent_model_unavailable": {
+      "body_sent": {
+        "message": "need a widget under $30 all in"
+      },
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "POST /agent/runs",
+      "response": {
+        "error": {
+          "code": "model_unavailable",
+          "message": "no model endpoint is configured"
+        }
+      },
+      "status": 503,
+      "body": {
+        "error": {
+          "code": "model_unavailable",
+          "message": "no model endpoint is configured"
+        }
+      }
+    },
+    "agent_run_no_match": {
+      "body_sent": {
+        "message": "need a widget under $30 all in",
+        "request_id": "run-00000001"
+      },
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "POST /agent/runs",
+      "response": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "budget_source": "model_parse",
+            "category": "widgets",
+            "currency": "USD",
+            "max_total": "1",
+            "seq": 0,
+            "type": "intent_parsed"
+          },
+          {
+            "assumptions": [
+              "cap is all-in"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "seq": 1,
+            "type": "assumptions",
+            "unknown_constraints": [
+              "stock",
+              "size"
+            ]
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001",
+              "W002",
+              "W003",
+              "W004",
+              "W005",
+              "W006",
+              "W007"
+            ],
+            "seq": 2,
+            "summary": "returned 8 catalog products",
+            "tool": "search_catalog",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 3,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W001"
+            ],
+            "seq": 4,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001"
+            ],
+            "seq": 5,
+            "summary": "compared 2 products",
+            "tool": "compare",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 6,
+            "summary": "no realistic match reported",
+            "tool": "report_no_match",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": false,
+            "seq": 7,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 8,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 9,
+            "type": "comparison"
+          },
+          {
+            "assumptions": [
+              "cap"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "closest_product_id": "W000",
+            "closest_verified": true,
+            "reason": "nothing under $1",
+            "seq": 10,
+            "type": "no_match",
+            "why_it_misses": "costs 10"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 11,
+        "run_id": "run-00000001",
+        "status": "completed",
+        "tokens": 0
+      },
+      "status": 200,
+      "body": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "budget_source": "model_parse",
+            "category": "widgets",
+            "currency": "USD",
+            "max_total": "1",
+            "seq": 0,
+            "type": "intent_parsed"
+          },
+          {
+            "assumptions": [
+              "cap is all-in"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "seq": 1,
+            "type": "assumptions",
+            "unknown_constraints": [
+              "stock",
+              "size"
+            ]
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001",
+              "W002",
+              "W003",
+              "W004",
+              "W005",
+              "W006",
+              "W007"
+            ],
+            "seq": 2,
+            "summary": "returned 8 catalog products",
+            "tool": "search_catalog",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 3,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W001"
+            ],
+            "seq": 4,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001"
+            ],
+            "seq": 5,
+            "summary": "compared 2 products",
+            "tool": "compare",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 6,
+            "summary": "no realistic match reported",
+            "tool": "report_no_match",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": false,
+            "seq": 7,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 8,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 9,
+            "type": "comparison"
+          },
+          {
+            "assumptions": [
+              "cap"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "closest_product_id": "W000",
+            "closest_verified": true,
+            "reason": "nothing under $1",
+            "seq": 10,
+            "type": "no_match",
+            "why_it_misses": "costs 10"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 11,
+        "run_id": "run-00000001",
+        "status": "completed",
+        "tokens": 0
+      }
+    },
+    "agent_run_poll": {
+      "body_sent": null,
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "GET /agent/runs/run-00000001?after=5",
+      "response": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:x",
+              "synthetic:W000:3",
+              "synthetic:W000:7",
+              "synthetic:W000:2",
+              "synthetic:W000:6",
+              "synthetic:W000:1",
+              "synthetic:W000:5",
+              "synthetic:W000:0",
+              "synthetic:W000:4"
+            ],
+            "seq": 6,
+            "summary": "returned 9 reviews",
+            "tool": "get_reviews",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:0"
+            ],
+            "seq": 7,
+            "summary": "grounded 1 claims",
+            "tool": "summarize_review_evidence",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "060dfb6af6a3a2d8de52fb2f82ae14d0",
+              "MOCK-ORDER-1"
+            ],
+            "seq": 8,
+            "summary": "pending order created",
+            "tool": "propose_purchase",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": true,
+            "seq": 9,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 10,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 11,
+            "type": "comparison"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "claim": "Reviewer reports it works great.",
+            "concern": "durability",
+            "date": "2023-01-01",
+            "excerpt": "it works great",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "rating": 5,
+            "review_id": "synthetic:W000:0",
+            "seq": 12,
+            "source_review_id": null,
+            "type": "review_citation"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "budget_cap": "30",
+            "budget_checked_on": "item_price_total",
+            "currency": "USD",
+            "discounts": "0",
+            "expires_at": "2026-11-01T12:15:00Z",
+            "fresh": true,
+            "product_id": "W000",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "quoted_at": "2026-11-01T12:00:00Z",
+            "seq": 13,
+            "shipping": null,
+            "subtotal": "10",
+            "tax": null,
+            "total": "10",
+            "type": "quote",
+            "unknown_components": [
+              "shipping",
+              "tax"
+            ],
+            "variant": "default",
+            "within_budget": true
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "currency": "USD",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "requires_explicit_confirmation": true,
+            "seq": 14,
+            "summary": "Buy alpha widgets pro alpha model for 10 USD? Shipping and tax are unknown, so this is the item price only (shipping, tax not included). Nothing is charged until you confirm.",
+            "total": "10",
+            "type": "confirmation_request"
+          },
+          {
+            "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
+            "at": "2026-11-01T12:00:00Z",
+            "mode": "mock",
+            "seq": 15,
+            "status": "PAYER_ACTION_REQUIRED",
+            "type": "paypal_approval"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 16,
+        "run_id": "run-00000001",
+        "status": "awaiting_confirmation",
+        "tokens": 0
+      },
+      "status": 200,
+      "body": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:x",
+              "synthetic:W000:3",
+              "synthetic:W000:7",
+              "synthetic:W000:2",
+              "synthetic:W000:6",
+              "synthetic:W000:1",
+              "synthetic:W000:5",
+              "synthetic:W000:0",
+              "synthetic:W000:4"
+            ],
+            "seq": 6,
+            "summary": "returned 9 reviews",
+            "tool": "get_reviews",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:0"
+            ],
+            "seq": 7,
+            "summary": "grounded 1 claims",
+            "tool": "summarize_review_evidence",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "060dfb6af6a3a2d8de52fb2f82ae14d0",
+              "MOCK-ORDER-1"
+            ],
+            "seq": 8,
+            "summary": "pending order created",
+            "tool": "propose_purchase",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": true,
+            "seq": 9,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 10,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 11,
+            "type": "comparison"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "claim": "Reviewer reports it works great.",
+            "concern": "durability",
+            "date": "2023-01-01",
+            "excerpt": "it works great",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "rating": 5,
+            "review_id": "synthetic:W000:0",
+            "seq": 12,
+            "source_review_id": null,
+            "type": "review_citation"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "budget_cap": "30",
+            "budget_checked_on": "item_price_total",
+            "currency": "USD",
+            "discounts": "0",
+            "expires_at": "2026-11-01T12:15:00Z",
+            "fresh": true,
+            "product_id": "W000",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "quoted_at": "2026-11-01T12:00:00Z",
+            "seq": 13,
+            "shipping": null,
+            "subtotal": "10",
+            "tax": null,
+            "total": "10",
+            "type": "quote",
+            "unknown_components": [
+              "shipping",
+              "tax"
+            ],
+            "variant": "default",
+            "within_budget": true
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "currency": "USD",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "requires_explicit_confirmation": true,
+            "seq": 14,
+            "summary": "Buy alpha widgets pro alpha model for 10 USD? Shipping and tax are unknown, so this is the item price only (shipping, tax not included). Nothing is charged until you confirm.",
+            "total": "10",
+            "type": "confirmation_request"
+          },
+          {
+            "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
+            "at": "2026-11-01T12:00:00Z",
+            "mode": "mock",
+            "seq": 15,
+            "status": "PAYER_ACTION_REQUIRED",
+            "type": "paypal_approval"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 16,
+        "run_id": "run-00000001",
+        "status": "awaiting_confirmation",
+        "tokens": 0
+      }
+    },
+    "agent_run_receipt": {
+      "body_sent": {
+        "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+        "user_confirmed": true
+      },
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "POST /agent/runs/run-00000001/confirm",
+      "response": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "budget_source": "model_parse",
+            "category": "widgets",
+            "currency": "USD",
+            "max_total": "30",
+            "seq": 0,
+            "type": "intent_parsed"
+          },
+          {
+            "assumptions": [
+              "cap is all-in"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "seq": 1,
+            "type": "assumptions",
+            "unknown_constraints": [
+              "stock",
+              "size",
+              "shipping",
+              "tax"
+            ]
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001",
+              "W002",
+              "W003",
+              "W004",
+              "W005",
+              "W006",
+              "W007"
+            ],
+            "seq": 2,
+            "summary": "returned 8 catalog products",
+            "tool": "search_catalog",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 3,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W001"
+            ],
+            "seq": 4,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001"
+            ],
+            "seq": 5,
+            "summary": "compared 2 products",
+            "tool": "compare",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:x",
+              "synthetic:W000:3",
+              "synthetic:W000:7",
+              "synthetic:W000:2",
+              "synthetic:W000:6",
+              "synthetic:W000:1",
+              "synthetic:W000:5",
+              "synthetic:W000:0",
+              "synthetic:W000:4"
+            ],
+            "seq": 6,
+            "summary": "returned 9 reviews",
+            "tool": "get_reviews",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:0"
+            ],
+            "seq": 7,
+            "summary": "grounded 1 claims",
+            "tool": "summarize_review_evidence",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "060dfb6af6a3a2d8de52fb2f82ae14d0",
+              "MOCK-ORDER-1"
+            ],
+            "seq": 8,
+            "summary": "pending order created",
+            "tool": "propose_purchase",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": true,
+            "seq": 9,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 10,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 11,
+            "type": "comparison"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "claim": "Reviewer reports it works great.",
+            "concern": "durability",
+            "date": "2023-01-01",
+            "excerpt": "it works great",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "rating": 5,
+            "review_id": "synthetic:W000:0",
+            "seq": 12,
+            "source_review_id": null,
+            "type": "review_citation"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "budget_cap": "30",
+            "budget_checked_on": "item_price_total",
+            "currency": "USD",
+            "discounts": "0",
+            "expires_at": "2026-11-01T12:15:00Z",
+            "fresh": true,
+            "product_id": "W000",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "quoted_at": "2026-11-01T12:00:00Z",
+            "seq": 13,
+            "shipping": null,
+            "subtotal": "10",
+            "tax": null,
+            "total": "10",
+            "type": "quote",
+            "unknown_components": [
+              "shipping",
+              "tax"
+            ],
+            "variant": "default",
+            "within_budget": true
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "currency": "USD",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "requires_explicit_confirmation": true,
+            "seq": 14,
+            "summary": "Buy alpha widgets pro alpha model for 10 USD? Shipping and tax are unknown, so this is the item price only (shipping, tax not included). Nothing is charged until you confirm.",
+            "total": "10",
+            "type": "confirmation_request"
+          },
+          {
+            "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
+            "at": "2026-11-01T12:00:00Z",
+            "mode": "mock",
+            "seq": 15,
+            "status": "PAYER_ACTION_REQUIRED",
+            "type": "paypal_approval"
+          },
+          {
+            "action": "none",
+            "at": "2026-11-01T12:00:00Z",
+            "code": "confirmation_required",
+            "message": "Explicit confirmation is required before any payment.",
+            "retryable": false,
+            "seq": 16,
+            "type": "error"
+          },
+          {
+            "action": "none",
+            "at": "2026-11-01T12:00:00Z",
+            "code": "payment_not_approved",
+            "message": "Approve the payment in PayPal first, then confirm again.",
+            "retryable": false,
+            "seq": 17,
+            "type": "error"
+          },
+          {
+            "amount": "10",
+            "at": "2026-11-01T12:00:00Z",
+            "capture_id": "MOCK-CAP-MOCK-ORDER-1",
+            "currency": "USD",
+            "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "seq": 18,
+            "status": "COMPLETED",
+            "type": "receipt"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 19,
+        "run_id": "run-00000001",
+        "status": "completed",
+        "tokens": 0
+      },
+      "status": 200,
+      "body": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "budget_source": "model_parse",
+            "category": "widgets",
+            "currency": "USD",
+            "max_total": "30",
+            "seq": 0,
+            "type": "intent_parsed"
+          },
+          {
+            "assumptions": [
+              "cap is all-in"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "seq": 1,
+            "type": "assumptions",
+            "unknown_constraints": [
+              "stock",
+              "size",
+              "shipping",
+              "tax"
+            ]
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001",
+              "W002",
+              "W003",
+              "W004",
+              "W005",
+              "W006",
+              "W007"
+            ],
+            "seq": 2,
+            "summary": "returned 8 catalog products",
+            "tool": "search_catalog",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 3,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W001"
+            ],
+            "seq": 4,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001"
+            ],
+            "seq": 5,
+            "summary": "compared 2 products",
+            "tool": "compare",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:x",
+              "synthetic:W000:3",
+              "synthetic:W000:7",
+              "synthetic:W000:2",
+              "synthetic:W000:6",
+              "synthetic:W000:1",
+              "synthetic:W000:5",
+              "synthetic:W000:0",
+              "synthetic:W000:4"
+            ],
+            "seq": 6,
+            "summary": "returned 9 reviews",
+            "tool": "get_reviews",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:0"
+            ],
+            "seq": 7,
+            "summary": "grounded 1 claims",
+            "tool": "summarize_review_evidence",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "060dfb6af6a3a2d8de52fb2f82ae14d0",
+              "MOCK-ORDER-1"
+            ],
+            "seq": 8,
+            "summary": "pending order created",
+            "tool": "propose_purchase",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": true,
+            "seq": 9,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 10,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 11,
+            "type": "comparison"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "claim": "Reviewer reports it works great.",
+            "concern": "durability",
+            "date": "2023-01-01",
+            "excerpt": "it works great",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "rating": 5,
+            "review_id": "synthetic:W000:0",
+            "seq": 12,
+            "source_review_id": null,
+            "type": "review_citation"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "budget_cap": "30",
+            "budget_checked_on": "item_price_total",
+            "currency": "USD",
+            "discounts": "0",
+            "expires_at": "2026-11-01T12:15:00Z",
+            "fresh": true,
+            "product_id": "W000",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "quoted_at": "2026-11-01T12:00:00Z",
+            "seq": 13,
+            "shipping": null,
+            "subtotal": "10",
+            "tax": null,
+            "total": "10",
+            "type": "quote",
+            "unknown_components": [
+              "shipping",
+              "tax"
+            ],
+            "variant": "default",
+            "within_budget": true
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "currency": "USD",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "requires_explicit_confirmation": true,
+            "seq": 14,
+            "summary": "Buy alpha widgets pro alpha model for 10 USD? Shipping and tax are unknown, so this is the item price only (shipping, tax not included). Nothing is charged until you confirm.",
+            "total": "10",
+            "type": "confirmation_request"
+          },
+          {
+            "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
+            "at": "2026-11-01T12:00:00Z",
+            "mode": "mock",
+            "seq": 15,
+            "status": "PAYER_ACTION_REQUIRED",
+            "type": "paypal_approval"
+          },
+          {
+            "action": "none",
+            "at": "2026-11-01T12:00:00Z",
+            "code": "confirmation_required",
+            "message": "Explicit confirmation is required before any payment.",
+            "retryable": false,
+            "seq": 16,
+            "type": "error"
+          },
+          {
+            "action": "none",
+            "at": "2026-11-01T12:00:00Z",
+            "code": "payment_not_approved",
+            "message": "Approve the payment in PayPal first, then confirm again.",
+            "retryable": false,
+            "seq": 17,
+            "type": "error"
+          },
+          {
+            "amount": "10",
+            "at": "2026-11-01T12:00:00Z",
+            "capture_id": "MOCK-CAP-MOCK-ORDER-1",
+            "currency": "USD",
+            "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "seq": 18,
+            "status": "COMPLETED",
+            "type": "receipt"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 19,
+        "run_id": "run-00000001",
+        "status": "completed",
+        "tokens": 0
+      }
+    },
+    "agent_run_started": {
+      "body_sent": {
+        "message": "need a widget under $30 all in",
+        "request_id": "run-00000001"
+      },
+      "note": "synthetic catalog + scripted model double + mock payments: shape sample only",
+      "request": "POST /agent/runs",
+      "response": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "budget_source": "model_parse",
+            "category": "widgets",
+            "currency": "USD",
+            "max_total": "30",
+            "seq": 0,
+            "type": "intent_parsed"
+          },
+          {
+            "assumptions": [
+              "cap is all-in"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "seq": 1,
+            "type": "assumptions",
+            "unknown_constraints": [
+              "stock",
+              "size",
+              "shipping",
+              "tax"
+            ]
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001",
+              "W002",
+              "W003",
+              "W004",
+              "W005",
+              "W006",
+              "W007"
+            ],
+            "seq": 2,
+            "summary": "returned 8 catalog products",
+            "tool": "search_catalog",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 3,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W001"
+            ],
+            "seq": 4,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001"
+            ],
+            "seq": 5,
+            "summary": "compared 2 products",
+            "tool": "compare",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:x",
+              "synthetic:W000:3",
+              "synthetic:W000:7",
+              "synthetic:W000:2",
+              "synthetic:W000:6",
+              "synthetic:W000:1",
+              "synthetic:W000:5",
+              "synthetic:W000:0",
+              "synthetic:W000:4"
+            ],
+            "seq": 6,
+            "summary": "returned 9 reviews",
+            "tool": "get_reviews",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:0"
+            ],
+            "seq": 7,
+            "summary": "grounded 1 claims",
+            "tool": "summarize_review_evidence",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "060dfb6af6a3a2d8de52fb2f82ae14d0",
+              "MOCK-ORDER-1"
+            ],
+            "seq": 8,
+            "summary": "pending order created",
+            "tool": "propose_purchase",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": true,
+            "seq": 9,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 10,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 11,
+            "type": "comparison"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "claim": "Reviewer reports it works great.",
+            "concern": "durability",
+            "date": "2023-01-01",
+            "excerpt": "it works great",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "rating": 5,
+            "review_id": "synthetic:W000:0",
+            "seq": 12,
+            "source_review_id": null,
+            "type": "review_citation"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "budget_cap": "30",
+            "budget_checked_on": "item_price_total",
+            "currency": "USD",
+            "discounts": "0",
+            "expires_at": "2026-11-01T12:15:00Z",
+            "fresh": true,
+            "product_id": "W000",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "quoted_at": "2026-11-01T12:00:00Z",
+            "seq": 13,
+            "shipping": null,
+            "subtotal": "10",
+            "tax": null,
+            "total": "10",
+            "type": "quote",
+            "unknown_components": [
+              "shipping",
+              "tax"
+            ],
+            "variant": "default",
+            "within_budget": true
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "currency": "USD",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "requires_explicit_confirmation": true,
+            "seq": 14,
+            "summary": "Buy alpha widgets pro alpha model for 10 USD? Shipping and tax are unknown, so this is the item price only (shipping, tax not included). Nothing is charged until you confirm.",
+            "total": "10",
+            "type": "confirmation_request"
+          },
+          {
+            "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
+            "at": "2026-11-01T12:00:00Z",
+            "mode": "mock",
+            "seq": 15,
+            "status": "PAYER_ACTION_REQUIRED",
+            "type": "paypal_approval"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 16,
+        "run_id": "run-00000001",
+        "status": "awaiting_confirmation",
+        "tokens": 0
+      },
+      "status": 200,
+      "body": {
+        "cost_known": true,
+        "cost_usd": "0",
+        "events": [
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "budget_source": "model_parse",
+            "category": "widgets",
+            "currency": "USD",
+            "max_total": "30",
+            "seq": 0,
+            "type": "intent_parsed"
+          },
+          {
+            "assumptions": [
+              "cap is all-in"
+            ],
+            "at": "2026-11-01T12:00:00Z",
+            "seq": 1,
+            "type": "assumptions",
+            "unknown_constraints": [
+              "stock",
+              "size",
+              "shipping",
+              "tax"
+            ]
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001",
+              "W002",
+              "W003",
+              "W004",
+              "W005",
+              "W006",
+              "W007"
+            ],
+            "seq": 2,
+            "summary": "returned 8 catalog products",
+            "tool": "search_catalog",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000"
+            ],
+            "seq": 3,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W001"
+            ],
+            "seq": 4,
+            "summary": "product detail found",
+            "tool": "get_product",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "W000",
+              "W001"
+            ],
+            "seq": 5,
+            "summary": "compared 2 products",
+            "tool": "compare",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:x",
+              "synthetic:W000:3",
+              "synthetic:W000:7",
+              "synthetic:W000:2",
+              "synthetic:W000:6",
+              "synthetic:W000:1",
+              "synthetic:W000:5",
+              "synthetic:W000:0",
+              "synthetic:W000:4"
+            ],
+            "seq": 6,
+            "summary": "returned 9 reviews",
+            "tool": "get_reviews",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "synthetic:W000:0"
+            ],
+            "seq": 7,
+            "summary": "grounded 1 claims",
+            "tool": "summarize_review_evidence",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "references": [
+              "060dfb6af6a3a2d8de52fb2f82ae14d0",
+              "MOCK-ORDER-1"
+            ],
+            "seq": 8,
+            "summary": "pending order created",
+            "tool": "propose_purchase",
+            "type": "research"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "10",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "recommended": true,
+            "seq": 9,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "alpha widgets pro alpha model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "brand": null,
+            "category": "widgets",
+            "currency": "USD",
+            "price": "17",
+            "product_id": "W001",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W001"
+            },
+            "recommended": false,
+            "seq": 10,
+            "size_options": null,
+            "stock": {
+              "status": "unknown",
+              "units_by_variant": {}
+            },
+            "title": "bravo widgets pro bravo model",
+            "type": "product_card"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "product_ids": [
+              "W000",
+              "W001"
+            ],
+            "rows": {
+              "brand": {
+                "W000": null,
+                "W001": null
+              },
+              "price": {
+                "W000": "10 USD",
+                "W001": "17 USD"
+              },
+              "source": {
+                "W000": "synthetic-test-fixture",
+                "W001": "synthetic-test-fixture"
+              },
+              "stock": {
+                "W000": "unknown",
+                "W001": "unknown"
+              }
+            },
+            "seq": 11,
+            "type": "comparison"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "claim": "Reviewer reports it works great.",
+            "concern": "durability",
+            "date": "2023-01-01",
+            "excerpt": "it works great",
+            "product_id": "W000",
+            "provenance": {
+              "as_of": "2023-09-30T00:00:00Z",
+              "catalog_manifest_hash": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+              "snapshot": true,
+              "source": "synthetic-test-fixture",
+              "source_id": "W000"
+            },
+            "rating": 5,
+            "review_id": "synthetic:W000:0",
+            "seq": 12,
+            "source_review_id": null,
+            "type": "review_citation"
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "budget_cap": "30",
+            "budget_checked_on": "item_price_total",
+            "currency": "USD",
+            "discounts": "0",
+            "expires_at": "2026-11-01T12:15:00Z",
+            "fresh": true,
+            "product_id": "W000",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "quoted_at": "2026-11-01T12:00:00Z",
+            "seq": 13,
+            "shipping": null,
+            "subtotal": "10",
+            "tax": null,
+            "total": "10",
+            "type": "quote",
+            "unknown_components": [
+              "shipping",
+              "tax"
+            ],
+            "variant": "default",
+            "within_budget": true
+          },
+          {
+            "at": "2026-11-01T12:00:00Z",
+            "basis": "item_price_only",
+            "currency": "USD",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
+            "quote_id": "q-865d693a7a5c56666311a122",
+            "requires_explicit_confirmation": true,
+            "seq": 14,
+            "summary": "Buy alpha widgets pro alpha model for 10 USD? Shipping and tax are unknown, so this is the item price only (shipping, tax not included). Nothing is charged until you confirm.",
+            "total": "10",
+            "type": "confirmation_request"
+          },
+          {
+            "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
+            "at": "2026-11-01T12:00:00Z",
+            "mode": "mock",
+            "seq": 15,
+            "status": "PAYER_ACTION_REQUIRED",
+            "type": "paypal_approval"
+          }
+        ],
+        "latency_ms": 0,
+        "model": "scripted@script-",
+        "next_seq": 16,
+        "run_id": "run-00000001",
+        "status": "awaiting_confirmation",
+        "tokens": 0
+      }
+    },
     "health": {
       "body": {
         "status": "ok"

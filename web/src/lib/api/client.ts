@@ -3,6 +3,7 @@ import { getSample } from "./samples";
 import {
   agentRunResultSchema,
   apiErrorSchema,
+  buyerRunSchema,
   configSchema,
   confirmResultSchema,
   documentSchema,
@@ -64,10 +65,19 @@ export class CrucibleApi {
 
   private async request(path: string, init?: RequestInit): Promise<unknown> {
     if (this.mode === "sample") {
+      const plainPath = path.split("?")[0] ?? path;
+      if (init?.method === "POST" && plainPath === "/agent/runs") {
+        return getSample("agent_run_started").body;
+      }
+      if (init?.method === "POST" && /^\/agent\/runs\/[^/]+\/confirm$/.test(plainPath)) {
+        return getSample("agent_run_receipt").body;
+      }
+      if ((!init?.method || init.method === "GET") && /^\/agent\/runs\/[^/]+$/.test(plainPath)) {
+        return getSample("agent_run_poll").body;
+      }
       if (init?.method && init.method !== "GET") {
         throw new ApiError("sample_read_only", "Sample data is read-only.", 405);
       }
-      const plainPath = path.split("?")[0] ?? path;
       if (plainPath.startsWith("/world/generations/") && plainPath !== "/world/generations") {
         return getSample("world_generation_detail").body;
       }
@@ -76,7 +86,11 @@ export class CrucibleApi {
       }
       const fixture = sampleByPath[plainPath as SamplePath];
       if (!fixture) {
-        throw new ApiError("sample_unavailable", `No sanitized sample exists for ${plainPath}.`, 404);
+        throw new ApiError(
+          "sample_unavailable",
+          `No sanitized sample exists for ${plainPath}.`,
+          404,
+        );
       }
       return getSample(fixture).body;
     }
@@ -106,7 +120,9 @@ export class CrucibleApi {
       await this.request(withQuery("/world/generations", { offset, limit })),
     );
   generation = async (id: string) =>
-    generationDetailSchema.parse(await this.request(`/world/generations/${encodeURIComponent(id)}`));
+    generationDetailSchema.parse(
+      await this.request(`/world/generations/${encodeURIComponent(id)}`),
+    );
   episodes = async (query: EpisodeQuery = {}) =>
     pageSchema(episodeSchema).parse(await this.request(withQuery("/world/episodes", query)));
   episode = async (id: string) =>
@@ -128,13 +144,33 @@ export class CrucibleApi {
     pageSchema(documentSchema).parse(await this.request("/models/checkpoints"));
   ledger = async (generationId?: string) =>
     pageSchema(ledgerRowSchema).parse(
-      await this.request(withQuery("/payments/ledger", { generation_id: generationId, limit: 200 })),
+      await this.request(
+        withQuery("/payments/ledger", { generation_id: generationId, limit: 200 }),
+      ),
     );
   runAgent = async (message: string, mode: "trained" | "base" | "scripted" = "trained") =>
     agentRunResultSchema.parse(
       await this.request("/agent/run", {
         method: "POST",
         body: JSON.stringify({ message, mode }),
+      }),
+    );
+  startBuyerRun = async (message: string, budget?: string, requestId?: string) =>
+    buyerRunSchema.parse(
+      await this.request("/agent/runs", {
+        method: "POST",
+        body: JSON.stringify({ message, budget, request_id: requestId }),
+      }),
+    );
+  pollBuyerRun = async (runId: string, after = -1) =>
+    buyerRunSchema.parse(
+      await this.request(withQuery(`/agent/runs/${encodeURIComponent(runId)}`, { after })),
+    );
+  confirmBuyerRun = async (runId: string, pendingOrderId: string, userConfirmed: boolean) =>
+    buyerRunSchema.parse(
+      await this.request(`/agent/runs/${encodeURIComponent(runId)}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({ pending_order_id: pendingOrderId, user_confirmed: userConfirmed }),
       }),
     );
   propose = async (input: {

@@ -10,6 +10,10 @@ export default defineConfig({
     globals: true,
     exclude: ["tests/e2e/**", "node_modules/**", ".next/**"],
     setupFiles: ["./src/test/setup.ts"],
+    env: {
+      NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8000",
+      NEXT_PUBLIC_DATA_MODE: "sample",
+    },
     css: true,
     coverage: { reporter: ["text", "json-summary"] },
   },

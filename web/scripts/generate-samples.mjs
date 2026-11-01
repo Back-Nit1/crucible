@@ -7,6 +7,14 @@ const webRoot = path.resolve(here, "..");
 const sourceRoot = path.resolve(webRoot, "../docs/api/samples");
 const output = path.resolve(webRoot, "src/generated/samples.json");
 const files = [
+  "agent_confirm_not_approved.json",
+  "agent_confirm_refused_no_confirmation.json",
+  "agent_confirm_stale_quote.json",
+  "agent_model_unavailable.json",
+  "agent_run_no_match.json",
+  "agent_run_poll.json",
+  "agent_run_receipt.json",
+  "agent_run_started.json",
   "health.json",
   "models_checkpoints.json",
   "models_evaluations.json",
@@ -24,10 +32,11 @@ const files = [
 const fixtures = {};
 for (const file of files) {
   const payload = JSON.parse(await readFile(path.join(sourceRoot, file), "utf8"));
-  if (!("body" in payload) || !("request" in payload) || !("status" in payload)) {
+  const body = payload.body ?? payload.response;
+  if (body === undefined || !("request" in payload) || !("status" in payload)) {
     throw new Error(`${file} is not an API sample envelope`);
   }
-  fixtures[file.replace(/\.json$/, "")] = payload;
+  fixtures[file.replace(/\.json$/, "")] = { ...payload, body };
 }
 
 await mkdir(path.dirname(output), { recursive: true });

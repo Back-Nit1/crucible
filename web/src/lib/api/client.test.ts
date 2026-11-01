@@ -10,12 +10,11 @@ describe("CrucibleApi", () => {
     expect(result.items[0]?.runner).toBe("local");
   });
 
-  it("keeps sample mode read-only", async () => {
+  it("replays the sanitized buyer contract without issuing a request", async () => {
     const api = new CrucibleApi("http://unused.test", "sample");
-    await expect(api.runAgent("find a headset")).rejects.toMatchObject({
-      code: "sample_read_only",
-      status: 405,
-    });
+    const run = await api.startBuyerRun("find a headset");
+    expect(run.status).toBe("awaiting_confirmation");
+    expect(run.events.some((event) => event.type === "quote")).toBe(true);
   });
 
   it("preserves structured live API errors", async () => {
@@ -27,7 +26,7 @@ describe("CrucibleApi", () => {
     );
     const api = new CrucibleApi("https://api.example.test", "live", fetcher);
 
-    await expect(api.runAgent("find a headset")).rejects.toEqual(
+    await expect(api.startBuyerRun("find a headset")).rejects.toEqual(
       new ApiError("model_unavailable", "not configured", 503),
     );
     expect(fetcher).toHaveBeenCalledOnce();

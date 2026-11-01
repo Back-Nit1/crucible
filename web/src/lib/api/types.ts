@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import type {
   agentRunResultSchema,
+  buyerEventSchema,
+  buyerRunSchema,
   configSchema,
   confirmResultSchema,
   documentSchema,
@@ -37,6 +39,9 @@ export type AgentRunResult = z.infer<typeof agentRunResultSchema>;
 export type ProductPick = z.infer<typeof pickSchema>;
 export type ProposeResult = z.infer<typeof proposeResultSchema>;
 export type ConfirmResult = z.infer<typeof confirmResultSchema>;
+export type BuyerEvent = z.infer<typeof buyerEventSchema>;
+export type BuyerRun = z.infer<typeof buyerRunSchema>;
+export type BuyerEventOf<T extends BuyerEvent["type"]> = Extract<BuyerEvent, { type: T }>;
 
 export type EpisodeQuery = {
   generation_id?: string;

@@ -10,9 +10,11 @@ function display(value: unknown) {
 export function IntentPanel({
   intent,
   assumptions,
+  unknownConstraints = [],
 }: {
   intent: Record<string, unknown>;
   assumptions: string[];
+  unknownConstraints?: string[];
 }) {
   const fields = Object.entries(intent);
   return (
@@ -55,8 +57,9 @@ export function IntentPanel({
           <AlertTriangle className="size-3.5" aria-hidden="true" /> Unknown remains unknown
         </p>
         <p className="mt-1">
-          Stock, size, shipping, and tax are not inferred from missing fields. They must be explicitly
-          verified before purchase.
+          {unknownConstraints.length
+            ? `The API could not establish: ${unknownConstraints.join(", ")}.`
+            : "Missing fields are never inferred; unknown facts must be verified before purchase."}
         </p>
       </div>
     </div>
