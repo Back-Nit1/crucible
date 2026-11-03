@@ -27,3 +27,4 @@ secrets/
 *.pem
 /runs/
 docs/runs/*/sft.jsonl
+docs/model-runs/*/dataset.jsonl
