@@ -16,7 +16,9 @@ from pydantic import BaseModel, Field
 from catalog.router import ProductResult, ProviderRouter, ProviderUnavailable, ReviewsResult, SearchResult
 from api.buyer import AgentRunFailed, BuyerService, ModelNotConfigured, buyer_router, to_agent_run_result
 from api.world import ModelUnavailable, WorldDataUnavailable, world_router
-from payments.errors import PaymentError
+from payments.errors import PaymentError, PaymentUnavailable
+from payments.ledger import PaymentLedger
+from payments.sandbox import SandboxPayments
 from payments.guards import (BudgetViolation, GuardedPayments, GuardViolation, NotConfirmed, OutOfStock,
                              PriceMismatch, QuoteChanged, QuoteIncomplete, QuoteStale)
 from payments.mock import MockPayments
@@ -131,7 +133,7 @@ def default_reader():
     return ElasticReader(Elastic(url))
 
 
-def default_buyer(router: ProviderRouter, backend) -> BuyerService:
+def default_buyer(router: ProviderRouter, backend, ledger=None) -> BuyerService:
     """Buyer service over the frozen Elastic snapshot. The model is attached only if Modal launch is authorized;
     otherwise the service answers every run with the typed `model_unavailable` error (no silent fallback)."""
     from agents.buyer import BuyerAgent
@@ -140,7 +142,7 @@ def default_buyer(router: ProviderRouter, backend) -> BuyerService:
     catalog = router.providers.get("elastic_snapshot")
     if catalog is None:
         raise ProviderUnavailable("elastic_snapshot")
-    payments = GuardedPayments(backend, catalog, require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1")
+    payments = GuardedPayments(backend, catalog, require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1", ledger=ledger)
     try:
         agent = BuyerAgent(QwenModelAdapter(ModalQwenClient.from_environment(), max_retries=1), catalog, payments)
     except InferenceError:
@@ -170,14 +172,16 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
     def get_payments() -> GuardedPayments:
         if "payments" not in state:
             state["backend"] = backend or default_backend()
+            state["ledger"] = PaymentLedger("sandbox") if isinstance(state["backend"], SandboxPayments) else None
             state["payments"] = GuardedPayments(state["backend"], _RouterCatalog(get_router()),
-                                                require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1")
+                                                require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1",
+                                                ledger=state["ledger"])
         return state["payments"]
 
     def get_buyer() -> BuyerService:
         if "buyer" not in state:
             get_payments()  # fixes the shared backend
-            state["buyer"] = buyer or (default_buyer(get_router(), state["backend"]) if _launch_authorized()
+            state["buyer"] = buyer or (default_buyer(get_router(), state["backend"], state["ledger"]) if _launch_authorized()
                                        else BuyerService(None, None, None, None))  # typed model_unavailable, no provider touched
         return state["buyer"]
 
@@ -212,6 +216,10 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
                 NotConfirmed: "confirmation_required", QuoteStale: "quote_stale", QuoteChanged: "quote_changed",
                 QuoteIncomplete: "quote_incomplete"}.get(type(e), "guard_violation")
         return _err(409 if code != "confirmation_required" else 428, code, str(e))
+
+    @app.exception_handler(PaymentUnavailable)
+    async def _payment_unavailable(_: Request, e: PaymentUnavailable):
+        return _err(503, "payment_unavailable", "PayPal is temporarily unavailable; retry the same request")
 
     @app.exception_handler(PaymentError)
     async def _payment(_: Request, e: PaymentError):
@@ -309,7 +317,7 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
         def __getattr__(self, name):
             return getattr(get_buyer(), name)
 
-    app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer)))
+    app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer), ledger=lambda: (get_payments(), state["ledger"])[1]))
     app.include_router(buyer_router(_Lazy()))
     return app
 

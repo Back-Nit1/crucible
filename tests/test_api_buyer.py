@@ -340,7 +340,7 @@ def test_timeout_on_capture_is_typed_recoverable_and_does_not_double_charge():
     fake.approve("ORD1")
     fake.faults = [httpx.ReadTimeout("secret-host")] * 3
     r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
-    assert r.status_code == 402 and "secret-host" not in r.text
+    assert r.status_code == 503 and r.json()["error"]["code"] == "payment_unavailable" and "secret-host" not in r.text
     run = c.get("/agent/runs/run-00000001").json()
     last = next(e for e in reversed(run["events"]) if e["type"] == "error")
     assert run["status"] == "awaiting_confirmation" and (last["code"], last["action"], last["retryable"]) == ("payment_unavailable", "retry", True)
