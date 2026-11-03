@@ -116,8 +116,8 @@ def default_router() -> ProviderRouter:
 
 def default_backend():
     if os.environ.get("PAYMENTS_BACKEND") == "sandbox":
-        from payments.sandbox import SandboxPayments
-        return SandboxPayments()
+        env = {k: v for k, v in (("return_url", os.environ.get("PAYPAL_RETURN_URL")), ("cancel_url", os.environ.get("PAYPAL_CANCEL_URL"))) if v}
+        return SandboxPayments(**env)  # unset = example.com placeholders; set both to the web app so approval lands back in Crucible
     return MockPayments(auto_approve=False)
 
 

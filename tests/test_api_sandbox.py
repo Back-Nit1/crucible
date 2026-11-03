@@ -106,3 +106,16 @@ def test_cors_is_off_by_default_and_allows_only_listed_origins(monkeypatch):
     assert c.get("/health", headers={"Origin": web}).headers["access-control-allow-origin"] == web
     assert "access-control-allow-origin" not in c.get("/health", headers={"Origin": "https://evil.test"}).headers
     assert "access-control-allow-credentials" not in r.headers
+
+
+def test_default_backend_uses_paypal_return_and_cancel_urls_from_env(monkeypatch):
+    from api.main import default_backend
+    monkeypatch.setenv("PAYMENTS_BACKEND", "sandbox")
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "s")
+    monkeypatch.setenv("PAYPAL_ENV", "sandbox")
+    assert default_backend().return_url == "https://example.com/return"
+    monkeypatch.setenv("PAYPAL_RETURN_URL", "https://web.test/payments")
+    monkeypatch.setenv("PAYPAL_CANCEL_URL", "https://web.test/")
+    b = default_backend()
+    assert b.return_url == "https://web.test/payments" and b._urls[1] == "https://web.test/"
