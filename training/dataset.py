@@ -30,8 +30,8 @@ DEFAULT_PROMPT_VARIANT = "grounded-shopper-v1"
 _PII = (
     re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"),                         # email
     re.compile(r"(?<!\d)(?:\+?\d{1,3}[\s.-])?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}(?!\d)"),  # phone
-    re.compile(r"(?<!\d)\d{13,19}(?!\d)"),                           # card-number-like digit run
 )
+_CARD = re.compile(r"(?<![A-Za-z0-9_:-])\d{13,19}(?![A-Za-z0-9_:-])")
 
 
 class DatasetError(ValueError):
@@ -95,6 +95,11 @@ def render_example(record: SFTRecord) -> list[dict[str, object]]:
 def _assert_no_pii(text: str) -> None:
     for pattern in _PII:
         if pattern.search(text):
+            raise DatasetError("pii_detected", "a PII-shaped value is present in the training data")
+    for match in _CARD.finditer(text):
+        digits = [int(char) for char in match.group()]
+        checksum = sum(digits[-1::-2]) + sum(sum(divmod(2 * digit, 10)) for digit in digits[-2::-2])
+        if checksum % 10 == 0:  # catalog/review ids may be long digit runs; real payment cards pass Luhn
             raise DatasetError("pii_detected", "a PII-shaped value is present in the training data")
 
 

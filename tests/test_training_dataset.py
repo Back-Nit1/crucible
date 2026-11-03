@@ -112,3 +112,10 @@ def test_budget_numbers_and_sizes_are_not_mistaken_for_pii():
     ok = (records[0].model_copy(update={"messages": ({"role": "user", "content": "10,000-yard race, size 12, under $100, 190 lbs"},
                                                       *records[0].messages[1:])}),)
     assert build_dataset(ok, rebuilt(ok, manifest)).record_count == 1
+
+
+def test_non_card_numeric_catalog_ids_are_not_mistaken_for_pii():
+    records, manifest = curated()
+    ok = (records[0].model_copy(update={"messages": ({"role": "user", "content": "catalog id amazon2023:1234567890123"},
+                                                      *records[0].messages[1:])}),)
+    assert build_dataset(ok, rebuilt(ok, manifest)).record_count == 1
