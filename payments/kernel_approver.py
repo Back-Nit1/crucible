@@ -30,15 +30,26 @@ const blocked = async (stage) => {
 await page.goto(%(url)s, {waitUntil: 'domcontentloaded'});
 let b = await blocked('landing'); if (b) return b;
 await page.fill('#email', %(email)s);
-if (await page.locator('#password').isVisible()) {} else { await page.click('#btnNext'); await page.waitForSelector('#password', {state: 'visible', timeout: 20000}); }
+// Buttons have no ids on the live page: find them by role. The first Next click can land before hydration, so retry once.
+const next = page.getByRole('button', {name: /^Next$/i});
+if (!(await page.locator('#password').isVisible())) {
+  if (await next.isVisible().catch(() => false)) await next.click();
+  if (!(await page.waitForSelector('#password', {state: 'visible', timeout: 8000}).catch(() => null))) {
+    if (await next.isVisible().catch(() => false)) await next.click();
+    await page.waitForSelector('#password', {state: 'visible', timeout: 15000});
+  }
+}
 await page.fill('#password', %(password)s);
-await page.click('#btnLogin');
+await page.getByRole('button', {name: /^Log ?In$/i}).click();
 await page.waitForTimeout(4000);
 b = await blocked('after_login'); if (b) return b;
 const done = /Complete Purchase|Pay Now|Continue|Agree/i;
 // The button below approves the order as the buyer (PAY_NOW). Capture is never done here: the server captures via Orders v2.
-const btn = page.getByRole('button', {name: done}).first();
-await btn.waitFor({state: 'visible', timeout: 30000});
+const btn = page.locator('#one-time-cta').or(page.getByRole('button', {name: done})).first();
+await btn.waitFor({state: 'visible', timeout: 30000}).catch(async () => {
+  const t = ((await page.innerText('body').catch(() => '')) || '').replace(/\\s+/g, ' ').slice(0, 300);
+  throw new Error('pay button not found at ' + new URL(page.url()).pathname + ': ' + t);
+});
 await btn.click();
 await page.waitForLoadState('domcontentloaded');
 await page.waitForTimeout(3000);

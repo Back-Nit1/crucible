@@ -154,3 +154,25 @@ def test_approval_is_verified_through_the_api_and_must_not_be_a_capture():
         approver(FakeBackend(["PAYER_ACTION_REQUIRED"] * 5), sleep=lambda _: None).approve("O1", timeout=0)
     a = approver(FakeBackend(["PAYER_ACTION_REQUIRED", "APPROVED"]), sleep=lambda _: None)
     assert a.approve("O1") == "APPROVED" and {"browser_create", "browser_flow", "total"} <= set(a.timings)
+
+
+def test_login_flow_uses_role_buttons_next_retry_and_one_time_cta():
+    k = FakeKernel({"blocked": False})
+    approver(kernel=k).approve("O1")
+    assert "#btnNext" not in k.code and "#btnLogin" not in k.code  # ids do not exist on the live page
+    assert "getByRole('button', {name: /^Next$/i})" in k.code and "getByRole('button', {name: /^Log ?In$/i})" in k.code
+    assert k.code.count("await next.click()") == 2  # second click covers a click that landed before hydration
+    assert "timeout: 8000" in k.code and "timeout: 15000" in k.code
+    assert "page.locator('#one-time-cta').or(" in k.code  # old regex kept as fallback
+
+
+def test_pay_button_failure_reports_pathname_and_body_excerpt_scrubbed_of_credentials():
+    k = FakeKernel(error="pay button not found at /pay: logged in as b@x.test pw hunter2")
+    a = approver(kernel=k)
+    a._cred = ("b@x.test", "hunter2")
+    with pytest.raises(ApprovalBlocked) as e:
+        a.approve("O1")
+    assert "pay button not found at /pay" in str(e.value) and "hunter2" not in str(e.value) and "b@x.test" not in str(e.value)
+    k = FakeKernel({"blocked": False})
+    approver(kernel=k).approve("O1")
+    assert "pay button not found at" in k.code and ".slice(0, 300)" in k.code
