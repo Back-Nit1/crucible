@@ -212,7 +212,7 @@ uv run python -m scripts.audit_traces --env-file .env --generation-id rc-real-20
 CRUCIBLE_KERNEL_BUYER_APPROVAL_AUTHORIZED=1 uv run python -m scripts.paypal_live_check --env-file .env --confirm-sandbox-run
 
 # Checks
-uv run pytest -q                                              # 542 passed, 1 skipped at the last full run
+uv run pytest -q                                              # 548 passed, 1 skipped at the last full run
 (cd web && npm run lint && npm run typecheck && npm test)     # 23 vitest tests
 (cd web && npm run test:e2e)                                  # Playwright, sample mode
 npx newman@6.2.1 run postman/crucible.postman_collection.json -e postman/crucible.postman_environment.json \
@@ -233,7 +233,7 @@ uv run python -m scripts.export_diagrams                      # Mermaid to docs/
 
 | Check | Result | Command |
 |---|---|---|
-| Python tests | 542 passed, 1 skipped, 6 deselected (live) | `uv run pytest -q` |
+| Python tests | 548 passed, 1 skipped, 6 deselected (live) | `uv run pytest -q` |
 | Web unit tests | 23 passed | `cd web && npm test` |
 | Web e2e (sample mode) | 6 passed, 2 skipped (viewport-specific) | `cd web && npm run test:e2e` |
 | Postman via newman, no PayPal | 21 requests, 39 assertions, 0 failed | see above |

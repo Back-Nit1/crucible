@@ -29,7 +29,7 @@ Python 3.12 / FastAPI service and a Next.js 16 app; Elastic Serverless for produ
 - A live-mode browser bug (`Illegal invocation` from an unbound `fetch`) only appeared when we took live screenshots; fixed and tested ([`client.test.ts`](../../web/src/lib/api/client.test.ts)).
 
 ## Accomplishments
-A reproducible, resumable generation (interrupted at 40 episodes, resumed to 96, rerun reproduces the summary byte for byte per [`release-convergence.md`](../handoffs/release-convergence.md)); a payment layer that cannot capture without confirmation, a fresh quote and an in-budget total ([tests](../../tests/test_api_sandbox.py)); typed, honest UI states (**Not run**, **Not measured**, **unknown**); 542 Python tests, 23 web unit tests, Playwright e2e, a Postman collection that passes against the real API.
+A reproducible, resumable generation (interrupted at 40 episodes, resumed to 96, rerun reproduces the summary byte for byte per [`release-convergence.md`](../handoffs/release-convergence.md)); a payment layer that cannot capture without confirmation, a fresh quote and an in-budget total ([tests](../../tests/test_api_sandbox.py)); typed, honest UI states (**Not run**, **Not measured**, **unknown**); 548 Python tests, 23 web unit tests, Playwright e2e, a Postman collection that passes against the real API.
 
 ## What we learned
 Honest evaluation needs the denominator next to every number, planted failures to prove guards, and a hard separation between privileged scripted shoppers and any model.
