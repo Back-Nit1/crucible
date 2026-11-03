@@ -21,11 +21,37 @@ from scripts._env import load
 KEYS = {"ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID"}
 
 
+def load_audited_taskset(taskset: Path, manifests: dict[str, str], limit: int):
+    """Load reference-only generation tasks after re-running the protected/reference leakage audit."""
+    from eval.leakage import audit
+    from eval.taskset import load_tasks
+
+    meta = json.loads((taskset / "taskset.json").read_text())
+    protected = load_tasks(taskset / "protected.jsonl", meta["protected_hash"])
+    reference = load_tasks(taskset / "reference.jsonl", meta["reference_hash"])
+    report = audit(
+        protected=protected,
+        reference=reference,
+        category_manifests=manifests,
+        allow_not_run=frozenset({"memory_eligibility", "training_source_leakage"}),
+    )
+    if not report.passed:
+        failed = ", ".join(name for name, check in report.checks.items() if check.status != "pass")
+        raise ValueError(f"task set failed the leakage audit: {failed}")
+    if limit > len(reference):
+        raise ValueError(f"task set has {len(reference)} audited reference tasks, fewer than --tasks {limit}")
+    return reference[:limit], report.content_hash
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--env-file")
     ap.add_argument("--provider", default="elastic_snapshot", choices=["elastic_snapshot", "synthetic"])
     ap.add_argument("--model", default="scripted", choices=["scripted", "qwen"])
+    ap.add_argument("--adapter-manifest", type=Path,
+                    help="sealed artifact_manifest.json; pins every genome and request to that trained adapter")
+    ap.add_argument("--taskset", type=Path,
+                    help="audited task-set directory; generation consumes reference.jsonl, never protected tasks")
     ap.add_argument("--memory", default="genome", choices=["genome", "on", "off"],
                     help="force memory on/off for every genome (identical-pair base vs memory runs)")
     ap.add_argument("--payments", default="mock", choices=["mock"], help="world runs never use PayPal sandbox")
@@ -39,6 +65,10 @@ def main(argv=None) -> int:
     ap.add_argument("--checkpoint-dir", default="checkpoints/generations")
     ap.add_argument("--out-dir", default="runs")
     a = ap.parse_args(argv)
+    if a.adapter_manifest and a.model != "qwen":
+        ap.error("--adapter-manifest requires --model qwen")
+    if a.taskset and a.provider != "elastic_snapshot":
+        ap.error("--taskset requires --provider elastic_snapshot because its tasks pin the frozen catalog manifests")
     if a.env_file:
         load(a.env_file, KEYS)
     gen = a.generation_id or f"gen-{a.seed}-p{a.population}-t{a.tasks}"
@@ -72,21 +102,35 @@ def main(argv=None) -> int:
     traces = ElasticTraceRepository(es) if a.traces == "elastic" else InMemoryTraceRepository()
     if a.traces == "elastic":
         es.update_traces_mapping()  # additive + idempotent
-    tasks = generate_tasks(catalog, manifests, seed=a.seed, count=a.tasks)
+    taskset_audit_hash = None
+    if a.taskset:
+        try:
+            tasks, taskset_audit_hash = load_audited_taskset(a.taskset, manifests, a.tasks)
+        except (KeyError, OSError, ValueError, json.JSONDecodeError) as exc:
+            ap.error(str(exc))
+    else:
+        tasks = generate_tasks(catalog, manifests, seed=a.seed, count=a.tasks)
     qwen = a.model == "qwen"
+    checkpoint = "qwen-base" if qwen else "scripted-v1"
+    checkpoint_catalog = None
+    if qwen:
+        from training.checkpoints import CheckpointCatalog
+        checkpoint_catalog = CheckpointCatalog.from_manifest_files([a.adapter_manifest] if a.adapter_manifest else [])
+        if a.adapter_manifest:
+            checkpoint = checkpoint_catalog.labels()[1]
     genomes = build_population(a.population, a.seed, fixtures=not (a.no_fixtures or qwen),
-                               checkpoint="qwen-base" if qwen else "scripted-v1")
+                               checkpoint=checkpoint)
     if a.memory != "genome":
         genomes = tuple(g.model_copy(update={"memory": g.memory.model_copy(update={"enabled": a.memory == "on"})}) for g in genomes)
     policy = {}
     if qwen:
-        from agents.model import QwenModelAdapter
         from agents.qwen_client import ModalQwenClient
         from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
         from world.runtime import model_policy_factory, model_policy_id
-        adapter = QwenModelAdapter(ModalQwenClient.from_environment(), max_retries=1)  # raises unless GPU launch is authorized
-        policy = {"policy_factory": model_policy_factory(lambda g: adapter, generation_id=gen),
-                  "policy_id": model_policy_id(MODEL_ID, MODEL_REVISION[:7])}
+        adapter_for = checkpoint_catalog.adapter_for(
+            lambda selection: ModalQwenClient.from_environment(adapter=selection), max_retries=1)
+        policy = {"policy_factory": model_policy_factory(adapter_for, generation_id=gen),
+                  "policy_id": model_policy_id(MODEL_ID, checkpoint)}
     store = GenerationStore(FileBlobStore(a.checkpoint_dir))
     res = run_generation(generation_id=gen, seed=a.seed, genomes=genomes, tasks=tasks, manifests=manifests, catalog=catalog,
                          store=store, traces=traces, max_episodes=a.interrupt_after, log=lambda m: print(m, file=sys.stderr), **policy)
@@ -99,7 +143,9 @@ def main(argv=None) -> int:
     summary = report.summarize(result=res, tasks=tasks, episodes=episodes, proposals=proposals, curated=curated, next_pop=next_pop,
                                params={"seed": a.seed, "population": a.population, "tasks": a.tasks, "model": a.model,
                                        "payments": a.payments, "provider": a.provider, "fixtures": not (a.no_fixtures or qwen),
-                                       "memory": a.memory})
+                                       "memory": a.memory, "checkpoint": checkpoint,
+                                       "taskset": str(a.taskset) if a.taskset else None,
+                                       "taskset_audit_hash": taskset_audit_hash})
     out = Path(a.out_dir) / gen
     report.write(summary, out)
     if a.traces == "elastic":
