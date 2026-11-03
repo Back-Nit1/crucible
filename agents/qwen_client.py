@@ -20,7 +20,8 @@ from typing import Protocol
 from pydantic import ValidationError
 
 from agents.model import InferenceError, ModelRequest, QwenInferenceResponse
-from modal_app.qwen_protocol import MAX_NEW_TOKENS_CEILING, QwenRequest, QwenResult
+from modal_app.adapter_artifact import AdapterSelection
+from modal_app.qwen_protocol import MAX_NEW_TOKENS_CEILING, QwenRejection, QwenRequest, QwenResult
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION, estimate_modal_cost
 
 PROBE_CEILING_USD = Decimal("0.861948")  # the previously approved 45-minute L4 ceiling; never raised in code
@@ -67,9 +68,16 @@ def modal_transport(app_name: str = "crucible-qwen-inference", cls_name: str = "
     return _Transport()
 
 
-def _to_qwen_messages(request: ModelRequest) -> list[dict[str, object]]:
+def qwen_tools(tools) -> list[dict[str, object]]:
+    return [{"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}}
+            for t in tools]
+
+
+def to_qwen_messages(messages) -> list[dict[str, object]]:
+    """Runtime Message history -> Qwen chat messages. The trainer renders its data through this same function, so
+    what the adapter is trained on is byte-for-byte the format the inference client sends."""
     out: list[dict[str, object]] = []
-    for m in request.messages:
+    for m in messages:
         if m.role == "tool":
             out.append({"role": "tool", "content": json.dumps(m.tool_result, sort_keys=True, default=str)})
         elif m.tool_name:
@@ -82,10 +90,16 @@ def _to_qwen_messages(request: ModelRequest) -> list[dict[str, object]]:
 
 class ModalQwenClient:
     def __init__(self, transport: Transport, *, cost_ceiling: Decimal, timeout_seconds: float = 120.0,
-                 max_new_tokens: int = 256, checkpoint_label: str = "qwen-base", grace_seconds: float = 5.0):
+                 max_new_tokens: int = 256, checkpoint_label: str | None = None, grace_seconds: float = 5.0,
+                 adapter: AdapterSelection | None = None):
+        """`adapter` pins this client to ONE trained checkpoint: every request carries its identity, the server must
+        answer with the same identity, and anything else fails closed. Without it the client serves the pinned base."""
         if not 0 < max_new_tokens <= MAX_NEW_TOKENS_CEILING or timeout_seconds <= 0 or cost_ceiling <= 0:
             raise ValueError("max_new_tokens, timeout and cost ceiling must be positive and bounded")
-        self.transport, self.cost_ceiling = transport, cost_ceiling
+        self.transport, self.cost_ceiling, self.adapter = transport, cost_ceiling, adapter
+        checkpoint_label = checkpoint_label or (adapter.checkpoint_id if adapter else "qwen-base")
+        if adapter and checkpoint_label != adapter.checkpoint_id:
+            raise ValueError("an adapter client's checkpoint label is its adapter checkpoint id")
         self.timeout_seconds, self.max_new_tokens, self.checkpoint_label = timeout_seconds, max_new_tokens, checkpoint_label
         self.grace_seconds = grace_seconds  # extra wait beyond the transport's own timeout before we cancel
         self.spent, self.calls = Decimal(0), 0
@@ -97,34 +111,46 @@ class ModalQwenClient:
         return cls(modal_transport(), cost_ceiling=ceiling, **kwargs)
 
     def invoke(self, request: ModelRequest, retry: int) -> QwenInferenceResponse:
-        if request.checkpoint not in (None, self.checkpoint_label, MODEL_REVISION):
+        allowed = (None, self.checkpoint_label) if self.adapter else (None, self.checkpoint_label, MODEL_REVISION)
+        if request.checkpoint not in allowed:  # e.g. a base-model request on an adapter client is NOT answered from base
             raise InferenceError("checkpoint_mismatch", "request pins a checkpoint this client does not serve")
         if self.spent >= self.cost_ceiling:
             raise InferenceError("cost_ceiling_reached", f"spent {self.spent} of approved {self.cost_ceiling}")
         try:
             payload = QwenRequest(
-                system=request.system_prompt, messages=_to_qwen_messages(request),
-                tools=[{"type": "function", "function": {"name": t.name, "description": t.description,
-                                                         "parameters": t.parameters}} for t in request.tools],
+                system=request.system_prompt, messages=to_qwen_messages(request.messages),
+                tools=qwen_tools(request.tools),
                 seed=((request.seed or 0) + retry) % 2**32, temperature=float(request.temperature),
-                max_new_tokens=self.max_new_tokens).model_dump(mode="json")
+                max_new_tokens=self.max_new_tokens, adapter=self.adapter).model_dump(mode="json", exclude_none=True)
         except ValidationError as exc:
             raise InferenceError("invalid_request", f"{len(exc.errors())} validation error(s)") from None
         result = self._call(payload)
+        if isinstance(result, dict) and "error_code" in result:  # structured refusal from the server, before inference
+            try:
+                refusal = QwenRejection.model_validate(result)
+            except ValidationError:
+                raise InferenceError("invalid_response", "server refusal failed schema validation") from None
+            raise InferenceError(refusal.error_code, refusal.detail)
         try:
             parsed = QwenResult.model_validate(result)
         except ValidationError:
             raise InferenceError("invalid_response", "server response failed schema validation", retryable=True) from None
         if (parsed.model, parsed.revision) != (MODEL_ID, MODEL_REVISION):
             raise InferenceError("model_identity_mismatch", "server answered with a different model or revision")
-        seconds = parsed.generation_seconds + parsed.container_load_seconds
+        served = (parsed.adapter_run_id, parsed.adapter_hash, parsed.training_manifest_hash)
+        wanted = ((self.adapter.run_id, self.adapter.adapter_hash, self.adapter.training_manifest_hash)
+                  if self.adapter else (None, None, None))
+        if served != wanted:  # base answered an adapter request, an adapter answered a base one, or a different adapter
+            raise InferenceError("model_identity_mismatch", "server answered with a different adapter than requested")
+        seconds = parsed.generation_seconds + parsed.container_load_seconds + parsed.adapter_load_seconds
         cost = Decimal(str(estimate_modal_cost(seconds)["total_usd"]))  # list-rate estimate; Modal billing is the truth
         self.spent += cost
         self.calls += 1
         return QwenInferenceResponse(
             raw_output=parsed.raw_output, prompt_tokens=parsed.input_tokens, completion_tokens=parsed.output_tokens,
             latency_ms=round(parsed.generation_seconds * 1000), finish_reason=parsed.finish_reason, model=parsed.model,
-            checkpoint=parsed.revision, seed_supported=parsed.seed_applied, cost=cost)
+            checkpoint=self.adapter.checkpoint_id if self.adapter else parsed.revision,
+            seed_supported=parsed.seed_applied, cost=cost)
 
     def _call(self, payload: dict) -> dict:
         pool = ThreadPoolExecutor(max_workers=1)

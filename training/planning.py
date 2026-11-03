@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import math
 from decimal import Decimal
+from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from training.curation import TrainingManifest
+if TYPE_CHECKING:  # planning stays a leaf (pydantic only) so the trainer container does not need the agent/catalog stack
+    from training.curation import TrainingManifest
 
 
 class PlanModel(BaseModel):
@@ -24,6 +28,31 @@ class LoRAHyperparameters(PlanModel):
     max_sequence_length: int = Field(default=2048, ge=128, le=32768)
     micro_batch_size: int = Field(default=1, ge=1)
     gradient_accumulation_steps: int = Field(default=8, ge=1)
+    # Added with the real trainer; all defaulted so existing plans/tests keep their meaning.
+    seed: int = Field(default=20_261_101, ge=0, lt=2**32)
+    warmup_steps: int = Field(default=2, ge=0)
+    weight_decay: Decimal = Field(default=Decimal("0"), ge=0)
+    max_grad_norm: Decimal = Field(default=Decimal("1.0"), gt=0)
+    quantization: Literal["nf4", "none"] = "nf4"  # nf4 = QLoRA (4-bit base); none = 16-bit LoRA
+    target_modules: tuple[str, ...] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
+    checkpoint_every_steps: int = Field(default=5, ge=1)
+    max_steps: int | None = Field(default=None, ge=1)  # hard cap, used by the cost-bounded smoke run
+
+    @model_validator(mode="after")
+    def _method_matches_quantization(self) -> "LoRAHyperparameters":
+        if (self.method == "qlora_sft") != (self.quantization == "nf4") or self.method not in {"qlora_sft", "lora_sft"}:
+            raise ValueError("method must be qlora_sft with nf4 quantization or lora_sft with none")
+        return self
+
+    def examples_per_step(self) -> int:
+        return self.micro_batch_size * self.gradient_accumulation_steps
+
+    def steps_per_epoch(self, record_count: int) -> int:
+        return math.ceil(record_count / self.examples_per_step())
+
+    def total_steps(self, record_count: int) -> int:
+        planned = self.epochs * self.steps_per_epoch(record_count)
+        return min(planned, self.max_steps) if self.max_steps else planned
 
 
 class LoRAPlan(PlanModel):
@@ -58,8 +87,13 @@ class TrainingCostEstimate(PlanModel):
     rates_as_of: str
 
 
+def plan_hash(plan: LoRAPlan) -> str:
+    body = json.dumps(plan.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(body.encode()).hexdigest()
+
+
 def build_lora_plan(
-    manifest: TrainingManifest,
+    manifest: "TrainingManifest",
     *,
     base_model: str,
     base_revision: str,
