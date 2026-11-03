@@ -45,6 +45,7 @@ class SandboxPayments:
                       client_secret or os.environ["PAYPAL_CLIENT_SECRET"])
         self._http = client or httpx.Client(base_url=SANDBOX_URL, timeout=30)
         self._urls = (return_url, cancel_url)
+        self.return_url = return_url
         self._retries, self._sleep = retries, sleep
         self._token: tuple[str, float] | None = None
         self._captured: set[str] = set()

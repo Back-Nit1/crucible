@@ -176,4 +176,12 @@ def test_pay_button_failure_reports_pathname_and_body_excerpt_scrubbed_of_creden
     assert "pay button not found at /pay" in str(e.value) and "hunter2" not in str(e.value) and "b@x.test" not in str(e.value)
     k = FakeKernel({"blocked": False})
     approver(kernel=k).approve("O1")
-    assert "pay button not found at" in k.code and ".slice(0, 300)" in k.code
+    assert "diag('pay button')" in k.code and "diag('login button')" in k.code and ".slice(0, 300)" in k.code
+
+
+def test_return_url_redirect_after_pay_is_not_a_challenge():
+    k = FakeKernel({"blocked": False})
+    b = FakeBackend(["APPROVED"])
+    b.return_url = "https://shop.test/return"
+    approver(b, k).approve("O1")
+    assert 'hostname !== "shop.test"' in k.code and "blocked('after_review')" in k.code

@@ -40,21 +40,25 @@ if (!(await page.locator('#password').isVisible())) {
     await page.waitForSelector('#password', {state: 'visible', timeout: 15000});
   }
 }
+const diag = async (what) => {  // page pathname + body excerpt; the caller scrubs buyer credentials
+  const t = ((await page.innerText('body').catch(() => '')) || '').replace(/\\s+/g, ' ').slice(0, 300);
+  throw new Error(what + ' not found at ' + new URL(page.url()).pathname + ': ' + t);
+};
 await page.fill('#password', %(password)s);
-await page.getByRole('button', {name: /^(Log ?In|Entrar)$/i}).click();
+const login = page.getByRole('button', {name: /^(Log ?In|Entrar)$/i});
+await login.waitFor({state: 'visible', timeout: 15000}).catch(() => diag('login button'));
+await login.click();
 await page.waitForTimeout(4000);
 b = await blocked('after_login'); if (b) return b;
 const done = /Complete Purchase|Pay Now|Continue|Agree/i;
 // The button below approves the order as the buyer (PAY_NOW). Capture is never done here: the server captures via Orders v2.
 const btn = page.locator('#one-time-cta').or(page.getByRole('button', {name: done})).first();
-await btn.waitFor({state: 'visible', timeout: 30000}).catch(async () => {
-  const t = ((await page.innerText('body').catch(() => '')) || '').replace(/\\s+/g, ' ').slice(0, 300);
-  throw new Error('pay button not found at ' + new URL(page.url()).pathname + ': ' + t);
-});
+await btn.waitFor({state: 'visible', timeout: 30000}).catch(() => diag('pay button'));
 await btn.click();
 await page.waitForLoadState('domcontentloaded');
 await page.waitForTimeout(3000);
-b = await blocked('after_review'); if (b) return b;
+// Paying redirects to the merchant return_url (not a challenge); the PayPal API status is the proof of approval.
+if (new URL(page.url()).hostname !== %(ret)s) { b = await blocked('after_review'); if (b) return b; }
 return {blocked: false, host: new URL(page.url()).host};
 """
 
@@ -102,7 +106,7 @@ class KernelApprover:
             raise KernelError(self._scrub(f"browser create failed: {type(e).__name__}")) from None
         self.timings["browser_create"] = time.perf_counter() - start
         try:
-            code = _JS % {"block": _BLOCK, "host": _HOST_RE, "url": json.dumps(url),
+            code = _JS % {"block": _BLOCK, "host": _HOST_RE, "ret": json.dumps(self._return_host()), "url": json.dumps(url),
                           "email": json.dumps(self._cred[0]), "password": json.dumps(self._cred[1])}
             t = time.perf_counter()
             try:
@@ -129,6 +133,9 @@ class KernelApprover:
             self._sleep(1)
         self.timings["total"] = time.perf_counter() - start
         return status
+
+    def _return_host(self) -> str:
+        return urlsplit(getattr(self._b, "return_url", "https://example.com/return")).hostname or ""
 
     def _scrub(self, text: str) -> str:
         for secret in self._cred:
