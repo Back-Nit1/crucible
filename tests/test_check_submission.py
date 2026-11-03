@@ -5,7 +5,7 @@ import subprocess
 
 from scripts import check_submission as cs
 
-OK_GH = lambda *a: json.dumps({"licenseInfo": {"spdxId": "MIT"}, "visibility": "PUBLIC", "url": "x"})  # noqa: E731
+OK_GH = lambda *a: json.dumps({"licenseInfo": {"key": "mit", "name": "MIT License", "nickname": ""}, "visibility": "PUBLIC"})  # noqa: E731
 
 
 def repo(tmp_path, readme="# x\nsee docs/screenshots/a.png docs/diagrams/a.svg\n", tags=(), extra=None):

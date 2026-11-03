@@ -41,7 +41,8 @@ def check(root: Path = ROOT, repo: str | None = None, env_file: str | None = Non
 
     try:
         info = json.loads((gh or (lambda *a: sh("gh", *a, root=root)))("repo", "view", *([repo] if repo else []), "--json", "licenseInfo,visibility,url"))
-        add("GitHub license is MIT", (info.get("licenseInfo") or {}).get("spdxId") == "MIT", str((info.get("licenseInfo") or {}).get("spdxId")))
+        lic = info.get("licenseInfo") or {}  # `gh` returns {key, name, nickname}; spdxId is absent
+        add("GitHub license is MIT", lic.get("key") == "mit" or lic.get("spdxId") == "MIT", str(lic.get("key") or lic.get("spdxId")))
         add("GitHub repo is public", info.get("visibility") == "PUBLIC", str(info.get("visibility")))
     except Exception as e:  # gh missing, not logged in, offline: unverified counts as failed
         add("GitHub license is MIT", False, f"gh repo view failed: {type(e).__name__}")
