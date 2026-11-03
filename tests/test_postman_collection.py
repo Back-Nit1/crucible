@@ -76,3 +76,9 @@ def test_every_script_parses():
             code = "\n".join(e["script"]["exec"])
             p = subprocess.run(["node", "-e", "new Function('pm', process.argv[1])", code], capture_output=True, text=True)
             assert p.returncode == 0, f"{name}: {p.stderr[:200]}"
+
+
+def test_every_request_url_has_host_and_path_so_newman_can_run_it():
+    for name, r in REQS.items():
+        u = r["request"]["url"]
+        assert u["host"] and isinstance(u["path"], list) and "".join(u["host"]) in u["raw"], name
