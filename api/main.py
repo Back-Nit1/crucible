@@ -185,6 +185,12 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
                                        else BuyerService(None, None, None, None))  # typed model_unavailable, no provider touched
         return state["buyer"]
 
+    origins = [o.strip().rstrip("/") for o in os.environ.get("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
+    if origins:  # default none: same-origin only. No credentials/cookies are used, so no allow_credentials.
+        from fastapi.middleware.cors import CORSMiddleware
+        app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
+                           allow_headers=["content-type", "x-request-id"], expose_headers=["x-request-id"])
+
     @app.middleware("http")
     async def _access_log(request: Request, call_next):
         """Structured access log: path only (never query string / body, which can hold shopper text), latency, status.
@@ -323,6 +329,9 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
 
 
 def _launch_authorized() -> bool:
+    """The Qwen model is attached only when CRUCIBLE_MODEL_BACKEND=qwen AND Modal launch is authorized by the human-set gates."""
+    if os.environ.get("CRUCIBLE_MODEL_BACKEND") != "qwen":
+        return False
     from agents.model import InferenceError
     from agents.qwen_client import require_launch_authorization
     try:

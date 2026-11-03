@@ -74,3 +74,35 @@ def test_paypal_unreachable_is_503_retryable_not_402_and_does_not_double_charge(
     assert r.status_code == 503 and r.json()["error"]["code"] == "payment_unavailable" and "secret-host" not in r.text
     ok = c.post(URL, json={"pending_order_id": p["pending_order_id"], "user_confirmed": True})
     assert ok.status_code == 200 and len(fake.orders["ORD1"]["purchase_units"][0]["payments"]["captures"]) == 1
+
+
+def test_model_backend_needs_qwen_env_and_modal_gates_else_typed_503(monkeypatch):
+    from api.main import _launch_authorized
+    gates = {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1", "CRUCIBLE_MODAL_APPROVED_CEILING_USD": "0.861948"}
+    for k, v in gates.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.delenv("CRUCIBLE_MODEL_BACKEND", raising=False)
+    assert not _launch_authorized()  # gates alone are not enough
+    monkeypatch.setenv("CRUCIBLE_MODEL_BACKEND", "qwen")
+    assert _launch_authorized()
+    monkeypatch.delenv("CRUCIBLE_MODAL_BILLING_CONFIRMED")
+    assert not _launch_authorized()  # backend alone is not enough
+    c, _ = sandbox_client()
+    r = c.post("/agent/runs", json={"message": "running shoes under $100"})
+    assert r.status_code == 503 and r.json()["error"]["code"] == "model_unavailable"
+
+
+def test_cors_is_off_by_default_and_allows_only_listed_origins(monkeypatch):
+    web = "https://crucible-web.onrender.com"
+    pre = {"Origin": web, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"}
+    monkeypatch.delenv("CORS_ALLOW_ORIGINS", raising=False)
+    c, _ = sandbox_client()
+    assert "access-control-allow-origin" not in c.options("/purchase/confirm", headers=pre).headers
+    assert "access-control-allow-origin" not in c.get("/health", headers={"Origin": web}).headers
+    monkeypatch.setenv("CORS_ALLOW_ORIGINS", f" {web}/ , http://localhost:3000")
+    c, _ = sandbox_client()
+    r = c.options("/purchase/confirm", headers=pre)
+    assert r.status_code == 200 and r.headers["access-control-allow-origin"] == web
+    assert c.get("/health", headers={"Origin": web}).headers["access-control-allow-origin"] == web
+    assert "access-control-allow-origin" not in c.get("/health", headers={"Origin": "https://evil.test"}).headers
+    assert "access-control-allow-credentials" not in r.headers
