@@ -32,14 +32,30 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.6"
       - key: PAYMENTS_BACKEND      # "sandbox" = PayPal sandbox (judge demo); anything else = mock
-        value: mock
+        value: sandbox
       - key: DEMO_MODE
         value: "1"
       - key: REQUIRE_ALL_IN_QUOTE
         value: "0"
       - key: ELASTIC_API_KEY
         sync: false
+      - key: ELASTIC_ENDPOINT
+        sync: false
       - key: ELASTIC_CLOUD_ID
+        sync: false
+      - key: CHANNEL3_API_KEY
+        sync: false # optional, live product display only
+      - key: CORS_ALLOW_ORIGINS
+        sync: false # the crucible-web origin, e.g. https://crucible-web.onrender.com (comma list); empty = same-origin only
+      - key: PAYPAL_RETURN_URL
+        sync: false # https://<crucible-web host>/payments : where PayPal sends the buyer after approving
+      - key: PAYPAL_CANCEL_URL
+        sync: false # https://<crucible-web host>/
+      - key: CRUCIBLE_MODEL_BACKEND
+        sync: false # "qwen" attaches the Modal Qwen endpoint; unset = typed 503 model_unavailable. Also needs the human-set CRUCIBLE_MODAL_* gates
+      - key: MODAL_TOKEN_ID
+        sync: false # only needed when CRUCIBLE_MODEL_BACKEND=qwen
+      - key: MODAL_TOKEN_SECRET
         sync: false
       - key: PAYPAL_CLIENT_ID
         sync: false

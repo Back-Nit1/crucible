@@ -14,9 +14,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from catalog.router import ProductResult, ProviderRouter, ProviderUnavailable, ReviewsResult, SearchResult
+from api.masking import demo_mode, mask_product  # noqa: F401  (demo_mode re-exported)
 from api.buyer import AgentRunFailed, BuyerService, ModelNotConfigured, buyer_router, to_agent_run_result
 from api.world import ModelUnavailable, WorldDataUnavailable, world_router
-from payments.errors import PaymentError
+from payments.errors import PaymentError, PaymentUnavailable
+from payments.ledger import PaymentLedger
+from payments.sandbox import SandboxPayments
 from payments.guards import (BudgetViolation, GuardedPayments, GuardViolation, NotConfirmed, OutOfStock,
                              PriceMismatch, QuoteChanged, QuoteIncomplete, QuoteStale)
 from payments.mock import MockPayments
@@ -34,10 +37,6 @@ def configure_logging() -> None:
         logging.getLogger("crucible").addHandler(h)
         logging.getLogger("crucible").setLevel(logging.INFO)
         logging.getLogger("crucible").propagate = False
-
-
-def demo_mode() -> bool:
-    return os.environ.get("DEMO_MODE") == "1"
 
 
 class ProposeRequest(BaseModel):
@@ -117,8 +116,8 @@ def default_router() -> ProviderRouter:
 
 def default_backend():
     if os.environ.get("PAYMENTS_BACKEND") == "sandbox":
-        from payments.sandbox import SandboxPayments
-        return SandboxPayments()
+        env = {k: v for k, v in (("return_url", os.environ.get("PAYPAL_RETURN_URL")), ("cancel_url", os.environ.get("PAYPAL_CANCEL_URL"))) if v}
+        return SandboxPayments(**env)  # unset = example.com placeholders; set both to the web app so approval lands back in Crucible
     return MockPayments(auto_approve=False)
 
 
@@ -131,7 +130,7 @@ def default_reader():
     return ElasticReader(Elastic(url))
 
 
-def default_buyer(router: ProviderRouter, backend) -> BuyerService:
+def default_buyer(router: ProviderRouter, backend, ledger=None) -> BuyerService:
     """Buyer service over the frozen Elastic snapshot. The model is attached only if Modal launch is authorized;
     otherwise the service answers every run with the typed `model_unavailable` error (no silent fallback)."""
     from agents.buyer import BuyerAgent
@@ -140,7 +139,7 @@ def default_buyer(router: ProviderRouter, backend) -> BuyerService:
     catalog = router.providers.get("elastic_snapshot")
     if catalog is None:
         raise ProviderUnavailable("elastic_snapshot")
-    payments = GuardedPayments(backend, catalog, require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1")
+    payments = GuardedPayments(backend, catalog, require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1", ledger=ledger)
     try:
         agent = BuyerAgent(QwenModelAdapter(ModalQwenClient.from_environment(), max_retries=1), catalog, payments)
     except InferenceError:
@@ -170,16 +169,24 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
     def get_payments() -> GuardedPayments:
         if "payments" not in state:
             state["backend"] = backend or default_backend()
+            state["ledger"] = PaymentLedger("sandbox") if isinstance(state["backend"], SandboxPayments) else None
             state["payments"] = GuardedPayments(state["backend"], _RouterCatalog(get_router()),
-                                                require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1")
+                                                require_all_in=os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1",
+                                                ledger=state["ledger"])
         return state["payments"]
 
     def get_buyer() -> BuyerService:
         if "buyer" not in state:
             get_payments()  # fixes the shared backend
-            state["buyer"] = buyer or (default_buyer(get_router(), state["backend"]) if _launch_authorized()
+            state["buyer"] = buyer or (default_buyer(get_router(), state["backend"], state["ledger"]) if _launch_authorized()
                                        else BuyerService(None, None, None, None))  # typed model_unavailable, no provider touched
         return state["buyer"]
+
+    origins = [o.strip().rstrip("/") for o in os.environ.get("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
+    if origins:  # default none: same-origin only. No credentials/cookies are used, so no allow_credentials.
+        from fastapi.middleware.cors import CORSMiddleware
+        app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
+                           allow_headers=["content-type", "x-request-id"], expose_headers=["x-request-id"])
 
     @app.middleware("http")
     async def _access_log(request: Request, call_next):
@@ -212,6 +219,10 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
                 NotConfirmed: "confirmation_required", QuoteStale: "quote_stale", QuoteChanged: "quote_changed",
                 QuoteIncomplete: "quote_incomplete"}.get(type(e), "guard_violation")
         return _err(409 if code != "confirmation_required" else 428, code, str(e))
+
+    @app.exception_handler(PaymentUnavailable)
+    async def _payment_unavailable(_: Request, e: PaymentUnavailable):
+        return _err(503, "payment_unavailable", "PayPal is temporarily unavailable; retry the same request")
 
     @app.exception_handler(PaymentError)
     async def _payment(_: Request, e: PaymentError):
@@ -278,11 +289,14 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
     def search(q: Annotated[str, Query(min_length=1)], category: str | None = None,
                max_price: Decimal | None = None, min_price: Decimal | None = None):
         filters = {k: v for k, v in dict(category=category, max_price=max_price, min_price=min_price).items() if v is not None}
-        return get_router().search(q, filters)
+        r = get_router().search(q, filters)
+        r.products = [mask_product(p) for p in r.products]
+        return r
 
     @app.get("/catalog/products/{product_id}", response_model=ProductResult, responses={404: {"model": ErrorResponse}, **errs})
     def product(product_id: str):
         r = get_router().get_product(product_id)
+        r.product = mask_product(r.product)
         return r if r.product else _err(404, "product_not_found", product_id)
 
     @app.get("/catalog/products/{product_id}/reviews", response_model=ReviewsResult, responses=errs)
@@ -309,12 +323,15 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
         def __getattr__(self, name):
             return getattr(get_buyer(), name)
 
-    app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer)))
+    app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer), ledger_source=lambda: (get_payments(), state["ledger"])[1]))
     app.include_router(buyer_router(_Lazy()))
     return app
 
 
 def _launch_authorized() -> bool:
+    """The Qwen model is attached only when CRUCIBLE_MODEL_BACKEND=qwen AND Modal launch is authorized by the human-set gates."""
+    if os.environ.get("CRUCIBLE_MODEL_BACKEND") != "qwen":
+        return False
     from agents.model import InferenceError
     from agents.qwen_client import require_launch_authorization
     try:

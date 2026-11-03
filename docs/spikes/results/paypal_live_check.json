@@ -1,0 +1,25 @@
+{
+  "amount": "1.00",
+  "amount_matches": true,
+  "approval_breakdown_ms": {
+    "browser_create": 204,
+    "browser_flow": 11857,
+    "total": 12617
+  },
+  "approval_ms": 13100,
+  "capture_amount": "1.00",
+  "capture_currency": "USD",
+  "capture_id": "3P708572Y9076274W",
+  "capture_ms": 1249,
+  "captures_on_order": 1,
+  "create_ms": 1069,
+  "currency": "USD",
+  "environment": "sandbox",
+  "final_order_status": "COMPLETED",
+  "no_duplicate_charge": true,
+  "order_id": "5UU31365CA5226319",
+  "retry_same_capture_id": true,
+  "status": "passed",
+  "status_after_approval": "APPROVED",
+  "status_after_create": "PAYER_ACTION_REQUIRED"
+}

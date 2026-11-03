@@ -92,22 +92,26 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-  participant API as Agent API
+  participant U as Buyer (web chat or Postman)
+  participant API as Crucible API
   participant PP as PayPal Sandbox (Orders v2)
-  participant K as KERNEL browser
-  participant U as User (chat)
-  U->>API: "Buy pick #1" (explicit confirm)
-  API->>API: budget guard + price re-check + idempotency key
-  API->>PP: create order (intent=CAPTURE)
-  PP-->>API: order id + approval link
-  alt automated eval / world run
+  participant K as KERNEL browser (automated checks only)
+  U->>API: shopping message
+  API->>API: research, verified quote, budget check on quote.total
+  API->>PP: create order (intent=CAPTURE, PayPal-Request-Id)
+  PP-->>API: order id + approval link (PAYER_ACTION_REQUIRED)
+  API-->>U: recommendation + quote + approval link (nothing charged)
+  alt judge or demo
+    U->>PP: approve with the sandbox buyer login
+  else automated check
     API->>K: open approval link, log in as sandbox buyer, approve
-  else live chat
-    API->>U: PayPal approval (sandbox buyer login provided in README)
+    K->>PP: approve
   end
-  API->>PP: capture order
-  PP-->>API: capture record (ledger = source of truth)
-  API->>U: confirmation
+  U->>API: confirm (user_confirmed true)
+  API->>API: re-quote, a stale or changed quote refuses
+  API->>PP: capture order (same PayPal-Request-Id on retry)
+  PP-->>API: capture record (sandbox ledger is the source of truth)
+  API-->>U: receipt (order id, capture id, amount)
 ```
 
 ## Training and evaluation
@@ -193,7 +197,7 @@ erDiagram
   KILL_RULE { string id int version string description datetime added_at int kills }
 ```
 
-## Platform implementation status (milestones 1-3, agent 1)
+## Platform wiring (release-final)
 ```mermaid
 flowchart LR
   api[api.main FastAPI] --> router[catalog.router ProviderRouter]
@@ -204,28 +208,31 @@ flowchart LR
   es --> elastic[(Elastic Serverless<br/>products, reviews, traces)]
   guards --> mock[MockPayments]
   guards --> sbx[SandboxPayments<br/>PayPal Orders v2]
-  sbx -.blocked: no buyer account.-> kern[KernelApprover]
+  sbx -.automated checks only.-> kern[KernelApprover]
   mem[memory.TraceRepository] --> elastic
   snap[scripts.build_snapshot<br/>Amazon Reviews 2023 stream] --> elastic
 ```
 Implemented: provider interface + router (source/as_of/snapshot stamps), Elastic hybrid retrieval, Channel3 live provider,
 PayPal sandbox backend with guards and mock parity, memory retrieval with test-split exclusion, typed API.
-Not yet: Kernel approval run, Modal world/train/serve, Render deploy, web UI, Astropods, Zapier.
+Added in release-final: the sandbox backend carries a sanitized in-process `PaymentLedger` served read-only at `/payments/ledger`;
+`PaymentUnavailable` maps to HTTP 503; `CORS_ALLOW_ORIGINS`; `DEMO_MODE=1` brand masking (`api/masking.py`); the model is attached only when
+`CRUCIBLE_MODEL_BACKEND=qwen` and the human-set Modal gates exist. Live status per service is in the README table; nothing is deployed to Render yet,
+and Astropods and Zapier were not built.
 
-## Operational world (integration, `feat/operational-world`)
+## Operational world
 ```mermaid
 flowchart LR
   subgraph Frozen snapshot
     es[(Elastic: products, reviews)]
   end
-  es -->|iter_products(category, manifest_hash)<br/>get_review_ids| prov[ElasticCatalogProvider<br/>FrozenCatalogProvider]
+  es -->|"iter_products(category, manifest_hash)<br/>get_review_ids"| prov[ElasticCatalogProvider<br/>FrozenCatalogProvider]
   prov --> cache[FrozenCache]
   cache --> tg[world.taskgen<br/>feasible / impossible / review-sensitive]
   tg --> run[world.runtime.run_generation]
   pop[world.runtime.build_population<br/>honest + fixture genomes] --> run
-  run -->|ScriptedPolicy -> agents.runner.run_episode| eng[state machine + tools<br/>GuardedPayments(MockPayments, Quote)<br/>scoring + kill rules]
+  run -->|"ScriptedPolicy -> agents.runner.run_episode"| eng["state machine + tools<br/>GuardedPayments(MockPayments, Quote)<br/>scoring + kill rules"]
   eng --> mem[memory.episodes.RepositoryMemoryProvider]
-  mem -->|full EpisodeRecord + split, catalog hash,<br/>seed, genome, kills| traces[(Elastic traces)]
+  mem -->|"full EpisodeRecord + split, catalog hash,<br/>seed, genome, kills"| traces[(Elastic traces)]
   run --> store[world.store.GenerationStore<br/>atomic checkpoint + lease]
   store -.Modal Volume.-> vol[(crucible-world-checkpoints)]
   run --> fin[finalize: cull + survivors]
@@ -233,7 +240,7 @@ flowchart LR
   fin --> cur[training.curation -> SFT manifest]
   fin --> pub[world.publish -> Elastic generations / kill_rules]
   traces --> rd[api.readers.ElasticReader] --> apiw[api.world: /world/*, /models/*, /payments/ledger]
-  modal[modal_app.world_runner<br/>run | resume | status | opt-in schedule] --> run
+  modal["modal_app.world_runner<br/>run, resume, status, opt-in schedule"] --> run
 ```
 Quote path: `GuardedPayments` asks a `QuoteProvider` for a `Quote` (subtotal, shipping, tax, discounts, total, currency, expiry), budgets and
 creates the order from `quote.total`, re-quotes before capture and invalidates the pending order on any change. Frozen training uses

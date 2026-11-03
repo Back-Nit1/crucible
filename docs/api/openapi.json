@@ -1685,6 +1685,11 @@
       },
       "PayPalApproval": {
         "properties": {
+          "approval_required": {
+            "default": true,
+            "title": "Approval Required",
+            "type": "boolean"
+          },
           "approval_url": {
             "anyOf": [
               {
@@ -1715,6 +1720,28 @@
             ],
             "title": "Mode",
             "type": "string"
+          },
+          "order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Id"
+          },
+          "pending_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Order Id"
           },
           "seq": {
             "default": 0,
@@ -2412,6 +2439,15 @@
             "title": "Currency",
             "type": "string"
           },
+          "idempotency": {
+            "default": "created",
+            "enum": [
+              "created",
+              "replayed"
+            ],
+            "title": "Idempotency",
+            "type": "string"
+          },
           "mode": {
             "enum": [
               "sandbox",
@@ -2423,6 +2459,17 @@
           "order_id": {
             "title": "Order Id",
             "type": "string"
+          },
+          "payment_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Status"
           },
           "seq": {
             "default": 0,
@@ -3564,7 +3611,7 @@
     },
     "/payments/ledger": {
       "get": {
-        "description": "Mock-payment events recorded by world runs. Demo data only: never live money, never PayPal credentials.",
+        "description": "Mock-payment events recorded by world runs, or (PAYMENTS_BACKEND=sandbox) this service's sanitized PayPal sandbox calls. Never live money, never credentials.",
         "operationId": "ledger_payments_ledger_get",
         "parameters": [
           {

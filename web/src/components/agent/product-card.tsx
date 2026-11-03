@@ -53,7 +53,7 @@ export function ProductCard({
             <span className="font-mono text-[0.65rem] text-slate-600">{product.product_id}</span>
           </div>
           <h3 className="text-lg font-semibold tracking-[-0.025em] text-white">{product.title}</h3>
-          <p className="mt-1 text-xs text-slate-500">{product.brand ?? "Brand not provided"}</p>
+          <p className="mt-1 text-xs text-slate-500">{product.brand ?? "Brand not shown"}</p>
           <p className="mt-2 text-2xl font-semibold text-emerald-200 tabular-nums">
             {money(product.price, product.currency)}
           </p>

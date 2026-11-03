@@ -2,14 +2,15 @@
   "info": {
     "name": "Crucible v1",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "PayPal sandbox flow + Crucible API. Secrets come from the environment only."
+    "description": "PayPal SANDBOX flow + Crucible API. Secrets come from the environment only (fill PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET in the 'Crucible sandbox' environment; never commit them). Never point paypal_base_url at a live host."
   },
   "item": [
     {
       "name": "PayPal Sandbox",
+      "description": "SANDBOX ONLY. Setup: in the 'Crucible sandbox' environment fill PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET (sandbox REST app credentials; never commit them, never use live credentials). Run in order: OAuth token, Create order, Create order (replay), Get order, then approve the order as the sandbox BUYER (open the `paypal_approval_url` variable in a browser, log in with the sandbox personal account, approve; or run `scripts/paypal_live_check.py`, which automates this through Kernel). Then Approval-state check, Capture, Capture replay, Duplicate capture, Final check. Creating an order is never approval, and approval is never capture. Capture requests are sent to a real order only when the order status is APPROVED.",
       "item": [
         {
-          "name": "OAuth token",
+          "name": "1. OAuth token",
           "request": {
             "method": "POST",
             "header": [
@@ -19,7 +20,15 @@
               }
             ],
             "url": {
-              "raw": "{{paypal_base_url}}/v1/oauth2/token"
+              "raw": "{{paypal_base_url}}/v1/oauth2/token",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v1",
+                "oauth2",
+                "token"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -43,6 +52,16 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
@@ -57,13 +76,13 @@
           ]
         },
         {
-          "name": "Create order",
+          "name": "2. Create order ($1.00 USD, intent CAPTURE)",
           "request": {
             "method": "POST",
             "header": [
               {
                 "key": "PayPal-Request-Id",
-                "value": "postman-{{$guid}}"
+                "value": "{{paypal_create_request_id}}"
               },
               {
                 "key": "Content-Type",
@@ -71,11 +90,19 @@
               }
             ],
             "url": {
-              "raw": "{{paypal_base_url}}/v2/checkout/orders"
+              "raw": "{{paypal_base_url}}/v2/checkout/orders",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders"
+              ]
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"custom_id\": \"postman-{{$guid}}\",\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"1.00\"\n      }\n    }\n  ],\n  \"payment_source\": {\n    \"paypal\": {\n      \"experience_context\": {\n        \"user_action\": \"PAY_NOW\",\n        \"shipping_preference\": \"NO_SHIPPING\",\n        \"return_url\": \"https://example.com/return\",\n        \"cancel_url\": \"https://example.com/cancel\"\n      }\n    }\n  }\n}"
+              "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"custom_id\": \"postman-{{paypal_create_request_id}}\",\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"1.00\"\n      }\n    }\n  ],\n  \"payment_source\": {\n    \"paypal\": {\n      \"experience_context\": {\n        \"user_action\": \"PAY_NOW\",\n        \"shipping_preference\": \"NO_SHIPPING\",\n        \"return_url\": \"https://example.com/return\",\n        \"cancel_url\": \"https://example.com/cancel\"\n      }\n    }\n  }\n}"
             },
             "auth": {
               "type": "bearer",
@@ -89,6 +116,17 @@
             }
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');",
+                  "pm.environment.set('paypal_create_request_id', 'postman-' + pm.variables.replaceIn('{{$guid}}'));  // one stable id per order; step 3 replays it"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -96,20 +134,46 @@
                 "exec": [
                   "pm.test('created', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
                   "const j = pm.response.json();",
-                  "pm.test('exact amount', () => pm.expect(j.purchase_units[0].amount.value).to.eql('1.00'));",
-                  "pm.environment.set('paypal_order_id', j.id);"
+                  "// PayPal's create response is minimal (id, status, links): the amount is asserted on the GET in step 4.",
+                  "pm.test('not approved yet', () => pm.expect(['CREATED','PAYER_ACTION_REQUIRED']).to.include(j.status));",
+                  "const link = (j.links || []).find(l => l.rel === 'payer-action' || l.rel === 'approve');",
+                  "pm.test('approval link present', () => pm.expect(link).to.be.ok);",
+                  "pm.environment.set('paypal_order_id', j.id);",
+                  "pm.environment.set('paypal_order_status', j.status);",
+                  "if (link) pm.environment.set('paypal_approval_url', link.href);  // secret-grade: open it as the sandbox buyer, do not share"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Get order",
+          "name": "3. Create order (idempotent replay, same PayPal-Request-Id)",
           "request": {
-            "method": "GET",
-            "header": [],
+            "method": "POST",
+            "header": [
+              {
+                "key": "PayPal-Request-Id",
+                "value": "{{paypal_create_request_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_order_id}}"
+              "raw": "{{paypal_base_url}}/v2/checkout/orders",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"intent\": \"CAPTURE\",\n  \"purchase_units\": [\n    {\n      \"custom_id\": \"postman-{{paypal_create_request_id}}\",\n      \"amount\": {\n        \"currency_code\": \"USD\",\n        \"value\": \"1.00\"\n      }\n    }\n  ],\n  \"payment_source\": {\n    \"paypal\": {\n      \"experience_context\": {\n        \"user_action\": \"PAY_NOW\",\n        \"shipping_preference\": \"NO_SHIPPING\",\n        \"return_url\": \"https://example.com/return\",\n        \"cancel_url\": \"https://example.com/cancel\"\n      }\n    }\n  }\n}"
             },
             "auth": {
               "type": "bearer",
@@ -124,19 +188,207 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.test('known status', () => pm.expect(['CREATED','PAYER_ACTION_REQUIRED','APPROVED','COMPLETED']).to.include(pm.response.json().status));"
+                  "pm.test('replay ok', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.test('same order, not a second one', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('paypal_order_id')));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "Capture order (after buyer approval)",
+          "name": "4. Get order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_order_id}}",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypal_order_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypal_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json().status;",
+                  "pm.test('known status', () => pm.expect(['CREATED','PAYER_ACTION_REQUIRED','APPROVED','COMPLETED']).to.include(s));",
+                  "pm.environment.set('paypal_order_status', s);",
+                  "pm.test('exact amount $1.00 USD', () => { const a = pm.response.json().purchase_units[0].amount; pm.expect(a.value).to.eql('1.00'); pm.expect(a.currency_code).to.eql('USD'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. Capture BEFORE approval (expected failure)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "PayPal-Request-Id",
+                "value": "early-{{paypal_order_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_capture_probe_id}}/capture",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypal_capture_probe_id}}",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypal_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Expected failure example: a capture without buyer approval is rejected (422 ORDER_NOT_APPROVED / PAYER_ACTION_REQUIRED)."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');",
+                  "// Safety: if the order is already approved this request is pointed at a bogus id (404) so it can never capture.",
+                  "const s = pm.environment.get('paypal_order_status');",
+                  "pm.environment.set('paypal_capture_probe_id', (s === 'APPROVED' || s === 'COMPLETED') ? 'NOT-AN-ORDER' : pm.environment.get('paypal_order_id'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "const issue = ((j.details || [])[0] || {}).issue;",
+                  "pm.test('rejected, nothing captured', () => pm.expect(pm.response.code).to.be.oneOf([422, 404]));",
+                  "pm.test('typed reason', () => pm.expect(['ORDER_NOT_APPROVED','PAYER_ACTION_REQUIRED','RESOURCE_NOT_FOUND','INVALID_RESOURCE_ID']).to.include(issue || j.name));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Approval-state check (approve as the sandbox buyer first)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_order_id}}",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypal_order_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypal_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const s = pm.response.json().status;",
+                  "pm.environment.set('paypal_order_status', s);",
+                  "pm.test('order readable', () => pm.response.to.have.status(200));",
+                  "pm.test('buyer has approved (status APPROVED)', () => pm.expect(s).to.eql('APPROVED'));  // fails until the buyer approves"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Capture order (only sent once APPROVED)",
           "request": {
             "method": "POST",
             "header": [
@@ -150,7 +402,17 @@
               }
             ],
             "url": {
-              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_order_id}}/capture"
+              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_capture_target}}/capture",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypal_capture_target}}",
+                "capture"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -169,12 +431,214 @@
           },
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');",
+                  "// Run step 6 first. Not APPROVED => this goes to a bogus id and fails harmlessly with 404.",
+                  "pm.environment.set('paypal_capture_target', pm.environment.get('paypal_order_status') === 'APPROVED' ? pm.environment.get('paypal_order_id') : 'RUN-STEP-6-FIRST');"
+                ]
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Requires the sandbox buyer to approve first; otherwise expect 422 ORDER_NOT_APPROVED.",
-                  "pm.test('completed or not approved', () => pm.expect([201,422]).to.include(pm.response.code));"
+                  "pm.test('captured', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "const j = pm.response.json();",
+                  "const c = j.purchase_units[0].payments.captures[0];",
+                  "pm.test('COMPLETED', () => pm.expect(c.status).to.eql('COMPLETED'));",
+                  "pm.test('exact amount', () => pm.expect([c.amount.value, c.amount.currency_code]).to.eql(['1.00','USD']));",
+                  "pm.environment.set('paypal_capture_id', c.id);",
+                  "pm.environment.set('paypal_order_status', j.status);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Capture replay (same PayPal-Request-Id: no second charge)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "PayPal-Request-Id",
+                "value": "capture-{{paypal_order_id}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_order_id}}/capture",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypal_order_id}}",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypal_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('replay ok', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+                  "pm.test('same capture id', () => pm.expect(pm.response.json().purchase_units[0].payments.captures[0].id).to.eql(pm.environment.get('paypal_capture_id')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. Duplicate capture (NEW request id: refused, or accepted without a second charge)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "PayPal-Request-Id",
+                "value": "dup-{{paypal_order_id}}-{{$guid}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_dup_target}}/capture",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypal_dup_target}}",
+                "capture"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypal_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');",
+                  "// Only meaningful after step 7. Before that it must not run against an approved-but-uncaptured order.",
+                  "pm.environment.set('paypal_dup_target', pm.environment.get('paypal_capture_id') ? pm.environment.get('paypal_order_id') : 'RUN-STEP-7-FIRST');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Live sandbox (2026-11-02): PayPal answered 2xx here yet kept ONE capture. Either outcome is fine; step 10 is the proof of no double charge.",
+                  "pm.test('refused or idempotent, never a server error', () => pm.expect([200,201,422]).to.include(pm.response.code));",
+                  "if (pm.response.code === 422) pm.test('ORDER_ALREADY_CAPTURED', () => pm.expect(((pm.response.json().details || [])[0] || {}).issue).to.eql('ORDER_ALREADY_CAPTURED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. Final check: exactly one capture",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paypal_base_url}}/v2/checkout/orders/{{paypal_order_id}}",
+              "host": [
+                "{{paypal_base_url}}"
+              ],
+              "path": [
+                "v2",
+                "checkout",
+                "orders",
+                "{{paypal_order_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{paypal_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sandbox only: refuse to send anything to a non-sandbox PayPal host.",
+                  "if (pm.environment.get('paypal_base_url') !== 'https://api-m.sandbox.paypal.com') throw new Error('paypal_base_url must be the sandbox host');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('COMPLETED', () => pm.expect(j.status).to.eql('COMPLETED'));",
+                  "pm.test('exactly one capture', () => pm.expect(j.purchase_units[0].payments.captures.length).to.eql(1));"
                 ]
               }
             }
@@ -191,7 +655,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/health"
+              "raw": "{{api_base_url}}/health",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
             }
           },
           "event": [
@@ -212,7 +682,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/providers/status"
+              "raw": "{{api_base_url}}/providers/status",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "providers",
+                "status"
+              ]
             }
           },
           "event": [
@@ -233,7 +710,24 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/catalog/search?q=running shoes&max_price=100"
+              "raw": "{{api_base_url}}/catalog/search?q=running shoes&max_price=100",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "catalog",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "running shoes"
+                },
+                {
+                  "key": "max_price",
+                  "value": "100"
+                }
+              ]
             }
           },
           "event": [
@@ -246,7 +740,7 @@
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "pm.test('source + as_of stamped', () => { pm.expect(j.source).to.be.a('string'); pm.expect(j).to.have.property('snapshot'); });",
                   "pm.test('budget respected', () => j.products.forEach(p => pm.expect(parseFloat(p.price)).to.be.at.most(100)));",
-                  "if (j.products.length) pm.environment.set('product_id', j.products[0].id);"
+                  "if (j.products.length) { pm.environment.set('product_id', j.products[0].id); pm.environment.set('expected_total', j.products[0].price); }"
                 ]
               }
             }
@@ -258,7 +752,15 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/catalog/products/{{product_id}}"
+              "raw": "{{api_base_url}}/catalog/products/{{product_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "catalog",
+                "products",
+                "{{product_id}}"
+              ]
             }
           },
           "event": [
@@ -279,7 +781,26 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/catalog/products/{{product_id}}/reviews?focus=durability&limit=5"
+              "raw": "{{api_base_url}}/catalog/products/{{product_id}}/reviews?focus=durability&limit=5",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "catalog",
+                "products",
+                "{{product_id}}",
+                "reviews"
+              ],
+              "query": [
+                {
+                  "key": "focus",
+                  "value": "durability"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
             }
           },
           "event": [
@@ -305,7 +826,14 @@
               }
             ],
             "url": {
-              "raw": "{{api_base_url}}/purchase/propose"
+              "raw": "{{api_base_url}}/purchase/propose",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "purchase",
+                "propose"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -318,7 +846,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "if (pm.response.code === 200) pm.environment.set('pending_order_id', pm.response.json().pending_order_id);"
+                  "pm.test('proposed or typed refusal', () => pm.expect([200,404,409]).to.include(pm.response.code));",
+                  "if (pm.response.code === 200) { const j = pm.response.json(); pm.environment.set('pending_order_id', j.pending_order_id); pm.test('has approval link and quote', () => { pm.expect(j.quote_id).to.be.a('string'); pm.expect(j.approval_url === null || typeof j.approval_url === 'string').to.eql(true); }); }"
                 ]
               }
             }
@@ -335,13 +864,33 @@
               }
             ],
             "url": {
-              "raw": "{{api_base_url}}/purchase/confirm"
+              "raw": "{{api_base_url}}/purchase/confirm",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "purchase",
+                "confirm"
+              ]
             },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"pending_order_id\": \"{{pending_order_id}}\",\n  \"user_confirmed\": true\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 200 = captured; 402 = buyer has not approved yet; 404 = unknown pending order; 409/428 = guard refused. Never 5xx.",
+                  "pm.test('typed outcome', () => pm.expect([200,402,404,409,428]).to.include(pm.response.code));",
+                  "if (pm.response.code !== 200) pm.test('typed error body', () => pm.expect(pm.response.json().error.code).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Ready (configured backends)",
@@ -349,7 +898,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/ready"
+              "raw": "{{api_base_url}}/ready",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "ready"
+              ]
             }
           },
           "event": [
@@ -371,7 +926,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/config"
+              "raw": "{{api_base_url}}/config",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "config"
+              ]
             }
           },
           "event": [
@@ -398,7 +959,14 @@
               }
             ],
             "url": {
-              "raw": "{{api_base_url}}/agent/run"
+              "raw": "{{api_base_url}}/agent/run",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "agent",
+                "run"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -417,6 +985,370 @@
               }
             }
           ]
+        },
+        {
+          "name": "Buyer checkout (agent chat)",
+          "description": "Stages: recommendation, quote, confirmation request, explicit confirmation, PayPal approval, capture, receipt. Needs the API running with a configured model (otherwise Start returns 503 model_unavailable). Starting a run, requesting a quote and approving in PayPal are NOT confirmation; only `user_confirmed: true` on the confirm call can lead to capture, and only after the buyer approved in PayPal. In sandbox mode open `approval_url` from the paypal_approval event as the sandbox buyer.",
+          "item": [
+            {
+              "name": "1. Start run (recommendation + quote + confirmation request)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{api_base_url}}/agent/runs",
+                  "host": [
+                    "{{api_base_url}}"
+                  ],
+                  "path": [
+                    "agent",
+                    "runs"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"message\": \"I need running shoes under $100, all in\",\n  \"budget\": \"100.00\",\n  \"request_id\": \"{{run_id}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.environment.set('run_id', 'postman-' + pm.variables.replaceIn('{{$guid}}').slice(0, 24));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.response.code === 503) { pm.environment.set('model_available', '0'); pm.test('typed model_unavailable (no model configured: the rest of this folder is skipped, nothing is simulated)', () => pm.expect(pm.response.json().error.code).to.eql('model_unavailable')); return; }\npm.environment.set('model_available', '1');",
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const run = pm.response.json();",
+                      "pm.test('awaiting confirmation, nothing charged', () => { pm.expect(run.status).to.eql('awaiting_confirmation'); pm.expect(run.events.some(e => e.type === 'receipt')).to.be.false; });",
+                      "const types = run.events.map(e => e.type);",
+                      "pm.test('quote then confirmation request then approval offer', () => pm.expect(types.slice(-3)).to.eql(['quote','confirmation_request','paypal_approval']));",
+                      "pm.test('seq is ordered', () => pm.expect(run.events.map(e => e.seq)).to.eql(run.events.map((_, i) => i)));",
+                      "const conf = run.events.find(e => e.type === 'confirmation_request');",
+                      "pm.environment.set('pending_order_id', conf.pending_order_id);",
+                      "pm.environment.set('next_seq', String(run.next_seq - 1));",
+                      "const ap = run.events.find(e => e.type === 'paypal_approval');",
+                      "pm.environment.set('api_paypal_status', ap.status);",
+                      "pm.environment.set('paypal_order_id', ap.order_id);",
+                      "if (ap.approval_url) pm.environment.set('paypal_approval_url', ap.approval_url);  // secret-grade"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "2. Poll (only new events; surfaces buyer approval, never captures)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{api_base_url}}/agent/runs/{{run_id}}?after={{next_seq}}",
+                  "host": [
+                    "{{api_base_url}}"
+                  ],
+                  "path": [
+                    "agent",
+                    "runs",
+                    "{{run_id}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "after",
+                      "value": "{{next_seq}}"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "const run = pm.response.json();",
+                      "pm.test('no capture from polling', () => pm.expect(run.events.some(e => e.type === 'receipt')).to.be.false);",
+                      "const ap = run.events.filter(e => e.type === 'paypal_approval').pop();",
+                      "if (ap) { pm.environment.set('api_paypal_status', ap.status); pm.test('approved => no approval url', () => { if (ap.status === 'APPROVED') pm.expect(ap.approval_url).to.be.null; }); }",
+                      "pm.environment.set('next_seq', String(run.next_seq - 1));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.environment.get('model_available') !== '1') pm.execution.skipRequest();  // no model configured"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "3. Confirm with user_confirmed=false (expected failure 428)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{api_base_url}}/agent/runs/{{run_id}}/confirm",
+                  "host": [
+                    "{{api_base_url}}"
+                  ],
+                  "path": [
+                    "agent",
+                    "runs",
+                    "{{run_id}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pending_order_id\": \"{{pending_order_id}}\",\n  \"user_confirmed\": false\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('428 confirmation_required', () => { pm.response.to.have.status(428); pm.expect(pm.response.json().error.code).to.eql('confirmation_required'); });"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.environment.get('model_available') !== '1') pm.execution.skipRequest();  // no model configured"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "4. Confirm BEFORE PayPal approval (expected failure 402; skipped once approved)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{api_base_url}}/agent/runs/{{run_id}}/confirm",
+                  "host": [
+                    "{{api_base_url}}"
+                  ],
+                  "path": [
+                    "agent",
+                    "runs",
+                    "{{run_id}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pending_order_id\": \"{{confirm_probe_id}}\",\n  \"user_confirmed\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.environment.get('model_available') !== '1') pm.execution.skipRequest();  // no model configured",
+                      "// Safety: after approval this points at a bogus pending id (404), so it cannot capture.",
+                      "pm.environment.set('confirm_probe_id', pm.environment.get('api_paypal_status') === 'APPROVED' ? 'not-the-pending-order' : pm.environment.get('pending_order_id'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('refused', () => pm.expect(pm.response.code).to.be.oneOf([402, 404]));",
+                      "pm.test('typed, no PayPal body', () => { const e = pm.response.json().error; pm.expect(e.code).to.be.oneOf(['payment_failed','pending_order_not_found']); pm.expect(JSON.stringify(e)).to.not.include('debug_id'); });"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "5. Confirm (explicit, after buyer approved in PayPal)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{api_base_url}}/agent/runs/{{run_id}}/confirm",
+                  "host": [
+                    "{{api_base_url}}"
+                  ],
+                  "path": [
+                    "agent",
+                    "runs",
+                    "{{run_id}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pending_order_id\": \"{{pending_order_id}}\",\n  \"user_confirmed\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "// Run Poll first and approve the order as the sandbox buyer. Otherwise: 402 ORDER_NOT_APPROVED (recoverable; confirm again after approving).",
+                      "pm.test('captured', () => pm.response.to.have.status(200));",
+                      "const run = pm.response.json();",
+                      "const r = run.events.filter(e => e.type === 'receipt');",
+                      "pm.test('exactly one receipt', () => pm.expect(r.length).to.eql(1));",
+                      "pm.test('receipt fields', () => { pm.expect(r[0].payment_status).to.eql('COMPLETED'); pm.expect(r[0].idempotency).to.eql('created'); pm.expect(r[0].capture_id).to.be.ok; });",
+                      "pm.environment.set('paypal_capture_id', r[0].capture_id);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.environment.get('model_available') !== '1') pm.execution.skipRequest();  // no model configured"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "6. Confirm again (idempotent: still one receipt)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{api_base_url}}/agent/runs/{{run_id}}/confirm",
+                  "host": [
+                    "{{api_base_url}}"
+                  ],
+                  "path": [
+                    "agent",
+                    "runs",
+                    "{{run_id}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pending_order_id\": \"{{pending_order_id}}\",\n  \"user_confirmed\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200', () => pm.response.to.have.status(200));",
+                      "pm.test('still one receipt, same capture', () => { const r = pm.response.json().events.filter(e => e.type === 'receipt'); pm.expect(r.length).to.eql(1); pm.expect(r[0].capture_id).to.eql(pm.environment.get('paypal_capture_id')); });"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.environment.get('model_available') !== '1') pm.execution.skipRequest();  // no model configured"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "7. Confirm unknown pending order (expected failure 404)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{api_base_url}}/agent/runs/{{run_id}}/confirm",
+                  "host": [
+                    "{{api_base_url}}"
+                  ],
+                  "path": [
+                    "agent",
+                    "runs",
+                    "{{run_id}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pending_order_id\": \"does-not-exist\",\n  \"user_confirmed\": true\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 pending_order_not_found', () => { pm.response.to.have.status(404); pm.expect(pm.response.json().error.code).to.eql('pending_order_not_found'); });"
+                    ]
+                  }
+                },
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (pm.environment.get('model_available') !== '1') pm.execution.skipRequest();  // no model configured"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -429,7 +1361,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/world/generations"
+              "raw": "{{api_base_url}}/world/generations",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "world",
+                "generations"
+              ]
             }
           },
           "event": [
@@ -451,7 +1390,15 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/world/generations/{{generation_id}}"
+              "raw": "{{api_base_url}}/world/generations/{{generation_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "world",
+                "generations",
+                "{{generation_id}}"
+              ]
             }
           },
           "event": [
@@ -473,7 +1420,32 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/world/episodes?generation_id={{generation_id}}&killed=false&sort=-fitness&limit=5"
+              "raw": "{{api_base_url}}/world/episodes?generation_id={{generation_id}}&killed=false&sort=-fitness&limit=5",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "world",
+                "episodes"
+              ],
+              "query": [
+                {
+                  "key": "generation_id",
+                  "value": "{{generation_id}}"
+                },
+                {
+                  "key": "killed",
+                  "value": "false"
+                },
+                {
+                  "key": "sort",
+                  "value": "-fitness"
+                },
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
             }
           },
           "event": [
@@ -483,7 +1455,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
-                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));"
+                  "const j = pm.response.json(); pm.test('page shape', () => pm.expect(j).to.have.keys(['items','total','offset','limit']));",
+                  "if (j.items.length) pm.environment.set('episode_id', j.items[0].episode_id);"
                 ]
               }
             }
@@ -495,7 +1468,15 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/world/episodes/{{episode_id}}"
+              "raw": "{{api_base_url}}/world/episodes/{{episode_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "world",
+                "episodes",
+                "{{episode_id}}"
+              ]
             }
           },
           "event": [
@@ -517,7 +1498,20 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/world/leaderboard?generation_id={{generation_id}}"
+              "raw": "{{api_base_url}}/world/leaderboard?generation_id={{generation_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "world",
+                "leaderboard"
+              ],
+              "query": [
+                {
+                  "key": "generation_id",
+                  "value": "{{generation_id}}"
+                }
+              ]
             }
           },
           "event": [
@@ -539,7 +1533,20 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/world/kills?generation_id={{generation_id}}"
+              "raw": "{{api_base_url}}/world/kills?generation_id={{generation_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "world",
+                "kills"
+              ],
+              "query": [
+                {
+                  "key": "generation_id",
+                  "value": "{{generation_id}}"
+                }
+              ]
             }
           },
           "event": [
@@ -561,7 +1568,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/world/kill-rules"
+              "raw": "{{api_base_url}}/world/kill-rules",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "world",
+                "kill-rules"
+              ]
             }
           },
           "event": [
@@ -583,7 +1597,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/models/evaluations"
+              "raw": "{{api_base_url}}/models/evaluations",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "models",
+                "evaluations"
+              ]
             }
           },
           "event": [
@@ -605,7 +1626,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/models/checkpoints"
+              "raw": "{{api_base_url}}/models/checkpoints",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "models",
+                "checkpoints"
+              ]
             }
           },
           "event": [
@@ -627,7 +1655,20 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{api_base_url}}/payments/ledger?generation_id={{generation_id}}"
+              "raw": "{{api_base_url}}/payments/ledger?generation_id={{generation_id}}",
+              "host": [
+                "{{api_base_url}}"
+              ],
+              "path": [
+                "payments",
+                "ledger"
+              ],
+              "query": [
+                {
+                  "key": "generation_id",
+                  "value": "{{generation_id}}"
+                }
+              ]
             }
           },
           "event": [

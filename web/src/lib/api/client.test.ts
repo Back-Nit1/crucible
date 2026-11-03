@@ -17,6 +17,26 @@ describe("CrucibleApi", () => {
     expect(run.events.some((event) => event.type === "quote")).toBe(true);
   });
 
+  it("calls the global fetch unbound, as browsers require (no 'Illegal invocation')", async () => {
+    const strictFetch = vi.fn(function (this: unknown) {
+      if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+      return Promise.resolve(
+        new Response(JSON.stringify({ items: [], total: 0, offset: 0, limit: 50 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", strictFetch);
+    try {
+      const api = new CrucibleApi("https://api.example.test", "live");
+      await expect(api.generations()).resolves.toMatchObject({ total: 0 });
+      expect(strictFetch).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("preserves structured live API errors", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(

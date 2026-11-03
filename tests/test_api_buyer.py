@@ -43,10 +43,10 @@ class Clock:
         return self.now
 
 
-def build(script=None, adapter=None, quotes=None, require_all_in=False, clock=None):
+def build(script=None, adapter=None, quotes=None, require_all_in=False, clock=None, backend=None, ledger=None):
     cat, clock = SyntheticFrozen(), clock or Clock()
-    backend = MockPayments(auto_approve=False)
-    payments = GuardedPayments(backend, cat, quotes=quotes, require_all_in=require_all_in, clock=clock)
+    backend = backend or MockPayments(auto_approve=False)
+    payments = GuardedPayments(backend, cat, quotes=quotes, require_all_in=require_all_in, clock=clock, ledger=ledger)
     adapter = adapter or ScriptedModelAdapter({"run-00000001": script or steps()})
     service = BuyerService(BuyerAgent(adapter, cat, payments, max_retries=0), cat, payments, backend, clock=clock)
     app = create_app(ProviderRouter({"elastic_snapshot": cat}, CFG), backend, buyer=service)
@@ -245,3 +245,124 @@ def test_openapi_publishes_the_buyer_contract():
     assert {"/agent/runs", "/agent/runs/{run_id}", "/agent/runs/{run_id}/confirm", "/agent/run"} <= set(spec["paths"])
     events = spec["components"]["schemas"]["BuyerRun"]["properties"]["events"]["items"]
     assert len(events["oneOf"]) == 12 and events["discriminator"]["propertyName"] == "type"
+
+
+# ---- checkout stages: recommendation -> quote -> confirmation request -> confirmation -> approval -> capture -> receipt ----
+URL = "/agent/runs/run-00000001/confirm"
+
+
+def pending_id(run):
+    return next(e for e in run["events"] if e["type"] == "confirmation_request")["pending_order_id"]
+
+
+def sandbox_build(**kw):
+    import httpx
+    from payments.ledger import PaymentLedger
+    from payments.sandbox import SandboxPayments
+    from tests.test_payments_contract import FakePayPal
+    fake = FakePayPal()
+    sb = SandboxPayments("id", "s", client=httpx.Client(base_url="https://api-m.sandbox.paypal.com", transport=httpx.MockTransport(fake.handler)),
+                         sleep=lambda _: None)
+    ledger = PaymentLedger("sandbox", clock=lambda: T0)
+    c, backend, service, adapter, clock = build(backend=sb, ledger=ledger, **kw)
+    return c, fake, ledger, service
+
+
+def captures(fake):
+    return [p for _, p, _ in fake.calls if p.endswith("/capture")]
+
+
+def test_each_stage_alone_never_captures_and_events_stay_ordered():
+    c, fake, ledger, _ = sandbox_build()
+    run = start(c).json()                                       # recommendation + quote + confirmation request + approval offer
+    assert types(run)[-3:] == ["quote", "confirmation_request", "paypal_approval"] and not captures(fake)
+    appr = run["events"][-1]
+    assert appr["approval_required"] and appr["status"] == "PAYER_ACTION_REQUIRED" and appr["order_id"] == "ORD1" and appr["approval_url"]
+    assert appr["pending_order_id"] == pending_id(run)
+    fake.approve("ORD1")                                         # the buyer approves in PayPal: approval is not confirmation
+    poll = c.get("/agent/runs/run-00000001", params={"after": run["next_seq"] - 1}).json()
+    new = poll["events"][-1]
+    assert new["type"] == "paypal_approval" and new["status"] == "APPROVED" and not new["approval_required"] and new["approval_url"] is None
+    assert poll["status"] == "awaiting_confirmation" and not captures(fake)
+    assert c.get("/agent/runs/run-00000001", params={"after": poll["next_seq"] - 1}).json()["events"] == []   # status unchanged: no event spam
+    r = c.post(URL, json={"pending_order_id": pending_id(run), "user_confirmed": False})   # approved but not confirmed
+    assert r.status_code == 428 and not captures(fake)
+    ok = c.post(URL, json={"pending_order_id": pending_id(run), "user_confirmed": True}).json()
+    seq = [e["type"] for e in ok["events"]]
+    assert seq.index("confirmation_request") < seq.index("paypal_approval") < seq.index("receipt") == len(seq) - 1
+    receipt = ok["events"][-1]
+    assert (receipt["order_id"], receipt["payment_status"], receipt["idempotency"]) == ("ORD1", "COMPLETED", "created")
+    assert Decimal(receipt["amount"]) == Decimal("10") and receipt["currency"] == "USD"
+    assert len(captures(fake)) == 1
+    assert [e.event for e in ledger.entries()] == ["proposal", "approval", "failure", "confirmation", "capture"]   # failure = the unconfirmed attempt
+
+
+def test_confirmation_without_paypal_approval_cannot_capture_and_stays_recoverable():
+    c, fake, ledger, _ = sandbox_build()
+    pid = pending_id(start(c).json())
+    r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
+    assert r.status_code == 402 and r.json()["error"]["message"] == "ORDER_NOT_APPROVED"
+    run = c.get("/agent/runs/run-00000001").json()
+    assert run["status"] == "awaiting_confirmation" and run["events"][-1]["code"] == "payment_not_approved"
+    fake.approve("ORD1")
+    assert c.post(URL, json={"pending_order_id": pid, "user_confirmed": True}).json()["status"] == "completed"
+    assert len(fake.orders["ORD1"]["purchase_units"][0]["payments"]["captures"]) == 1
+
+
+def test_repeated_and_concurrent_confirmation_charge_once():
+    import concurrent.futures as cf
+    c, fake, ledger, _ = sandbox_build()
+    pid = pending_id(start(c).json())
+    fake.approve("ORD1")
+    with cf.ThreadPoolExecutor(4) as pool:
+        out = list(pool.map(lambda _: c.post(URL, json={"pending_order_id": pid, "user_confirmed": True}), range(4)))
+    assert all(r.status_code == 200 for r in out) and len(captures(fake)) == 1
+    run = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True}).json()
+    assert [e["type"] for e in run["events"]].count("receipt") == 1 and len(ledger.captures()) == 1
+
+
+def test_changed_price_between_quote_and_confirmation_cannot_capture():
+    c, fake, ledger, service = sandbox_build()
+    pid = pending_id(start(c).json())
+    fake.approve("ORD1")
+    w = service.catalog.products["W000"]
+    service.catalog.products["W000"] = w.model_copy(update={"price": w.price + 1})
+    r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "quote_changed" and not captures(fake)
+    again = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})   # the dropped order is a typed 404, never a 500
+    assert again.status_code == 404 and again.json()["error"]["code"] == "pending_order_not_found" and not captures(fake)
+
+
+def test_timeout_on_capture_is_typed_recoverable_and_does_not_double_charge():
+    import httpx
+    c, fake, ledger, _ = sandbox_build()
+    pid = pending_id(start(c).json())
+    fake.approve("ORD1")
+    fake.faults = [httpx.ReadTimeout("secret-host")] * 3
+    r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
+    assert r.status_code == 503 and r.json()["error"]["code"] == "payment_unavailable" and "secret-host" not in r.text
+    run = c.get("/agent/runs/run-00000001").json()
+    last = next(e for e in reversed(run["events"]) if e["type"] == "error")
+    assert run["status"] == "awaiting_confirmation" and (last["code"], last["action"], last["retryable"]) == ("payment_unavailable", "retry", True)
+    ok = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True}).json()
+    assert ok["status"] == "completed" and len(fake.orders["ORD1"]["purchase_units"][0]["payments"]["captures"]) == 1
+    assert [e.failure_code for e in ledger.entries() if e.event == "failure"] == ["TIMEOUT"]
+
+
+def test_declined_capture_is_terminal_typed_and_leaks_nothing():
+    c, fake, ledger, _ = sandbox_build()
+    pid = pending_id(start(c).json())
+    fake.approve("ORD1")
+    fake.decline = True
+    r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
+    run = c.get("/agent/runs/run-00000001").json()
+    assert r.status_code == 402 and run["status"] == "failed" and run["events"][-1]["code"] == "payment_failed"
+    assert "receipt" not in types(run) and "dbg" not in json.dumps(run)
+
+
+def test_mock_and_sandbox_emit_the_same_event_shape():
+    c1, backend, *_ = build()
+    c2, fake, *_ = sandbox_build()
+    runs = [start(c1).json(), start(c2).json()]
+    assert types(runs[0]) == types(runs[1])
+    assert set(runs[0]["events"][-1]) == set(runs[1]["events"][-1])
