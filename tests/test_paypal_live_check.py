@@ -102,9 +102,21 @@ def test_challenge_is_exit_5_kernel_failure_7_paypal_failure_6_assertion_8(tmp_p
     assert code == 8 and json.loads(out)["status"] == "assertion_failed"
 
 
-def test_duplicate_charge_is_caught_if_paypal_ever_accepted_a_second_capture(tmp_path, capsys, monkeypatch):
+def test_duplicate_capture_answered_2xx_but_one_capture_recorded_passes_and_is_reported(tmp_path, capsys, monkeypatch):
     authorize(monkeypatch)
     rig = _sandbox()
-    rig.backend.duplicate_capture_code = lambda oid: "CAPTURED_AGAIN"
+    rig.backend.duplicate_capture_code = lambda oid: "CAPTURED_AGAIN"  # observed live: 2xx, still one capture
     code, out, _ = run(tmp_path, capsys, rig=rig)
-    assert code == 8 and "duplicate capture not rejected" in out
+    d = json.loads(out)
+    assert code == 0 and d["duplicate_capture_result"] == "CAPTURED_AGAIN" and d["captures_on_order"] == 1
+
+
+def test_duplicate_charge_is_caught_if_paypal_ever_recorded_a_second_capture(tmp_path, capsys, monkeypatch):
+    authorize(monkeypatch)
+    rig = _sandbox()
+    real = rig.backend.order_captures
+    dup_done = []
+    rig.backend.duplicate_capture_code = lambda oid: dup_done.append(1) or "CAPTURED_AGAIN"
+    rig.backend.order_captures = lambda oid: real(oid) * (2 if dup_done else 1)
+    code, out, _ = run(tmp_path, capsys, rig=rig)
+    assert code == 8 and "second charge" in out

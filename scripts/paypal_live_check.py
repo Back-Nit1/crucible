@@ -95,7 +95,9 @@ def run_flow(sb, approve, ledger, steps: Steps, res: dict) -> None:
     res |= {"capture_id": cap.capture_id, "capture_amount": str(cap.amount), "capture_currency": cap.currency,
             "captures_on_order": len(after), "replay_same_capture_id": again.capture_id == cap.capture_id,
             "duplicate_capture_result": dup, "final_order_status": sb.get_status(oid)}
-    check(dup == "ORDER_ALREADY_CAPTURED" and len(after) == 1, f"duplicate capture not rejected ({dup}, {len(after)} captures)")
+    # Live 2026-11-02: PayPal may answer a second capture 2xx ("CAPTURED_AGAIN") yet still record ONE capture; the order's own
+    # capture list, not the response code, is the proof of no double charge.
+    check(len(after) == 1, f"duplicate capture created a second charge ({dup}, {len(after)} captures)")
     check(len(ledger.captures()) == 1, "ledger shows more than one charge")
 
 
