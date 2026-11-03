@@ -219,7 +219,7 @@ npx newman@6.2.1 run postman/crucible.postman_collection.json -e postman/crucibl
     --env-var api_base_url=http://127.0.0.1:8000 --env-var generation_id=rc-real-20261102 --folder "Crucible API" --folder "World, models, ledger"
 uv run python -m scripts.secret_scan --env-file .env
 uv run python -m scripts.verify_deploy <web_url> <api_url>    # after deploying
-uv run python -m scripts.check_submission                     # fails until the <<placeholders>> are filled
+uv run python -m scripts.check_submission                     # fails until the placeholders are filled
 
 # Data, evaluation and publishing (the model-dependent ones exit 3 until the human sets the Modal gates)
 uv run python -m scripts.build_snapshot --category Sports_and_Outdoors --index --env-file .env

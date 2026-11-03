@@ -1,6 +1,6 @@
 # Pre-submit checklist
 
-State as of 2026-11-03 (deadline 2026-11-12 12:00 PM PT). Items are `prompt.md` section 17 first, then the official-rules items from section 2 and the milestone items from section 16. **PASS** = verified now with the evidence shown. **FAIL** = not met. **OWNER** = only the repository owner can do it. Re-check with `uv run python -m scripts.check_submission` (it fails while any `<<placeholder>>` remains).
+State as of 2026-11-03 (deadline 2026-11-12 12:00 PM PT). Items are `prompt.md` section 17 first, then the official-rules items from section 2 and the milestone items from section 16. **PASS** = verified now with the evidence shown. **FAIL** = not met. **OWNER** = only the repository owner can do it. Re-check with `uv run python -m scripts.check_submission` (it fails while any `placeholder` remains).
 
 ## Definition of done (prompt.md section 17)
 | # | Item | Result | Evidence / what is missing |
