@@ -36,7 +36,7 @@ def _load_manifest(a):
 def cmd_plan(a) -> int:
     from agents.prompts import PROMPT_VERSION
     from catalog.providers.elastic import load_manifest_hashes
-    from eval.contenders import ContenderError, load_adapter_reference, standard_contenders
+    from eval.contenders import AdapterReference, load_adapter_reference, standard_contenders
     from eval.leakage import audit
     from eval.manifest import Versions, build_manifest
     from eval.memory import pool_hash
@@ -52,7 +52,8 @@ def cmd_plan(a) -> int:
     pool = ()
     if a.memory_pool:
         pool = tuple(TraceRecord.model_validate_json(l) for l in Path(a.memory_pool).read_text().splitlines() if l.strip())
-    adapter = load_adapter_reference(a.adapter_ref) if a.adapter_ref else None
+    adapter = (AdapterReference.from_artifact_manifest(a.adapter_manifest) if a.adapter_manifest else
+               load_adapter_reference(a.adapter_ref) if a.adapter_ref else None)
     contenders = standard_contenders(model_id=MODEL_ID, base_revision=MODEL_REVISION, prompt_version=PROMPT_VERSION,
                                      endpoint="modal:crucible-qwen-inference/Qwen", memory_k=a.memory_k, adapter=adapter)
     if not pool:  # a memory contender over an empty pool would silently equal base
@@ -70,7 +71,8 @@ def cmd_plan(a) -> int:
                                                                           task_generator=TASK_VERSION),
         pass_k=a.pass_k, created_at=dt.datetime.now(dt.UTC), memory_pool_hash=pool_hash(pool) if pool else None, memory_pool_size=len(pool))
     manifest = manifest.with_state(result_artifacts={"protected_tasks": str(ts / "protected.jsonl"), "protected_hash": meta["protected_hash"],
-                                                      "taskset": str(ts), "memory_pool": a.memory_pool or "", "audit_hash": report.content_hash})
+                                                      "taskset": str(ts), "memory_pool": a.memory_pool or "", "audit_hash": report.content_hash,
+                                                      "adapter_manifest": a.adapter_manifest or ""})
     store = _paths(a)
     existing = store.load_manifest()
     if existing and existing.manifest_hash != manifest.manifest_hash:
@@ -90,11 +92,11 @@ def _catalog(a):
     return FrozenCache(ElasticCatalogProvider(es)), es
 
 
-def _client():
+def _client(adapter=None):
     from agents.model import InferenceError
     from agents.qwen_client import ModalQwenClient
     try:
-        return ModalQwenClient.from_environment()
+        return ModalQwenClient.from_environment(adapter=adapter)
     except InferenceError as exc:
         print(f"BLOCKED: {exc}\nNo model call was made and no result was produced.", file=sys.stderr)
         raise SystemExit(BLOCKED)
@@ -114,20 +116,22 @@ def cmd_run(a) -> int:
     if arts.get("memory_pool"):
         pool = tuple(TraceRecord.model_validate_json(l) for l in Path(arts["memory_pool"]).read_text().splitlines() if l.strip())
         memory = FrozenEvalMemory(pool, tuple(tasks.values()))
-    if any(c.kind == "finetuned" for c in manifest.contenders):
-        print("BLOCKED: serving a LoRA adapter needs the trainer's inference interface (modal-training.md); "
-              "this checkout has none, and a base-model answer must never stand in for it.", file=sys.stderr)
-        return BLOCKED
     if a.env_file:
         load(a.env_file, ELASTIC | {"CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD"})
-    client = _client()
-    adapter = QwenModelAdapter(client, max_retries=1)
+    from training.checkpoints import selection_from_ref
+    clients, adapters = {}, {}
+    for contender in manifest.contenders:
+        selection = (selection_from_ref(contender.adapter_ref, training_manifest_hash=contender.training_manifest_hash)
+                     if contender.kind == "finetuned" else None)
+        clients[contender.id] = _client(selection)
+        adapters[contender.id] = QwenModelAdapter(clients[contender.id], max_retries=1)
     catalog, _ = _catalog(a)
-    out = run_evaluation(manifest, tasks, catalog=catalog, model_factory=lambda c: adapter, store=_paths(a), memory=memory,
+    out = run_evaluation(manifest, tasks, catalog=catalog, model_factory=lambda c: adapters[c.id], store=_paths(a), memory=memory,
                          max_workers=a.max_workers, max_episodes=a.max_episodes, log=lambda m: print(m, file=sys.stderr))
     print(json.dumps({"status": out.status.value, "complete": out.complete, "executed": out.executed, "skipped_done": out.skipped_done,
                       "unique_records": out.unique_records, "expected": manifest.expected_records, "quarantined": out.quarantined,
-                      "stopped_reason": out.stopped_reason, "spent_usd_estimate": str(client.spent)}, indent=1))
+                      "stopped_reason": out.stopped_reason,
+                      "spent_usd_estimate": str(sum((client.spent for client in clients.values()), start=0))}, indent=1))
     return 0 if out.complete or out.status is RunStatus.INTERRUPTED else 1
 
 
@@ -142,10 +146,7 @@ def cmd_webshop(a) -> int:
     base = _paths(a).dir / "webshop"
     results = {}
     for c in manifest.contenders:
-        if c.kind == "finetuned":
-            unmet_c = unmet + ["fine-tuned adapter serving is not available in this checkout"]
-        else:
-            unmet_c = list(unmet)
+        unmet_c = list(unmet)
         if unmet_c:
             results[c.id] = blocked(c, unmet_c, now)
             continue
@@ -157,7 +158,11 @@ def cmd_webshop(a) -> int:
             for p in (base / c.id / "episodes").glob("*.json") if (base / c.id / "episodes").is_dir() else ():
                 e = EpisodeResult.model_validate_json(p.read_text())
                 done[(e.session, e.seed)] = e
-            results[c.id] = run_webshop(c, ModelWebShopAgent(_client(), c), env, sessions=parse_sessions(a.webshop_sessions), seeds=manifest.seeds,
+            from training.checkpoints import selection_from_ref
+            selection = (selection_from_ref(c.adapter_ref, training_manifest_hash=c.training_manifest_hash)
+                         if c.kind == "finetuned" else None)
+            results[c.id] = run_webshop(c, ModelWebShopAgent(_client(selection), c), env,
+                                        sessions=parse_sessions(a.webshop_sessions), seeds=manifest.seeds,
                                         now=now, raw_dir=base / c.id / "raw", done=done)
         finally:
             env.close()
@@ -219,7 +224,9 @@ def main(argv=None) -> int:
     sub.choices["plan"].add_argument("--pass-k", type=int, default=1)
     sub.choices["plan"].add_argument("--memory-k", type=int, default=2)
     sub.choices["plan"].add_argument("--memory-pool")
-    sub.choices["plan"].add_argument("--adapter-ref")
+    adapter = sub.choices["plan"].add_mutually_exclusive_group()
+    adapter.add_argument("--adapter-ref")
+    adapter.add_argument("--adapter-manifest")
     sub.choices["run"].add_argument("--max-workers", type=int, default=1)
     sub.choices["run"].add_argument("--max-episodes", type=int)
     sub.choices["webshop"].add_argument("--webshop-sessions", default="0-49")

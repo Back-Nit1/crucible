@@ -84,6 +84,17 @@ class AdapterReference(_Strict):
     base_revision: str = Field(pattern=r"^[0-9a-f]{40}$")
     training_manifest_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
 
+    @classmethod
+    def from_artifact_manifest(cls, artifact) -> "AdapterReference":
+        """Build the evaluator's neutral reference from a sealed trainer artifact or its manifest path."""
+        from modal_app.adapter_artifact import ArtifactManifest, load_manifest
+        from training.checkpoints import artifact_ref
+
+        manifest = artifact if isinstance(artifact, ArtifactManifest) else load_manifest(Path(artifact))
+        return cls(adapter_ref=artifact_ref(manifest), adapter_sha256=manifest.adapter_hash,
+                   base_model=manifest.base_model, base_revision=manifest.base_revision,
+                   training_manifest_hash=manifest.training_manifest_hash)
+
 
 def sha256_file(path: str | Path) -> str:
     digest = hashlib.sha256()

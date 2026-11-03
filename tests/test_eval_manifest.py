@@ -68,6 +68,16 @@ def test_finetuned_contender_requires_an_existing_artifact_reference(tmp_path):
                             adapter=loaded)
 
 
+def test_adapter_reference_is_derived_from_a_sealed_training_artifact(tmp_path):
+    from tests.test_qwen_adapter_inference import make_artifact
+    from training.checkpoints import artifact_ref
+
+    artifact = make_artifact(tmp_path, run_id="eval-artifact")
+    ref = AdapterReference.from_artifact_manifest(artifact)
+    assert ref.adapter_ref == artifact_ref(artifact)
+    assert (ref.adapter_sha256, ref.training_manifest_hash) == (artifact.adapter_hash, artifact.training_manifest_hash)
+
+
 def test_manifest_hash_is_stable_and_ignores_run_state_only():
     tasks, m = manifest()
     again = EvaluationManifest.model_validate_json(m.model_dump_json())
