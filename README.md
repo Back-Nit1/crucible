@@ -40,8 +40,8 @@ Postman: import `postman/crucible.postman_collection.json` + `postman/crucible.p
 ## Infrastructure status
 | Service | Status |
 |---|---|
-| PayPal Orders v2 sandbox | OAuth, create, get, idempotent replay, pre-approval capture rejection live-verified. Approval + capture **not** run (no buyer account). |
-| Kernel approval | Code + probe done; login challenge unknown until buyer credentials exist. Blocked. |
+| PayPal Orders v2 sandbox | Create, buyer approval, capture ($1.00 USD COMPLETED), idempotent capture replay and a one-capture-per-order check live-verified 2026-11-02. Evidence: `docs/payments/paypal_live_check.json`. |
+| Kernel approval | Automated buyer approval passed 1 of 8 authorized runs (plus 1 earlier session pass); the sandbox login form sometimes resets to the email step. **Not reliable**; judges approve by hand in PayPal's page. See `docs/spikes/paypal-kernel.md` section 8. |
 | PayPal Agent Toolkit | Not used: required actions not confirmed. |
 | Elastic Serverless | Connected; mappings, keyword/vector/hybrid verified (see spike). Embeddings: `.jina-embeddings-v5-text-nano` (768d). |
 | Channel3 | Live product display only; no review text; snapshot/training barred by ToS. Opt-in. |
