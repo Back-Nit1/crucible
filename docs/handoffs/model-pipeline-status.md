@@ -2,6 +2,8 @@
 
 Updated 2026-11-02 23:59 EST. Branch: `feat/model-pipeline`. Base: `origin/main@11fcb1f`.
 
+READY-TO-MERGE ded4e44
+
 ## Offline integration
 
 **DONE**
