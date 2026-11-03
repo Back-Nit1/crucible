@@ -1,0 +1,99 @@
+{
+  "environment": "sandbox",
+  "amount": "1.00",
+  "currency": "USD",
+  "date": "2026-11-02",
+  "runs_used": 8,
+  "run_cap": 8,
+  "full_passes_end_to_end": 1,
+  "target": "5 consecutive passes - NOT reached; cap hit",
+  "runs": [
+    {
+      "run": 1,
+      "code_state": "049e02c role buttons + Next retry (pre-locale fix)",
+      "result": "approval_blocked",
+      "order_approved": false,
+      "captured": false,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "browser step failed: page.waitForSelector: Timeout 15000ms exceeded."
+    },
+    {
+      "run": 2,
+      "code_state": "same",
+      "result": "approval_blocked",
+      "order_approved": false,
+      "captured": false,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "browser step failed: locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "run": 3,
+      "code_state": "same",
+      "result": "approval_blocked",
+      "order_approved": false,
+      "captured": false,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "browser step failed: page.waitForSelector: Timeout 15000ms exceeded."
+    },
+    {
+      "run": 4,
+      "code_state": "en-US header + pt labels",
+      "result": "approval_blocked",
+      "order_approved": false,
+      "captured": false,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "browser step failed: locator.click: Timeout 30000ms exceeded."
+    },
+    {
+      "run": 5,
+      "code_state": "en-US header + pt labels",
+      "result": "approval_blocked",
+      "order_approved": false,
+      "captured": false,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "challenge detected at after_review:unexpected_host"
+    },
+    {
+      "run": 6,
+      "code_state": "+ return_url redirect fix + login diagnostics",
+      "result": "approval_blocked",
+      "order_approved": false,
+      "captured": false,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "browser step failed: login button not found at /pay: Enter your email address to get started. Email or mobile number Forgot email? Next or Pay with Debit or Credit Card Cancel and return to Test Store English Fran\u00e7ais Espa\u00f1ol \u4e2d\u6587 Contact Us Privacy Legal Policy"
+    },
+    {
+      "run": 7,
+      "code_state": "+ whole-login retry loop",
+      "result": "assertion_failed",
+      "order_approved": true,
+      "captured": true,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "duplicate capture not rejected (CAPTURED_AGAIN, 1 captures)"
+    },
+    {
+      "run": 8,
+      "code_state": "same as run 7 (+ corrected duplicate-capture assertion)",
+      "result": "approval_blocked",
+      "order_approved": false,
+      "captured": false,
+      "approval_ms": null,
+      "capture_ms": null,
+      "failure": "browser step failed: login button not found at /pay: Pay with PayPal Enter your email address to get started. Email or mobile number Forgot email? Next or Pay with Debit or Credit Card Cancel and return to Test Store English Fran\u00e7ais Espa\u00f1ol \u4e2d\u6587 Contact Us Priv"
+    }
+  ],
+  "notes": [
+    "Run 7: approval + capture + idempotent replay succeeded and PayPal recorded exactly 1 capture; the script then failed only on an assertion (duplicate capture response expected ORDER_ALREADY_CAPTURED, PayPal returned 2xx). The assertion was corrected afterwards to use the order's capture list.",
+    "Runs 1-3: Kernel browser got the login page in Portuguese; English role matchers did not match. Fixed by Accept-Language en-US.",
+    "Run 5: pay click redirected to the merchant return_url, wrongly flagged as unexpected_host. Order approval for runs 1-5 was not confirmed through the API.",
+    "Runs 6 and 8: after fill the page showed the email step again (login button never visible). Cause NOT identified; no run budget was left to investigate.",
+    "Earlier user session (uncommitted, other worktree): one pass with COMPLETED capture 3P708572Y9076274W, approval 13100 ms, capture 1249 ms; see docs/spikes/results/paypal_live_check.json."
+  ]
+}

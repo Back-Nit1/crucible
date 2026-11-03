@@ -73,17 +73,30 @@ Credential-free probe (`scripts/kernel_probe.py`): a default Kernel browser (`st
 - **Kernel (`payments/kernel_approver.py`)**: requires `CRUCIBLE_KERNEL_BUYER_APPROVAL_AUTHORIZED=1` before any session; navigates only to `https://www.sandbox.paypal.com` / `sandbox.paypal.com` (checked before the browser exists and after every step inside it); stops on CAPTCHA, identity/2FA text or unexpected host; no capture in browser code; session always deleted (`cleanup_ok`); failures are `ApprovalBlocked` (challenge) or `KernelError` (transport), both scrubbed of buyer credentials. Docs re-verified: `browsers.playwright.execute(session_id, code=, timeout_sec=)` returns `success/result/error`; `browsers.delete_by_id(session_id)`.
 - **Postman**: 10-step sandbox flow + buyer start/poll/confirm with expected-failure examples; capture requests are redirected to a bogus id unless the order is APPROVED.
 
-## 7. The canonical live command (not yet run)
+## 7. The canonical live command 
 
 ```
 CRUCIBLE_KERNEL_BUYER_APPROVAL_AUTHORIZED=1 \
 uv run python -m scripts.paypal_live_check --env-file <.env> --confirm-sandbox-run [--no-kernel]
 ```
 
-$1.00 USD, sandbox, once. Steps timed individually: oauth, create_order, create_replay, get_order, kernel_approval, get_order_after_approval, capture, capture_record, capture_replay, duplicate_capture. Asserts exactly one PayPal capture and `ORDER_ALREADY_CAPTURED` for a capture under a new request id. Exit codes: `0` success, `3` configuration missing (names only), `4` authorization missing, `5` approval blocked (challenge, or `--no-kernel`), `6` PayPal API failure, `7` Kernel failure, `8` assertion failure. Evidence (sanitized) goes to `docs/payments/paypal_live_check.json`; none exists yet, so **no approval/capture/duplicate-capture/latency numbers are claimed here**.
+$1.00 USD, sandbox, once. Steps timed individually: oauth, create_order, create_replay, get_order, kernel_approval, get_order_after_approval, capture, capture_record, capture_replay, duplicate_capture. Asserts exactly one PayPal capture on the order after a second capture under a new request id (the response code is recorded; live PayPal answered 2xx while still recording one capture). Exit codes: `0` success, `3` configuration missing (names only), `4` authorization missing, `5` approval blocked (challenge, or `--no-kernel`), `6` PayPal API failure, `7` Kernel failure, `8` assertion failure. Per-run evidence goes to `docs/payments/paypal_live_check.json` (the script overwrites it each run; the committed file is a hand-assembled per-run summary, see section 8).
+
+## 8. Live results, 2026-11-02 (sandbox, $1.00 USD, 8 of 8 authorized runs used)
+
+Target of 5 consecutive passes was **not reached**. Reliability is therefore **not established**.
+
+| Run | Code state | Result | Cause |
+|---|---|---|---|
+| 1-3 | role-based buttons + Next retry | approval failed | Kernel browser got the login page in **Portuguese** (`placeholder="Senha"`); English `Next`/`Log In` matchers never matched |
+| 4 | + `Accept-Language: en-US`, pt labels | approval failed | Log In button not found (page text not captured then) |
+| 5 | same | flagged `after_review:unexpected_host` | pay click redirected to the merchant `return_url` (example.com), wrongly treated as a challenge. Order status not checked |
+| 6 | + return_url fix, diagnostics | approval failed | page back at the email step; Log In never visible. Cause not identified |
+| 7 | + whole-login retry | **approval + capture OK** (approval 14.7 s, capture 1.3 s, replay same capture id, exactly 1 capture on the order); script exit 8 | script asserted `ORDER_ALREADY_CAPTURED` for the duplicate; PayPal answered 2xx but recorded 1 capture. Assertion corrected afterwards |
+| 8 | same as 7 | approval failed | page at the email step; Log In never visible. Cause not identified |
+
+Observed: 1 fully successful flow in 8 runs (run 7), plus 1 earlier success in the user's session (approval 13.1 s, capture 1.2 s). With the final code: 1 pass, 1 fail. No CAPTCHA or 2FA was ever seen. Open: why the form returns to the email step after the password is filled (suspect hydration race or a client-side reset); needs a screenshot/trace on the next authorized run. Judges approve by hand in PayPal's own page; the Kernel approver is for automated checks and the video only.
 
 ## Blockers
 
-- No sandbox personal (buyer) account email/password available to the agent (`.env` has none; `.env` must not be edited): `PAYPAL_SANDBOX_BUYER_EMAIL`, `PAYPAL_SANDBOX_BUYER_PASSWORD`.
-- No user authorization for a live sandbox run (`--confirm-sandbox-run`, `CRUCIBLE_KERNEL_BUYER_APPROVAL_AUTHORIZED=1`).
-- Whether PayPal challenges the buyer login remains unknown until a run with real buyer credentials.
+- Kernel login automation is flaky (see section 8); the 8-run authorization is spent.
