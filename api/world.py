@@ -234,7 +234,7 @@ def _page(items: list, total: int, offset: int, limit: int) -> dict:
     return {"items": items, "total": total, "offset": offset, "limit": limit}
 
 
-def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger=lambda: None) -> APIRouter:
+def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_source=lambda: None) -> APIRouter:
     r, runner = APIRouter(), runner or UnconfiguredRunner()
 
     def gen_out(d: dict) -> GenerationOut:
@@ -327,8 +327,8 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger=
 
     @r.get("/payments/ledger", response_model=Page[LedgerRow], tags=["payments"],
            description="Mock-payment events recorded by world runs, or (PAYMENTS_BACKEND=sandbox) this service's sanitized PayPal sandbox calls. Never live money, never credentials.")
-    def ledger_rows(generation_id: str | None = None, offset: Offset = 0, limit: Limit = 50):
-        live = ledger()
+    def ledger(generation_id: str | None = None, offset: Offset = 0, limit: Limit = 50):
+        live = ledger_source()
         if live is not None:  # PAYMENTS_BACKEND=sandbox: this process's real sandbox calls (sanitized), not world-run mocks
             rows = [LedgerRow(mode="sandbox", episode_id=e.run_id or "", event=e.event, amount=str(e.amount) if e.amount is not None else None,
                               references=[x for x in (e.order_ref, e.capture_ref) if x]) for e in live.entries()]

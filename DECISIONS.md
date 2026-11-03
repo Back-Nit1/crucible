@@ -108,3 +108,10 @@ Evidence: `docs/spikes/platform-day1.md`. Config: `config/providers.yaml`.
 - **Modal**: CPU-only (`cpu=1, memory=1GiB`), `max_containers=1`, schedule attached only when `CRUCIBLE_ENABLE_SCHEDULE=1` at `modal deploy`. The Elastic key is sent to Modal as a per-run secret from the launcher's environment.
 - **Phase 8 blocked**: `PAYPAL_SANDBOX_BUYER_EMAIL/PASSWORD` absent from `.env`; `scripts.paypal_live_check` is ready and stops with exit 3, printing names only.
 - **`/agent/run`** answers 503 `model_unavailable` until a model runner is injected; no placeholder agent answers shoppers.
+
+## 2026-11-03 release-final (agent A)
+- **Milestone tags**: `m1-day1-checks` on `7d4e93e` (merge of the Day-1 catalog/PayPal-Kernel/Modal spikes); `m2-catalog-tasks` on `6782e35` (earliest commit containing the snapshot builder, provider router and task engine; it also already contains the first episode runner and the Kernel/sandbox spikes, so it is the earliest merge that satisfies m2 and m3); `m3-episode` on the release-final merge commit as instructed, although `61ffbab` ("run bounded scored episodes") is where single-agent episodes first landed.
+- **Duplicate-capture assertion**: live PayPal answered a second capture under a new `PayPal-Request-Id` with 2xx while the order held exactly one capture. The live check now proves "no double charge" by the order's own capture list, and records the response code as observed (not as `ORDER_ALREADY_CAPTURED`).
+- **Kernel approval is not reliable** (1 end-to-end pass in 8 authorized runs, plus 1 earlier). README and spike doc say so; judges approve by hand in PayPal's page. The Kernel browser geo-locates to a non-English login page, so `Accept-Language: en-US` is sent (a plain header; no stealth/proxy). The challenge-text regex is English only.
+- **Ledger** behind `PAYMENTS_BACKEND=sandbox` is in-process (lost on restart); `/payments/ledger` serves it read-only and sanitized (no URLs, credentials or payer data).
+- **Model gate**: the API attaches Qwen only when `CRUCIBLE_MODEL_BACKEND=qwen` AND the human-set Modal launch gates exist; otherwise typed 503 `model_unavailable`.

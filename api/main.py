@@ -323,7 +323,7 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
         def __getattr__(self, name):
             return getattr(get_buyer(), name)
 
-    app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer), ledger=lambda: (get_payments(), state["ledger"])[1]))
+    app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer), ledger_source=lambda: (get_payments(), state["ledger"])[1]))
     app.include_router(buyer_router(_Lazy()))
     return app
 
