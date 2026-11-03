@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from agents.actions import Compare, GetProduct, SummarizeReviewEvidence
 from agents.buyer import BuyerAgent, BuyerOutcome
+from api.masking import hide, mask_product
 from catalog.providers.base import FrozenCatalogProvider, Product
 from payments.errors import OrderNotApproved, PaymentError
 from payments.guards import GuardedPayments, GuardViolation
@@ -249,10 +250,12 @@ def render(outcome: BuyerOutcome, catalog: FrozenCatalogProvider, payments: Guar
     opened = list(dict.fromkeys(r.action.product_id for r in outcome.records if isinstance(r.action, GetProduct) and r.result_references))
     proposed = outcome.pending.product_id if outcome.pending else None
     products: dict[str, Product] = {}
+    brands: dict[str, str | None] = {}  # real brands, kept only to mask them inside review text in demo mode
     for pid in opened:
         p = catalog.get_product(pid)
         if p is not None:
-            products[pid] = p
+            brands[pid] = p.brand
+            p = products[pid] = mask_product(p)
             ev.append(ProductCard(product_id=pid, title=p.title, brand=p.brand, category=p.category, price=p.price, currency=p.currency,
                                   stock=_stock(p), size_options=sorted(p.variants) or None, recommended=pid == proposed,
                                   provenance=_provenance(p)))
@@ -275,7 +278,7 @@ def render(outcome: BuyerOutcome, catalog: FrozenCatalogProvider, payments: Guar
                     if rid in valid:
                         rv = texts.get(rid)
                         ev.append(ReviewCitation(product_id=pid, review_id=rid, source_review_id=rv.source_review_id if rv else None,
-                                                 concern=c.concern, claim=c.claim, excerpt=_excerpt(rv.text) if rv else None,
+                                                 concern=c.concern, claim=hide(c.claim, brands.get(pid)), excerpt=hide(_excerpt(rv.text), brands.get(pid)) if rv else None,
                                                  rating=rv.rating if rv else None, date=rv.date if rv else None,
                                                  provenance=_provenance(products[pid])))
     if outcome.no_match is not None:

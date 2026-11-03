@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from catalog.router import ProductResult, ProviderRouter, ProviderUnavailable, ReviewsResult, SearchResult
+from api.masking import demo_mode, mask_product  # noqa: F401  (demo_mode re-exported)
 from api.buyer import AgentRunFailed, BuyerService, ModelNotConfigured, buyer_router, to_agent_run_result
 from api.world import ModelUnavailable, WorldDataUnavailable, world_router
 from payments.errors import PaymentError, PaymentUnavailable
@@ -36,10 +37,6 @@ def configure_logging() -> None:
         logging.getLogger("crucible").addHandler(h)
         logging.getLogger("crucible").setLevel(logging.INFO)
         logging.getLogger("crucible").propagate = False
-
-
-def demo_mode() -> bool:
-    return os.environ.get("DEMO_MODE") == "1"
 
 
 class ProposeRequest(BaseModel):
@@ -292,11 +289,14 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
     def search(q: Annotated[str, Query(min_length=1)], category: str | None = None,
                max_price: Decimal | None = None, min_price: Decimal | None = None):
         filters = {k: v for k, v in dict(category=category, max_price=max_price, min_price=min_price).items() if v is not None}
-        return get_router().search(q, filters)
+        r = get_router().search(q, filters)
+        r.products = [mask_product(p) for p in r.products]
+        return r
 
     @app.get("/catalog/products/{product_id}", response_model=ProductResult, responses={404: {"model": ErrorResponse}, **errs})
     def product(product_id: str):
         r = get_router().get_product(product_id)
+        r.product = mask_product(r.product)
         return r if r.product else _err(404, "product_not_found", product_id)
 
     @app.get("/catalog/products/{product_id}/reviews", response_model=ReviewsResult, responses=errs)
