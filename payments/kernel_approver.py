@@ -27,11 +27,12 @@ const blocked = async (stage) => {
   const chal = await page.locator('iframe[src*="recaptcha"][title*="challenge" i], iframe[src*="hcaptcha"], iframe[src*="arkose"]').first().isVisible().catch(() => false);
   return (chal || %(block)s.test(txt)) ? {blocked: true, stage} : null;
 };
+await page.setExtraHTTPHeaders({'Accept-Language': 'en-US,en;q=0.9'});  // Kernel's IP geo served the login in Portuguese; the matchers below are English
 await page.goto(%(url)s, {waitUntil: 'domcontentloaded'});
 let b = await blocked('landing'); if (b) return b;
 await page.fill('#email', %(email)s);
 // Buttons have no ids on the live page: find them by role. The first Next click can land before hydration, so retry once.
-const next = page.getByRole('button', {name: /^Next$/i});
+const next = page.getByRole('button', {name: /^(Next|Seguinte|Pr[óo]ximo)$/i});
 if (!(await page.locator('#password').isVisible())) {
   if (await next.isVisible().catch(() => false)) await next.click();
   if (!(await page.waitForSelector('#password', {state: 'visible', timeout: 8000}).catch(() => null))) {
@@ -40,7 +41,7 @@ if (!(await page.locator('#password').isVisible())) {
   }
 }
 await page.fill('#password', %(password)s);
-await page.getByRole('button', {name: /^Log ?In$/i}).click();
+await page.getByRole('button', {name: /^(Log ?In|Entrar)$/i}).click();
 await page.waitForTimeout(4000);
 b = await blocked('after_login'); if (b) return b;
 const done = /Complete Purchase|Pay Now|Continue|Agree/i;

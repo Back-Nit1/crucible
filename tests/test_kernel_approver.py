@@ -160,8 +160,9 @@ def test_login_flow_uses_role_buttons_next_retry_and_one_time_cta():
     k = FakeKernel({"blocked": False})
     approver(kernel=k).approve("O1")
     assert "#btnNext" not in k.code and "#btnLogin" not in k.code  # ids do not exist on the live page
-    assert "getByRole('button', {name: /^Next$/i})" in k.code and "getByRole('button', {name: /^Log ?In$/i})" in k.code
+    assert "getByRole('button', {name: /^(Next|Seguinte|Pr[óo]ximo)$/i})" in k.code and "getByRole('button', {name: /^(Log ?In|Entrar)$/i})" in k.code
     assert k.code.count("await next.click()") == 2  # second click covers a click that landed before hydration
+    assert "setExtraHTTPHeaders({'Accept-Language': 'en-US" in k.code  # login page was served in Portuguese once
     assert "timeout: 8000" in k.code and "timeout: 15000" in k.code
     assert "page.locator('#one-time-cta').or(" in k.code  # old regex kept as fallback
 
