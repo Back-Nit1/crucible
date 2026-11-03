@@ -53,7 +53,7 @@ def load_records(path: Path) -> tuple[SFTRecord, ...]:
 
 def launch_commands(args: argparse.Namespace) -> list[str]:
     base = (f"uv run python -m scripts.train_lora --records {args.records} --manifest {args.manifest} --run-id {args.run_id} "
-            f"--max-cost {args.max_cost} --env-file <ENV_FILE>")
+            f"--max-cost {args.max_cost} --taskset {args.taskset} --env-file <ENV_FILE>")
     return [
         f"export {TRAIN_MANIFEST_VAR}=<training manifest content_hash printed in training_plan.json>",
         f"export {TRAIN_CEILING_VAR}=<your approved USD ceiling for this run>",
@@ -62,8 +62,7 @@ def launch_commands(args: argparse.Namespace) -> list[str]:
         base + " --launch --max-steps 4 --stop-after-steps 2   # smoke: interrupt after 2 steps",
         base + " --launch --max-steps 4                         # resume the same run id to the end",
         "uv run modal app stop crucible-qwen-training",
-        "# before training on real traces, audit split/product leakage with the evaluation branch's scripts.audit_split_leakage "
-        "--training-manifest <training_manifest.json> (owned by the evaluation workstream)",
+        "# train_lora re-runs scripts.audit_split_leakage with this training manifest before either launch command",
     ]
 
 
@@ -71,6 +70,8 @@ def main(argv=None, *, transport: Transport | None = None, now: Callable[[], dt.
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--records", type=Path, required=True)
     ap.add_argument("--manifest", type=Path, required=True)
+    ap.add_argument("--taskset", type=Path, default=Path("docs/evaluations/taskset-20261110"),
+                    help="audited protected/reference task-set directory used to gate this training manifest")
     ap.add_argument("--run-id", required=True)
     ap.add_argument("--max-cost", type=Decimal, required=True, help="USD ceiling this plan may spend (must not exceed the approved ceiling)")
     ap.add_argument("--epochs", type=int, default=1)
@@ -94,6 +95,17 @@ def main(argv=None, *, transport: Transport | None = None, now: Callable[[], dt.
 
     try:
         manifest = TrainingManifest.model_validate_json(args.manifest.read_text())
+        from scripts.audit_split_leakage import audit_paths
+        taskset_meta = json.loads((args.taskset / "taskset.json").read_text())
+        audit_report = audit_paths(protected_path=args.taskset / "protected.jsonl",
+                                   reference_path=args.taskset / "reference.jsonl",
+                                   training_manifest_paths=(args.manifest,),
+                                   protected_hash=taskset_meta["protected_hash"],
+                                   reference_hash=taskset_meta["reference_hash"],
+                                   allow_not_run=frozenset({"memory_eligibility"}))
+        if not audit_report.passed:
+            failed = ", ".join(name for name, check in audit_report.checks.items() if check.status != "pass")
+            raise DatasetError("split_leakage", f"training manifest failed the protected/reference audit: {failed}")
         records = load_records(args.records)
         if manifest.model_version.startswith("scripted") and not args.allow_scripted_traces:
             raise DatasetError("scripted_traces", "these traces come from the scripted oracle shopper; pass --allow-scripted-traces "
@@ -102,13 +114,14 @@ def main(argv=None, *, transport: Transport | None = None, now: Callable[[], dt.
         hp = LoRAHyperparameters(epochs=args.epochs, learning_rate=args.learning_rate, max_steps=args.max_steps)
         plan = build_lora_plan(manifest, base_model=MODEL_ID, base_revision=MODEL_REVISION, gpu=GPU_TYPE,
                                maximum_approved_cost=args.max_cost, hyperparameters=hp)
-    except (DatasetError, ValueError) as exc:
+    except (DatasetError, ValueError, OSError, KeyError, json.JSONDecodeError) as exc:
         print(json.dumps({"status": "refused", "detail": str(exc)[:300]}))
         return 2
 
     rates = list_rates()
     summary = {"run_id": args.run_id, "base_model": MODEL_ID, "base_revision": MODEL_REVISION,
                "training_manifest_hash": manifest.content_hash, "training_data_source": manifest.model_version,
+               "leakage_audit_hash": audit_report.content_hash, "taskset": str(args.taskset),
                "dataset_hash": dataset.dataset_hash, "record_count": dataset.record_count, "plan_hash": plan_hash(plan),
                "total_steps": hp.total_steps(dataset.record_count), "hyperparameters": hp.model_dump(mode="json"),
                "gpu": plan.gpu, "maximum_approved_cost_usd": str(plan.maximum_approved_cost),

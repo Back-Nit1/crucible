@@ -6,6 +6,7 @@ import pytest
 from modal_app.train_protocol import TrainRequest
 from scripts.inspect_training_artifact import main as inspect_main
 from scripts.train_lora import main
+from tasks.schemas import TaskSplit
 from tests.test_training_dataset import curated, rebuilt
 from tests.test_training_gates import ENV
 from tests.test_training_service import Backend, NOW
@@ -77,6 +78,17 @@ def test_launch_without_authorization_is_blocked_with_zero_spend_and_calls_nothi
     run = read(files, "training_run.json")
     assert run["status"] == "blocked_not_run" and run["trained"] is False and run["gpu_spend_usd"] == "0" and not called
     assert TRAIN_MANIFEST_VAR in run["blocker"]
+
+
+def test_launch_runs_split_leakage_audit_before_transport(files, capsys):
+    rec, man, manifest, _ = files
+    leaked = manifest.model_copy(update={
+        "source_task_splits": {episode_id: TaskSplit.TEST for episode_id in manifest.source_episode_ids},
+    })
+    man.write_text(leaked.model_dump_json())
+    called = []
+    assert main(argv(files, mode="--launch"), transport=lambda payload: called.append(payload)) == 2
+    assert "split_leakage" in capsys.readouterr().out and not called
 
 
 def test_launch_for_a_different_manifest_hash_is_blocked(files, monkeypatch):
