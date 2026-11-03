@@ -30,23 +30,27 @@ const blocked = async (stage) => {
 await page.setExtraHTTPHeaders({'Accept-Language': 'en-US,en;q=0.9'});  // Kernel's IP geo served the login in Portuguese; the matchers below are English
 await page.goto(%(url)s, {waitUntil: 'domcontentloaded'});
 let b = await blocked('landing'); if (b) return b;
-await page.fill('#email', %(email)s);
-// Buttons have no ids on the live page: find them by role. The first Next click can land before hydration, so retry once.
+await page.waitForLoadState('networkidle', {timeout: 10000}).catch(() => {});  // let the SPA hydrate before typing
+// Buttons have no ids on the live page: find them by role. A click or fill before hydration can reset the form to the email step, so retry the whole login up to 3 times.
 const next = page.getByRole('button', {name: /^(Next|Seguinte|Pr[óo]ximo)$/i});
-if (!(await page.locator('#password').isVisible())) {
-  if (await next.isVisible().catch(() => false)) await next.click();
-  if (!(await page.waitForSelector('#password', {state: 'visible', timeout: 8000}).catch(() => null))) {
-    if (await next.isVisible().catch(() => false)) await next.click();
-    await page.waitForSelector('#password', {state: 'visible', timeout: 15000});
-  }
-}
+const login = page.getByRole('button', {name: /^(Log ?In|Entrar)$/i});
 const diag = async (what) => {  // page pathname + body excerpt; the caller scrubs buyer credentials
   const t = ((await page.innerText('body').catch(() => '')) || '').replace(/\\s+/g, ' ').slice(0, 300);
   throw new Error(what + ' not found at ' + new URL(page.url()).pathname + ': ' + t);
 };
-await page.fill('#password', %(password)s);
-const login = page.getByRole('button', {name: /^(Log ?In|Entrar)$/i});
-await login.waitFor({state: 'visible', timeout: 15000}).catch(() => diag('login button'));
+for (let attempt = 1; ; attempt++) {
+  if (!(await page.locator('#password').isVisible())) {
+    await page.fill('#email', %(email)s);
+    if (await next.isVisible().catch(() => false)) await next.click();
+    if (!(await page.waitForSelector('#password', {state: 'visible', timeout: 8000}).catch(() => null))) {
+      if (await next.isVisible().catch(() => false)) await next.click();
+      await page.waitForSelector('#password', {state: 'visible', timeout: 15000}).catch(() => diag('password field'));
+    }
+  }
+  await page.fill('#password', %(password)s);
+  if (await login.waitFor({state: 'visible', timeout: 8000}).then(() => true, () => false)) break;
+  if (attempt >= 3) await diag('login button');
+}
 await login.click();
 await page.waitForTimeout(4000);
 b = await blocked('after_login'); if (b) return b;
