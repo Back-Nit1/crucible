@@ -61,6 +61,21 @@ def test_evaluation_documents_declare_everything_needed_to_reproduce_and_compare
     assert len({x["task_set_hash"] for x in docs.values()}) == 1                    # identical pairs => identical task set
 
 
+def test_published_sample_matches_model_dashboard_contract():
+    task, rs = runs()
+    doc = next(iter(dict(evaluation_docs(rs, {task.id: task}, CTX)).values()))
+    assert {"contender", "status", "seeds", "pass_at_k", "latency_ms", "cost_per_task_usd", "variance"} <= doc.keys()
+    assert isinstance(doc["seeds"], list) and doc["status"] == "completed"
+    for metric in doc["metrics"].values():
+        assert {"numerator", "denominator", "excluded", "value"} <= metric.keys()
+    assert doc["pass_at_k"] == doc["metrics"]["pass_at_k"]
+
+    _, checkpoint = checkpoint_doc(checkpoint_id="qwen-base", base_model="Qwen/Qwen2.5-7B-Instruct",
+                                   base_revision="a09a35458c702b33eeacc393d103063234e8bc28", created_at=NOW)
+    assert {"status", "base_model", "manifest_hash", "catalog_hash"} <= checkpoint.keys()
+    assert checkpoint["manifest_hash"] is None and checkpoint["catalog_hash"] is None
+
+
 def test_mismatched_task_seed_pairs_cannot_be_published():
     task, (a, b) = runs()
     with pytest.raises(ValueError, match="identical task IDs and seeds"):

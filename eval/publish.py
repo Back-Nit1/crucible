@@ -64,19 +64,27 @@ def evaluation_docs(runs: tuple[ContenderRun, ...], tasks: dict[str, TaskSpec], 
     for c in report.contenders:
         eps = by_run[c.contender_id].episodes
         meta = [m for e in eps for m in e.model_metadata]
+        metrics = {n: {"numerator": str(m.numerator), "denominator": str(m.denominator), "excluded": m.excluded,
+                       "value": None if m.value is None else str(m.value), "unit": m.unit,
+                       "variance_across_seeds": (None if c.evaluation.variance_across_seeds.get(n) is None else
+                                                 str(c.evaluation.variance_across_seeds[n]))}
+                   for n, m in sorted(c.evaluation.metrics.items())}
+        metrics["pass_at_k"] = metrics[f"pass_at_{pass_k}"]
         doc = {
             "evaluation_id": f"{c.contender_id}:{ctx.seed}:{task_set_hash({t: tasks[t] for t in sorted(used)})[:12]}",
-            "contender_id": c.contender_id, "model": ctx.model, "checkpoint": c.checkpoint, "memory_enabled": c.memory_enabled,
-            "split": splits[0] if len(splits) == 1 else "mixed", "splits": splits, "seed": ctx.seed,
+            "contender_id": c.contender_id, "contender": c.contender_id, "status": "completed",
+            "model": ctx.model, "checkpoint": c.checkpoint, "memory_enabled": c.memory_enabled,
+            "split": splits[0] if len(splits) == 1 else "mixed", "splits": splits, "seed": ctx.seed, "seeds": [ctx.seed],
             "task_set_hash": task_set_hash({t: tasks[t] for t in sorted(used)}), "catalog_hash": ctx.catalog_hash,
             "prompt_version": ctx.prompt_version, "judge_version": ctx.judge_version,
             "training_manifest_hash": c.training_manifest_hash, "created_at": ctx.created_at.isoformat(), "pass_k": pass_k,
             "episode_count": len(eps),
-            "metrics": {n: {"numerator": str(m.numerator), "denominator": str(m.denominator), "excluded": m.excluded,
-                            "value": None if m.value is None else str(m.value), "unit": m.unit}
-                        for n, m in sorted(c.evaluation.metrics.items())},
+            "metrics": metrics, "pass_at_k": metrics["pass_at_k"],
             "held_out_category_performance": (lambda m: None if m.value is None else str(m.value))(
                 c.evaluation.metrics["held_out_category_performance"]),
+            "latency_ms": metrics["latency_ms"]["value"],
+            "cost_per_task_usd": metrics["cost_per_task"]["value"],
+            "variance": metrics["success_rate"]["variance_across_seeds"],
             "latency_cost": {"model_steps": len(meta), "latency_ms_total": sum(int(m.get("latency_ms", 0)) for m in meta),
                              "cost_total": str(sum((e.cost for e in eps), Decimal(0))),
                              "cost_unknown_steps": sum(m.get("cost_known") is False for m in meta),
@@ -94,7 +102,8 @@ def evaluation_docs(runs: tuple[ContenderRun, ...], tasks: dict[str, TaskSpec], 
 
 def checkpoint_doc(*, checkpoint_id: str, base_model: str, base_revision: str, created_at: dt.datetime,
                    status: str = "base", parent_checkpoint: str | None = None, plan: LoRAPlan | None = None,
-                   artifact_ref: str | None = None, evaluation_ids: tuple[str, ...] = ()) -> tuple[str, dict]:
+                   artifact_ref: str | None = None, evaluation_ids: tuple[str, ...] = (),
+                   catalog_hash: str | None = None) -> tuple[str, dict]:
     if status not in {"base", "planned", "trained"}:
         raise ValueError("status must be base, planned or trained")
     if status == "planned" and plan is None:
@@ -106,6 +115,7 @@ def checkpoint_doc(*, checkpoint_id: str, base_model: str, base_revision: str, c
     return checkpoint_id, {
         "checkpoint_id": checkpoint_id, "status": status, "base_model": base_model, "base_revision": base_revision,
         "parent_checkpoint": parent_checkpoint, "training_manifest_hash": plan.training_manifest_hash if plan else None,
+        "manifest_hash": plan.training_manifest_hash if plan else None, "catalog_hash": catalog_hash,
         "created_at": created_at.isoformat(), "plan": plan.model_dump(mode="json") if plan else None,
         "artifact_ref": artifact_ref, "evaluation_ids": list(evaluation_ids),
         "lineage": {"chain": [x for x in (parent_checkpoint, checkpoint_id) if x]}}
