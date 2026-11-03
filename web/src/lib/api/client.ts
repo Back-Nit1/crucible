@@ -60,7 +60,8 @@ export class CrucibleApi {
   constructor(
     private readonly baseUrl: string,
     readonly mode: DataMode,
-    private readonly fetcher: typeof fetch = fetch,
+    // Arrow, not a bare `fetch`: calling the global as a method of this class throws "Illegal invocation" in browsers.
+    private readonly fetcher: typeof fetch = (input, init) => fetch(input, init),
   ) {}
 
   private async request(path: string, init?: RequestInit): Promise<unknown> {
