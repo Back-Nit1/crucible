@@ -1,0 +1,27 @@
+{
+  "batch_content_hash": "2ed74471c760fc13e3d6176f04beec0e4712217bc9c437a2e21009a8db9ec73d",
+  "catalog_manifest_hash": "64b2769ac4f435a2e90dc564d4303e67bdc8a80e0d5cb0386c56e5507a8600c8",
+  "category_manifest_hashes": {
+    "Clothing_Shoes_and_Jewelry": "e4ac7a49521457215331d9f80174ea5d3bfcf06dfc542c5c75ef02cbe134e01a",
+    "Electronics": "a3b21c1a7791abb00386b08f078adc7a2980825264a69a0a9a4dcd5b98b403c4",
+    "Office_Products": "3c7b04a030d468270759b9b9c4e42e01d3c91a23d709aa07894d220a06ec89fb",
+    "Sports_and_Outdoors": "39e6466157fa91289fa2c9010735382b55270af8bb911a10823d3ca710416c3e"
+  },
+  "excluded_duplicates": 5,
+  "held_out_categories": [
+    "Sports_and_Outdoors"
+  ],
+  "protected": 47,
+  "protected_hash": "dd8677589b898e67a586d00dbfa4d20202879a764ce623314c17e099ba137ba4",
+  "provider": "elastic_snapshot",
+  "reference": 28,
+  "reference_hash": "ac00069b5416a67e78d943b4950942c2f0058407cddb9446da75cdf8a9d0992b",
+  "requested_size": 80,
+  "seed": 20261110,
+  "splits": {
+    "held_out_category": 20,
+    "test": 32,
+    "train": 24,
+    "val": 4
+  }
+}
