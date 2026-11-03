@@ -629,9 +629,12 @@
             "type": "confirmation_request"
           },
           {
+            "approval_required": true,
             "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
             "at": "2026-11-01T12:00:00Z",
             "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
             "seq": 15,
             "status": "PAYER_ACTION_REQUIRED",
             "type": "paypal_approval"
@@ -821,9 +824,12 @@
             "type": "confirmation_request"
           },
           {
+            "approval_required": true,
             "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
             "at": "2026-11-01T12:00:00Z",
             "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
             "seq": 15,
             "status": "PAYER_ACTION_REQUIRED",
             "type": "paypal_approval"
@@ -1091,9 +1097,12 @@
             "type": "confirmation_request"
           },
           {
+            "approval_required": true,
             "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
             "at": "2026-11-01T12:00:00Z",
             "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
             "seq": 15,
             "status": "PAYER_ACTION_REQUIRED",
             "type": "paypal_approval"
@@ -1121,8 +1130,10 @@
             "at": "2026-11-01T12:00:00Z",
             "capture_id": "MOCK-CAP-MOCK-ORDER-1",
             "currency": "USD",
+            "idempotency": "created",
             "mode": "mock",
             "order_id": "MOCK-ORDER-1",
+            "payment_status": "COMPLETED",
             "seq": 18,
             "status": "COMPLETED",
             "type": "receipt"
@@ -1383,9 +1394,12 @@
             "type": "confirmation_request"
           },
           {
+            "approval_required": true,
             "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
             "at": "2026-11-01T12:00:00Z",
             "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
             "seq": 15,
             "status": "PAYER_ACTION_REQUIRED",
             "type": "paypal_approval"
@@ -1413,8 +1427,10 @@
             "at": "2026-11-01T12:00:00Z",
             "capture_id": "MOCK-CAP-MOCK-ORDER-1",
             "currency": "USD",
+            "idempotency": "created",
             "mode": "mock",
             "order_id": "MOCK-ORDER-1",
+            "payment_status": "COMPLETED",
             "seq": 18,
             "status": "COMPLETED",
             "type": "receipt"
@@ -1682,9 +1698,12 @@
             "type": "confirmation_request"
           },
           {
+            "approval_required": true,
             "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
             "at": "2026-11-01T12:00:00Z",
             "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
             "seq": 15,
             "status": "PAYER_ACTION_REQUIRED",
             "type": "paypal_approval"
@@ -1945,9 +1964,12 @@
             "type": "confirmation_request"
           },
           {
+            "approval_required": true,
             "approval_url": "https://mock.invalid/approve/MOCK-ORDER-1",
             "at": "2026-11-01T12:00:00Z",
             "mode": "mock",
+            "order_id": "MOCK-ORDER-1",
+            "pending_order_id": "060dfb6af6a3a2d8de52fb2f82ae14d0",
             "seq": 15,
             "status": "PAYER_ACTION_REQUIRED",
             "type": "paypal_approval"
