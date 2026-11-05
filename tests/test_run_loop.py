@@ -69,7 +69,7 @@ def test_plan_prints_per_stage_max_cost_and_the_exact_gate_values(tmp_path, caps
     rate = cost_per_second(list_rates())
     gen = p["stages"]["generate"]
     assert gen["max_model_calls"] == 2 * 3 * 20 * 4 and gen["seconds_per_call"] == 120  # episodes x steps x runner x adapter tries
-    assert gen["max_seconds_per_episode"] == 900 + 120 and gen["max_seconds"] == 6 * 1020 + 60  # wall-clock cap bounds it
+    assert gen["max_seconds_per_episode"] == 900 + 4 * 120 and gen["max_seconds"] == 6 * 1380 + 60  # cap + the step in flight
     assert gen["max_cost_usd"] == str((gen["max_seconds"] * rate).quantize(Decimal("0.000001")))
     assert Decimal(p["stages"]["train"]["max_cost_usd"]) <= Decimal("0.40") and p["stages"]["train"]["budget_seconds"] > 0
     assert p["stages"]["curate"]["max_cost_usd"] == "0"
@@ -93,6 +93,8 @@ def test_loop_status_endpoint_is_read_only_and_leaks_no_paths(tmp_path, monkeypa
     from tests.test_api_endpoints import client
     assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
     assert main(["--iteration-id", "it-2", "--root", str(tmp_path)]) == 3  # real run blocked at the inference gate
+    (tmp_path / "it-3" / "stages").mkdir(parents=True)
+    (tmp_path / "it-3" / "stages" / "generate.json").write_text("{half-written")
     monkeypatch.setenv("CRUCIBLE_LOOP_ROOT", str(tmp_path))
     before = sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json"))
     r = client().get("/loop/status")
@@ -102,6 +104,7 @@ def test_loop_status_endpoint_is_read_only_and_leaks_no_paths(tmp_path, monkeypa
     assert [s["stage"] for s in its["it-1"]["stages"]] == list(STAGES) and its["it-1"]["next_stage"] is None
     assert its["it-2"]["next_stage"] == "generate" and its["it-2"]["stages"][0]["status"] == "blocked"
     assert "CRUCIBLE_MODAL_APPROVED_CEILING_USD" in its["it-2"]["stages"][0]["missing"]
+    assert its["it-3"]["stages"] == [{"stage": "generate", "status": "unreadable"}]
     assert str(tmp_path) not in r.text and body["kill_switch"] is False
     assert sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json")) == before
 
@@ -121,3 +124,36 @@ def test_grpo_plan_names_the_rl_gate_variables(tmp_path, capsys):
     env = json.loads(capsys.readouterr().out)["env"]
     assert "CRUCIBLE_MODAL_RL_CEILING_USD" in env and "rollout_set_hash" in env["CRUCIBLE_MODAL_RL_APPROVED_ROLLOUTS_HASH"]
     assert "CRUCIBLE_MODAL_TRAINING_CEILING_USD" not in env
+
+
+def test_stage_errors_are_recorded_not_raised(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+
+    import scripts.run_generation
+    import scripts.run_loop as loop
+    import scripts.train_lora
+    from world.runtime import ModelUnavailable
+
+    def down(argv):
+        raise ModelUnavailable("3 consecutive model failures")
+    with monkeypatch.context() as m:
+        m.setattr(scripts.run_generation, "main", down)
+        assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0  # paused: a rerun resumes
+    assert status(tmp_path)["generate"]["status"] == "paused"
+    with monkeypatch.context() as m:
+        m.setattr(loop, "_dry_train", lambda *x: {}["missing"])
+        assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 1
+    assert status(tmp_path)["train"]["status"] == "failed" and status(tmp_path)["train"]["detail"] == "unexpected KeyError"
+    # a refused launch writes no training_run.json: the stage is refused, not a FileNotFoundError
+    monkeypatch.setattr(scripts.train_lora, "main", lambda argv: 2)
+    a = SimpleNamespace(dry_run=False, env_file=None, algorithm="sft", taskset=tmp_path, iteration_id="it-9",
+                        max_train_cost="0.5", dir=tmp_path / "it-9", max_steps=None, adapter_manifest=None)
+    with pytest.raises(loop.Stop) as stop:
+        loop.train(a, tmp_path / "it-9", {"generate": {"generation_dir": str(tmp_path)}, "plan": {}})
+    assert stop.value.status == "refused"
+
+
+def test_next_command_keeps_the_iteration_settings_and_increments_the_id(tmp_path, capsys):
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY, "--samples-per-task", "2"]) == 0
+    nxt = status(tmp_path)["reenter"]["next_command"]
+    assert "--iteration-id it-2 " in nxt and "--samples-per-task 2" in nxt and "--algorithm sft" in nxt

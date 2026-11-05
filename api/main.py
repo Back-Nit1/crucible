@@ -29,7 +29,8 @@ log = logging.getLogger("crucible.api")
 APP_VERSION = "0.2.0"
 LOOP_FIELDS = {"stage", "status", "evidence", "detail", "missing", "failed", "rollouts", "records", "dropped_by_reason",
                "training_manifest_hash", "training_data_source", "audit_hash", "plan_hash", "dataset_hash", "total_steps",
-               "maximum_approved_cost_usd", "checkpoint_id", "adapter_hash", "contenders", "measured", "checkpoint"}
+               "maximum_approved_cost_usd", "checkpoint_id", "adapter_hash", "contenders", "measured", "checkpoint",
+               "audited", "leakage_audit_hash", "rollout_set_hash"}
 
 
 def configure_logging() -> None:
@@ -293,8 +294,13 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
         root = Path(os.environ.get("CRUCIBLE_LOOP_ROOT", "checkpoints/loop"))
         iterations = []
         for d in sorted(p for p in root.glob("*") if (p / "stages").is_dir()):
-            stages = [{k: v for k, v in json.loads(f.read_text()).items() if k in LOOP_FIELDS}
-                      for s in STAGES if (f := d / "stages" / f"{s}.json").is_file()]
+            stages = []
+            for s in STAGES:
+                if (f := d / "stages" / f"{s}.json").is_file():
+                    try:
+                        stages.append({k: v for k, v in json.loads(f.read_text()).items() if k in LOOP_FIELDS})
+                    except (OSError, ValueError):
+                        stages.append({"stage": s, "status": "unreadable"})
             done = {s["stage"] for s in stages if s.get("status") == "done"}
             iterations.append({"iteration_id": d.name, "stages": stages,
                                "next_stage": next((s for s in STAGES if s not in done), None)})
