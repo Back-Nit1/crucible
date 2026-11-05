@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import time
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Callable, Protocol
@@ -59,6 +60,7 @@ class RunnerConfig:
     max_retries: int = 1
     max_tokens: int = 10_000
     max_cost: Decimal = Decimal("1.00")
+    max_episode_seconds: float | None = 900  # real wall clock (not the episode clock); None = uncapped
 
 
 def _trace(task: TaskSpec, executor: InMemoryToolExecutor) -> EpisodeTrace:
@@ -123,9 +125,10 @@ def run_episode(
     policy: ActionPolicy, executor: InMemoryToolExecutor, seed: int,
     config: RunnerConfig = RunnerConfig(), memory: MemoryProvider | None = None,
     clock: Callable[[], dt.datetime] | None = None, memory_k: int = 3,
+    monotonic: Callable[[], float] = time.monotonic,
 ) -> EpisodeRecord:
     now = clock or (lambda: dt.datetime.now(dt.timezone.utc))
-    started = now()
+    started, t0 = now(), monotonic()
     tokens = 0
     cost = Decimal(0)
     model_metadata: list[dict[str, object]] = []
@@ -139,14 +142,20 @@ def run_episode(
         if callable(accept_memory):
             accept_memory(examples)
     for attempt in range(config.max_tool_calls):
+        if config.max_episode_seconds is not None and monotonic() - t0 > config.max_episode_seconds:
+            termination = EpisodeTermination.TOOL_LIMIT
+            failure = "episode wall-clock cap reached"
+            break
         retry = 0
         step = None
         while retry <= config.max_retries:
             try:
                 step = policy.next_step(task, tuple(executor.records), retry)
                 break
-            except Exception as exc:  # model boundary: bounded and recorded, never retried forever
+            except Exception as exc:  # model boundary: bounded and recorded; only transient errors are retried
                 failure = f"model failure: {type(exc).__name__}"
+                if not getattr(exc, "retryable", False):
+                    break
                 retry += 1
         if step is None:
             break

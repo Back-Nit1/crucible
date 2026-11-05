@@ -134,7 +134,7 @@ class ModalQwenClient:
         try:
             parsed = QwenResult.model_validate(result)
         except ValidationError:
-            raise InferenceError("invalid_response", "server response failed schema validation", retryable=True) from None
+            raise InferenceError("invalid_response", "server response failed schema validation") from None
         if (parsed.model, parsed.revision) != (MODEL_ID, MODEL_REVISION):
             raise InferenceError("model_identity_mismatch", "server answered with a different model or revision")
         served = (parsed.adapter_run_id, parsed.adapter_hash, parsed.training_manifest_hash)
@@ -164,10 +164,10 @@ class ModalQwenClient:
                     cancel()
                 except Exception:
                     pass
-            raise InferenceError("timeout", f"no response within {self.timeout_seconds:.0f}s", retryable=True) from None
+            raise InferenceError("timeout", f"no response within {self.timeout_seconds:.0f}s") from None
         except InferenceError:
             raise
         except Exception as exc:  # message text deliberately dropped: it may carry URLs or credentials
-            raise InferenceError("transport_error", type(exc).__name__, retryable=True) from None
+            raise InferenceError("transport_error", type(exc).__name__) from None
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
