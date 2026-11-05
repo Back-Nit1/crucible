@@ -160,7 +160,7 @@ from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR  # noqa: E402
 @pytest.fixture
 def rollouts_file(tmp_path):
     path = tmp_path / "rollouts.jsonl"
-    protected = [r.model_copy(update={"split": "test", "episode_id": "p-" + r.episode_id, "group_id": "c" * 64}) for r in group()]
+    protected = [r.model_copy(update={"split": TaskSplit.TEST, "episode_id": "p-" + r.episode_id, "group_id": "c" * 64}) for r in group()]
     path.write_text("".join(r.model_dump_json() + "\n"
                             for r in group() + group("t-2", "b" * 64, (D("0.1"), D("0.4"), D("0.7"))) + protected))
     return path, tmp_path

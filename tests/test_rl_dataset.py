@@ -8,6 +8,7 @@ import pytest
 
 from agents.model import Message, StructuredToolCall
 from tests.test_rl_advantage import rollout, turn
+from tasks.schemas import TaskSplit
 from training.dataset import DatasetError
 from training.planning import GRPOConfig
 from training.rl.advantage import turn_advantages
@@ -76,7 +77,7 @@ def test_killed_and_unscored_failures_are_kept_as_negative_rows():
 
 
 @pytest.mark.parametrize("change, code", [
-    (lambda rs: [r.model_copy(update={"split": "test"}) for r in rs], "empty_rollouts"),  # protected only: nothing left
+    (lambda rs: [r.model_copy(update={"split": TaskSplit.TEST}) for r in rs], "empty_rollouts"),  # protected only: nothing left
     (lambda rs: [r.model_copy(update={"scripted": True}) for r in rs], "scripted_traces"),
     (lambda rs: [rs[0].model_copy(update={"adapter_hash": "f" * 64, "model_checkpoint": "qwen-lora-ffffffffffff"}), *rs[1:]],
      "stale_rollouts"),
@@ -94,7 +95,7 @@ def test_refusals(change, code):
 
 @pytest.mark.parametrize("split", ["test", "held_out_category"])
 def test_protected_split_rollouts_are_excluded_and_counted_never_trained_or_audited_as_training(split):
-    protected = [r.model_copy(update={"split": split, "episode_id": "p-" + r.episode_id, "group_id": "c" * 64}) for r in group()]
+    protected = [r.model_copy(update={"split": TaskSplit(split), "episode_id": "p-" + r.episode_id, "group_id": "c" * 64}) for r in group()]
     out = build_rl_dataset(group() + protected, CFG, created_at=NOW)
     assert out.stats["excluded_protected_split"] == 2 and out.stats["rollouts"] == 2
     assert not any(e.startswith("p-") for e in out.manifest.source_episode_ids) and b"p-t-1" not in out.dataset.shard
