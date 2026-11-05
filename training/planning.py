@@ -146,6 +146,7 @@ def build_lora_plan(
     gpu: str,
     maximum_approved_cost: Decimal,
     hyperparameters: LoRAHyperparameters = LoRAHyperparameters(),
+    record_count: int | None = None,  # GRPO: shard rows (rollouts with signal), fewer than the audited rollouts
 ) -> LoRAPlan:
     if not manifest.source_episode_ids:
         raise ValueError("LoRA planning requires at least one curated grounded trace")
@@ -153,7 +154,7 @@ def build_lora_plan(
         base_model=base_model,
         base_revision=base_revision,
         training_manifest_hash=manifest.content_hash,
-        record_count=len(manifest.source_episode_ids),
+        record_count=record_count or len(manifest.source_episode_ids),
         gpu=gpu,
         hyperparameters=hyperparameters,
         maximum_approved_cost=maximum_approved_cost,
