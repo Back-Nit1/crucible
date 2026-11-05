@@ -190,6 +190,7 @@ def test_grpo_plan_only_prints_cost_and_the_exact_rl_gates(rollouts_file, monkey
     assert plan["rl"]["stats"]["rollouts"] == 5 and plan["rl"]["stats"]["groups"] == 2 and plan["record_count"] == 4  # zero-advantage middle sample dropped
     cost = plan["rl"]["cost"]
     assert plan["rl"]["stats"]["excluded_protected_split"] == 2
+    assert cost["rollout_inference"]["max_model_calls"] == 5 * 20 * 4  # episodes x steps x runner x adapter tries
     assert cost["rollout_inference"]["episodes"] == 5 and D(cost["max_cost_usd"]) == \
         D(cost["rollout_inference"]["max_cost_usd"]) + D(cost["update"]["max_cost_usd"])
     env = plan["rl"]["env"]

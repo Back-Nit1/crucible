@@ -93,7 +93,8 @@ def rl_cost(rollouts, max_cost: Decimal, rates: ResourceRates, seconds_per_call:
     wall-clock cap assumed, so at least as large as scripts.run_loop --plan's capped bound) plus the update's budget."""
     from agents.runner import RunnerConfig
     rate = cost_per_second(rates)
-    calls = RunnerConfig().max_tool_calls * 2  # QwenModelAdapter max_retries=1: up to two invokes per step
+    cfg = RunnerConfig()
+    calls = cfg.max_tool_calls * cfg.max_calls_per_step
     sizes: dict[str, int] = {}
     for r in rollouts:
         sizes[r.group_id] = sizes.get(r.group_id, 0) + 1

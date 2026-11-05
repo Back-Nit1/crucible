@@ -62,6 +62,12 @@ class RunnerConfig:
     max_cost: Decimal = Decimal("1.00")
     max_episode_seconds: float | None = 900  # real wall clock (not the episode clock); None = uncapped
 
+    @property
+    def max_calls_per_step(self) -> int:
+        """Billing bound: the runner retries a transient error max_retries times, and QwenModelAdapter(max_retries=1)
+        invokes the client up to twice per try."""
+        return (self.max_retries + 1) * 2
+
 
 def _trace(task: TaskSpec, executor: InMemoryToolExecutor) -> EpisodeTrace:
     calls: list[ToolCall] = []

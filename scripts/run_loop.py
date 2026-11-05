@@ -288,10 +288,9 @@ def cost_plan(a) -> dict:
     from training.gates import MAX_LAUNCH_SECONDS, affordable_seconds, cost_per_second, list_rates
     from agents.qwen_client import PROBE_CEILING_USD
     rate, q, cfg = cost_per_second(list_rates()), Decimal("0.000001"), RunnerConfig()
-    # per step: runner retries a transient error once, QwenModelAdapter(max_retries=1) invokes up to twice per try
-    calls_per_episode = cfg.max_tool_calls * (cfg.max_retries + 1) * 2
+    step_calls = cfg.max_calls_per_step
+    calls_per_episode = cfg.max_tool_calls * step_calls
     # the wall-clock cap is checked before each step, so the step in flight can still make all its tries
-    step_calls = (cfg.max_retries + 1) * 2
     episode_seconds = min(calls_per_episode * a.seconds_per_call, int(cfg.max_episode_seconds) + step_calls * a.seconds_per_call)
     idle = 60  # qwen_inference scaledown_window, billed once per stage
 
