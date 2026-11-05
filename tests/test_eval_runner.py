@@ -301,3 +301,12 @@ def test_base_sft_and_grpo_adapters_are_contenders_with_fitness_and_kill_rate_de
         assert int(f["denominator"]) + f["excluded"] == 8 and k["denominator"] == "8" and f["value"] is not None
     for cid in ("sft-a", "grpo-b"):  # the scripted double plays every contender identically: deltas are exactly zero
         assert Decimal(by[cid]["vs_base"]["fitness_delta"]) == 0 and Decimal(by[cid]["vs_base"]["kill_rate_delta"]) == 0
+
+
+def test_fitness_counts_killed_unscored_episodes_as_zero_and_excludes_other_unscored():
+    from types import SimpleNamespace as E
+
+    from eval.report import _fitness
+    f = _fitness([E(score_components={"fitness": "0.8"}, killed=False), E(score_components={}, killed=True),
+                  E(score_components={}, killed=False)])
+    assert (f["numerator"], f["denominator"], f["excluded"], f["value"]) == ("0.8", "2", 1, "0.400000")
