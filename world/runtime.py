@@ -7,18 +7,14 @@ tasks (real products/reviews) -> genome x task episodes through the REAL action 
 from __future__ import annotations
 
 import datetime as dt
-import json
 import socket
 import hashlib
-from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
-from pathlib import Path
 
 from agents.actions import EpisodeRecord
 from agents.executor import InMemoryToolExecutor
-from agents.memory import RetrievalRequest
 from agents.runner import ActionPolicy, _trace, run_episode
 from catalog.providers.base import FrozenCatalogProvider
 from memory import TraceRepository
@@ -26,7 +22,7 @@ from memory.episodes import RepositoryMemoryProvider, episode_from_trace
 from payments.guards import GuardedPayments
 from payments.mock import MockPayments
 from scoring.kill_rules import INITIAL_RULES
-from tasks.schemas import TaskSpec, TaskSplit
+from tasks.schemas import TaskSpec
 from training.curation import curate_survivors
 from world.evolution import (DeterministicMutationProposer, GenerationCheckpoint, Genome, breed_generation, genome_hash,
                              initialize_population)

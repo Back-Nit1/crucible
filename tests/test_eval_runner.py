@@ -8,7 +8,7 @@ import pytest
 
 from agents.actions import ConfirmAndPay, ProposePurchase
 from agents.model import ScriptedModelAdapter
-from eval.contenders import ContenderConfig, standard_contenders
+from eval.contenders import standard_contenders
 from eval.manifest import RunStatus, Versions, build_manifest
 from eval.memory import FrozenEvalMemory, MemoryLeakage, pool_hash
 from eval.runner import EvaluationStore, Incomplete, contender_genome, finalize, run_evaluation

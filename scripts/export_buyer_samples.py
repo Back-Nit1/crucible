@@ -13,12 +13,11 @@ OUT = Path("docs/api")
 
 
 def main() -> None:
-    from agents.model import InferenceError
     from api.main import create_app
     from catalog.router import ProviderRouter
     from payments.mock import MockPayments
     from tests.fixtures.frozen import SyntheticFrozen
-    from tests.test_api_buyer import CFG, MSG, Clock, build, steps
+    from tests.test_api_buyer import CFG, MSG, build
     from agents.actions import ParseIntent, SearchCatalog, GetProduct, Compare, ReportNoMatch
 
     def record(name, client, method, path, body=None):

@@ -2,14 +2,13 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
-import pytest
 
 from agents.actions import (Compare, ConfirmAndPay, GetProduct, GetReviews, ParseIntent, ProposePurchase,
                             SearchCatalog, SummarizeReviewEvidence)
 from agents.executor import InMemoryToolExecutor
 from agents.memory import MemoryProvider, RetrievalRequest
 from agents.runner import ScriptedPolicy, run_episode
-from memory import InMemoryTraceRepository, TraceRecord
+from memory import InMemoryTraceRepository
 from memory.elastic import ElasticTraceRepository
 from memory.episodes import RepositoryMemoryProvider, episode_from_trace, trace_from_episode
 from payments.guards import GuardedPayments, idempotency_key

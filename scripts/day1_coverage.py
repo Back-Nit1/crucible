@@ -8,7 +8,7 @@ import sys
 import urllib.request
 from collections import Counter
 
-from catalog.indexing import join, sample_stats
+from catalog.indexing import sample_stats
 from catalog.sources.amazon2023 import iter_jsonl, meta_url, review_url
 
 # dataset category -> spec use-case segments (keyword matched against categories path + title)
@@ -32,7 +32,7 @@ def size_of(url: str) -> int:
 
 
 def windows(url: str, mb: int, n: int, cache: str):
-    total, step = size_of(url), size_of(url) // n
+    step = size_of(url) // n
     for i in range(n):
         yield from iter_jsonl(url, mb << 20, offset=i * step, cache_dir=cache)
 

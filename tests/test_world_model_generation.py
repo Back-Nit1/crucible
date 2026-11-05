@@ -6,7 +6,7 @@ import pytest
 
 from agents.actions import ConfirmAndPay, ProposePurchase
 from agents.memory import RetrievalRequest
-from agents.model import AdapterPolicy, Message, ModelRequest, ScriptedModelAdapter
+from agents.model import AdapterPolicy, ScriptedModelAdapter
 from agents.prompts import system_prompt
 from memory import InMemoryTraceRepository
 from memory.episodes import RepositoryMemoryProvider, episode_from_trace

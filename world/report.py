@@ -59,7 +59,6 @@ def summarize(*, result, tasks: tuple[TaskSpec, ...], episodes: tuple[EpisodeRec
     kills_by_agent = {a: dict(Counter(k["rule_id"] for e in episodes if e.agent_id == a for k in e.kill_information))
                       for a in st.checkpoint.killed_agent_ids}
     scored = [e for e in episodes if "fitness" in e.score_components]
-    purchases = [e for e in episodes if e.termination in {"success"} or any(c.action.type == "confirm_and_pay" for c in e.tool_calls)]
     refusals_ok = [e for e in episodes if e.termination == "no_match" and not e.killed and by_task[e.task_id].is_impossible]
     return {
         "generation_id": result.generation_id, "status": st.status.value, "params": params,

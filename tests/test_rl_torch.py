@@ -1,6 +1,5 @@
 """GRPO on the real PEFT backend, tiny random Qwen2 + real pinned Qwen tokenizer (CPU). Skipped like
 tests/test_training_torch_backend.py unless torch/peft and CRUCIBLE_TEST_QWEN_TOKENIZER_DIR are available."""
-import datetime as dt
 import hashlib
 import json
 import math
@@ -9,7 +8,6 @@ from decimal import Decimal
 import pytest
 
 from tests.test_training_torch_backend import HP, NOW, tiny_model_dir  # noqa: F401  (fixture; module skips without torch)
-import torch  # noqa: E402
 
 from agents.model import StructuredToolCall  # noqa: E402
 from modal_app.adapter_artifact import verify_adapter_dir  # noqa: E402

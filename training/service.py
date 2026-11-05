@@ -12,7 +12,7 @@ from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
 
-from modal_app.adapter_artifact import MANIFEST_FILENAME, canonical_bytes, load_manifest, verify_adapter_dir
+from modal_app.adapter_artifact import MANIFEST_FILENAME, load_manifest, verify_adapter_dir
 from modal_app.qwen_toolcalls import GPU_TYPE, MODEL_ID, MODEL_REVISION
 from modal_app.train_protocol import TrainRequest, TrainResponse
 from training.gates import MAX_LAUNCH_SECONDS, GateError, cost_per_second

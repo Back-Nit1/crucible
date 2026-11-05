@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import datetime as dt
-from collections import Counter, defaultdict
+from collections import defaultdict
 from decimal import Decimal
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from scoring.schemas import EpisodeTrace, NoMatchOutcome, RecommendationOutcome, ToolName
+from scoring.schemas import EpisodeTrace, NoMatchOutcome, ToolName
 from tasks.schemas import TaskSpec
 
 

@@ -1,4 +1,4 @@
-from catalog.indexing import join, legacy_to_canonical, source_review_key, product_doc, review_doc, review_id, sample_stats
+from catalog.indexing import join, legacy_to_canonical, source_review_key, product_doc, review_doc, sample_stats
 
 M = {"parent_asin": "P1", "title": "Shoe", "price": 50, "rating_number": 9, "features": ["x"], "store": "Acme"}
 R = {"rating": 2.0, "title": "t", "text": "flat", "asin": "C1", "parent_asin": "P1",

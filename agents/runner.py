@@ -24,7 +24,7 @@ from scoring.kill_rules import evaluate_kill_rules
 from scoring.quality import assess_quality
 from scoring.schemas import (
     EpisodeTrace, NoMatchOutcome, PaymentEvent, PaymentStatus, Recommendation,
-    RecommendationOutcome, ReviewClaim, ReviewSort, ToolCall, ToolName,
+    RecommendationOutcome, ReviewClaim, ToolCall, ToolName,
 )
 from tasks.schemas import TaskSpec
 

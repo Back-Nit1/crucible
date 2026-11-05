@@ -7,11 +7,10 @@ from fastapi.testclient import TestClient
 
 from api.main import create_app
 from api.readers import InMemoryReader
-from api.world import AgentRunRequest, AgentRunResult, PickOut, ReplayStep, ReviewEvidenceOut
+from api.world import AgentRunResult, PickOut, ReplayStep, ReviewEvidenceOut
 from catalog.router import ProviderRouter
 from memory.episodes import trace_from_episode
 from payments.mock import MockPayments
-from tests.fixtures.scoring import InMemoryCatalog
 from tests.test_memory_episodes import GENOME, run
 from tests.test_api_endpoints import CFG, Snap
 

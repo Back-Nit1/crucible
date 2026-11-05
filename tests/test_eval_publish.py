@@ -1,5 +1,4 @@
 import datetime as dt
-from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +10,7 @@ from eval.comparison import ContenderRun
 from eval.publish import EvaluationContext, checkpoint_doc, evaluation_docs, publish
 from payments.mock import MockPayments
 from tests.test_api_endpoints import CFG, Snap
-from tests.test_memory_episodes import GENOME, run
+from tests.test_memory_episodes import run
 
 NOW = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)
 CTX = EvaluationContext(model="Qwen/Qwen2.5-7B-Instruct", catalog_hash="c" * 64, prompt_version="shopper-prompts-v1",

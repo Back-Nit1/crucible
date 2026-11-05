@@ -20,7 +20,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from eval.contenders import ContenderConfig
 

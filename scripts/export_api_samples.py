@@ -22,7 +22,7 @@ def main(argv=None):
     g = a.generation_id
     ep = c.get("/world/episodes", params={"generation_id": g, "limit": 3, "sort": "-fitness"}).json()
     killed = c.get("/world/episodes", params={"generation_id": g, "killed": True, "limit": 1}).json()["items"][0]["episode_id"]
-    calls = {"health": "/health", "world_generations": "/world/generations", f"world_generation_detail": f"/world/generations/{g}",
+    calls = {"health": "/health", "world_generations": "/world/generations", "world_generation_detail": f"/world/generations/{g}",
              "world_episodes": f"/world/episodes?generation_id={g}&limit=3&sort=-fitness",
              "world_episode_detail": f"/world/episodes/{ep['items'][0]['episode_id']}",
              "world_episode_detail_killed": f"/world/episodes/{killed}",

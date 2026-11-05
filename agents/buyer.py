@@ -78,7 +78,7 @@ class BuyerAgent:
                         break
                 except MalformedModelOutput:
                     err = ("model_malformed_output", True)
-                except Exception as exc:
+                except Exception:
                     err = ("model_failed", True)
             if step is None:
                 return fail(err[0], "the model could not produce a valid next step", err[1])

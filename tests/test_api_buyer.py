@@ -232,7 +232,6 @@ def test_legacy_agent_run_is_served_by_the_same_runner_and_failures_are_typed():
     assert r.status_code == 502 and r.json()["error"]["code"] == "model_failed"
     app_c, *_ = build()
     from api import buyer
-    svc = app_c.app.state if False else None
     run = start(app_c).json()
     result = buyer.to_agent_run_result(buyer.BuyerRun(**run))
     assert result.run_id == "run-00000001" and result.status == "awaiting_confirmation" and result.picks[0].product_id == "W000"

@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 
 from agents.model import (InferenceError, MalformedModelOutput, Message, ModelRequest, QwenInferenceResponse,
-                          QwenModelAdapter, ToolDefinition, action_tools)
+                          QwenModelAdapter, action_tools)
 from agents.qwen_client import ModalQwenClient, require_launch_authorization
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
 

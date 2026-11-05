@@ -1,7 +1,6 @@
 """WebShop adapter: protocol plumbing, honest not-run states, no zero-for-unrun. The fake env/agent test the ADAPTER only;
 no number produced here is a WebShop score."""
 import datetime as dt
-import subprocess
 import sys
 from decimal import Decimal
 from pathlib import Path
@@ -11,7 +10,7 @@ import pytest
 from agents.model import InferenceError
 from eval.contenders import standard_contenders
 from eval.webshop import (PINNED_REVISION, Observation, SubprocessWebShopEnv, WebShopBackendError, ModelWebShopAgent, blocked,
-                          check_setup, parse_sessions, run_episode, run_webshop)
+                          check_setup, parse_sessions, run_webshop)
 
 NOW = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)
 C = standard_contenders(model_id="Qwen/Qwen2.5-7B-Instruct", base_revision="a" * 40, prompt_version="p", endpoint="e")[0]

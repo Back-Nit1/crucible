@@ -8,7 +8,7 @@ from modal_app.adapter_artifact import ADAPTER_CONFIG, ADAPTER_WEIGHTS, load_man
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
 from modal_app.train_protocol import TrainRequest
 from tests.test_training_dataset import curated, rebuilt
-from tests.test_training_gates import ENV, TRAIN_CEILING_VAR
+from tests.test_training_gates import ENV
 from training.dataset import build_dataset
 from training.gates import GateError, authorize_training
 from training.planning import LoRAHyperparameters, build_lora_plan

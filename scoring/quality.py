@@ -7,7 +7,7 @@ from decimal import Decimal
 from catalog.providers.base import FrozenCatalogProvider
 from scoring.schemas import (
     EpisodeTrace, NoMatchOutcome, QualityAssessment, QualityMetric, QualityMetricName,
-    RecommendationOutcome, ToolName,
+    ToolName,
 )
 from tasks.schemas import TaskSpec
 

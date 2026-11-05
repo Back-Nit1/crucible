@@ -2,11 +2,9 @@ import datetime as dt
 import json
 from decimal import Decimal
 
-import pytest
 
 import scripts.qwen_probe as probe
 from agents.model import QwenInferenceResponse, QwenModelAdapter
-from agents.qwen_client import ModalQwenClient
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION, prompt_manifest
 from scripts.qwen_probe import PASS_BAR, THRESHOLDS, blocked_report, main, run_probe, write
 

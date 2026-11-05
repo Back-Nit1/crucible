@@ -4,11 +4,9 @@ import pytest
 
 from agents.model import QwenModelAdapter
 from agents.qwen_client import ModalQwenClient
-from modal_app.adapter_artifact import MANIFEST_FILENAME, write_manifest
-from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
-from tests.test_qwen_adapter_inference import T, make_artifact
+from modal_app.adapter_artifact import MANIFEST_FILENAME
+from tests.test_qwen_adapter_inference import make_artifact
 from training.checkpoints import (BASE_LABEL, CheckpointCatalog, CheckpointError, artifact_ref, selection_from_ref)
-from world.evolution import Genome
 from world.runtime import build_population, compat_for, model_policy_id
 
 

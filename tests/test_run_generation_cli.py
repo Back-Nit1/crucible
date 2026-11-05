@@ -21,7 +21,7 @@ def test_fixture_generation_is_deterministic_and_labelled_scripted(tmp_path, cap
     assert a == b and a["policy"] == "scripted-v1" and "pipeline evidence" in a["note"]
     assert a["params"]["provider"] == "synthetic" and a["params"]["payments"] == "mock"
     assert a["episodes"]["completed"] == a["episodes"]["traced"] == 48
-    assert (tmp_path / f"out-a" / gen / "summary.md").read_text() == (tmp_path / f"out-b" / gen / "summary.md").read_text()
+    assert (tmp_path / "out-a" / gen / "summary.md").read_text() == (tmp_path / "out-b" / gen / "summary.md").read_text()
 
 
 def test_interrupt_then_rerun_resumes_without_duplicates(tmp_path, capsys):

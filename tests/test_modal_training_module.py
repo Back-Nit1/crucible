@@ -1,7 +1,6 @@
 """Importing the Modal training module must be free: no network, no GPU, no resources created."""
 import importlib
 
-import pytest
 
 
 def load(monkeypatch, enabled):

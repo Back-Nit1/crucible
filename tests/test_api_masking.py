@@ -1,15 +1,13 @@
 """DEMO_MODE=1 hides third-party brand names in every product-bearing API response."""
 import json
 
-import pytest
 from fastapi.testclient import TestClient
 
-from api.buyer import BuyerService
 from api.main import create_app
 from api.masking import HIDDEN, hide, mask_product
 from catalog.router import ProviderRouter
 from tests.fixtures.frozen import SyntheticFrozen
-from tests.test_api_buyer import MSG, build, start
+from tests.test_api_buyer import build, start
 from tests.test_api_endpoints import CFG
 
 

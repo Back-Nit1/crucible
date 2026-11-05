@@ -2,7 +2,6 @@
 Idempotent: documents are keyed by generation id / rule id+version."""
 from __future__ import annotations
 
-import datetime as dt
 
 from scoring.kill_rules import INITIAL_RULES
 

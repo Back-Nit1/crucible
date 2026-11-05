@@ -1,6 +1,5 @@
 """Adapter-aware inference, end to end offline: ModalQwenClient -> (injected transport) -> QwenService -> fake engine.
 The fake engine records which adapter each call used, so 'no silent base fallback' is asserted on the engine itself."""
-import dataclasses
 import datetime as dt
 from decimal import Decimal
 from pathlib import Path

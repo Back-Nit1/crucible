@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import statistics
-import sys
 from pathlib import Path
 
 from catalog.providers.channel3 import Channel3Provider
