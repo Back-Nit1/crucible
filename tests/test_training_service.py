@@ -116,3 +116,56 @@ def test_same_run_id_with_different_plan_is_refused_not_resumed(tmp_path):
     with pytest.raises(ResumeError) as err:
         run(tmp_path, changed.model_copy(update={"plan": plan}))
     assert err.value.code == "incompatible_run"
+
+
+# --- GRPO through the same service --------------------------------------------------------------------------------
+from modal_app.adapter_artifact import ArtifactError  # noqa: E402
+from tests.test_rl_dataset import group  # noqa: E402
+from tests.test_training_gates import RL_ENV  # noqa: E402
+from training.gates import RL_ROLLOUTS_VAR  # noqa: E402
+from training.planning import GRPOConfig  # noqa: E402
+from training.rl.dataset import build_rl_dataset  # noqa: E402
+from training.service import policy_adapter_dir  # noqa: E402
+
+GRPO_HP = LoRAHyperparameters(method="qlora_grpo", grpo=GRPOConfig(), gradient_accumulation_steps=1, checkpoint_every_steps=1)
+
+
+def grpo_request(cfg=GRPOConfig(), rollouts=None, run_id="run-grpo", **over):
+    hp = GRPO_HP.model_copy(update={"grpo": cfg})
+    out = build_rl_dataset(rollouts or group(), cfg, created_at=NOW)
+    plan = build_lora_plan(out.manifest, base_model=MODEL_ID, base_revision=MODEL_REVISION, gpu="L4",
+                           maximum_approved_cost=Decimal("0.5"), hyperparameters=hp, record_count=out.dataset.record_count)
+    approval = authorize_training(plan, {**RL_ENV, RL_ROLLOUTS_VAR: out.manifest.content_hash})
+    return TrainRequest(**{**dict(run_id=run_id, plan=plan, shard=out.dataset.shard.decode(), dataset_hash=out.dataset.dataset_hash,
+                                  approval=approval), **over})
+
+
+def test_grpo_runs_only_where_it_was_enabled_at_deploy(tmp_path):
+    with pytest.raises(GateError) as err:
+        run(tmp_path, grpo_request())  # default: only SFT enabled
+    assert err.value.code == "algorithm_not_enabled" and not (tmp_path / "run-grpo").exists()
+    resp, _ = run(tmp_path, grpo_request(), algorithms=frozenset({"grpo"}))
+    assert resp.status == "final" and resp.manifest["hyperparameters"]["method"] == "qlora_grpo"
+    with pytest.raises(GateError) as err:
+        run(tmp_path / "sft", request(), algorithms=frozenset({"grpo"}))
+    assert err.value.code == "algorithm_not_enabled"
+
+
+def test_policy_adapter_is_resolved_on_the_volume_and_verified(tmp_path):
+    first, _ = run(tmp_path, grpo_request(run_id="run-prev"), algorithms=frozenset({"grpo"}))
+    assert policy_adapter_dir(tmp_path, grpo_request().plan) is None  # base policy: nothing to load
+    cfg = GRPOConfig(policy_checkpoint=first.checkpoint_id, policy_adapter_run_id="run-prev",
+                     policy_adapter_hash=load_manifest(tmp_path / "run-prev" / "final" / "artifact_manifest.json").adapter_hash)
+    on_policy = [r.model_copy(update={"model_checkpoint": cfg.policy_checkpoint, "adapter_hash": cfg.policy_adapter_hash}) for r in group()]
+    req = grpo_request(cfg, on_policy, run_id="run-next")
+    assert policy_adapter_dir(tmp_path, req.plan) == tmp_path / "run-prev" / "final"
+    resp, _ = run(tmp_path, req, algorithms=frozenset({"grpo"}))
+    assert resp.status == "final"
+    (tmp_path / "run-prev" / "final" / ADAPTER_WEIGHTS).write_text("tampered")
+    with pytest.raises(ArtifactError) as err:
+        policy_adapter_dir(tmp_path, req.plan)
+    assert err.value.code == "adapter_content_mismatch"
+    wrong = cfg.model_copy(update={"policy_adapter_hash": "d" * 64, "policy_checkpoint": "qwen-lora-" + "d" * 12})
+    with pytest.raises(GateError) as err:
+        policy_adapter_dir(tmp_path, req.plan.model_copy(update={"hyperparameters": GRPO_HP.model_copy(update={"grpo": wrong})}))
+    assert err.value.code == "policy_adapter_mismatch"
