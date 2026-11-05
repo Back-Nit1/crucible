@@ -50,6 +50,14 @@ Not verified: anything on a GPU, Qwen-7B memory or speed with GRPO, and whether 
 and the GRPO variables do not unlock SFT. `--plan-only` prints the exact values and the cost bound (`rl.cost`).
 
 ## Known limits
+* LoRA dropout is 0 for GRPO (an explicit non-zero value is refused): old log-probs are taken without dropout, so dropout
+  would move the ratio and KL before any update.
+* A group is Agent A's `group_id` = task x checkpoint x iteration, so it pools every genome on that task: the baseline is the
+  population's reward on the task, and each row is scored under its own exact system prompt. Strict per-prompt GRPO groups
+  would key on genome too; with today's deterministic scripted shopper those would all be zero variance.
+* Step credit for invalid or ungrounded calls rarely fires today: the executor rejects such an action before recording it,
+  so the episode ends without the offending turn in the rollout (asked of Agent A on the board). Kill-rule credit on the
+  terminal turn does fire.
 * Old log-probs are computed after the fact from the rollout checkpoint at temperature 1. Rollouts sampled at another
   temperature are slightly off-policy.
 * Memory-enabled genomes cannot be trained on until rollouts store their retrieved examples.
