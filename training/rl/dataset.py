@@ -58,10 +58,8 @@ def _check(rollouts: list[RolloutRecord], cfg: GRPOConfig, allow_scripted: bool)
             raise DatasetError("forbidden_split", f"{r.episode_id} is not from an allowed training split")
         if r.scripted and not allow_scripted:
             raise DatasetError("scripted_traces", "scripted (oracle) rollouts; pass --allow-scripted-traces for pipeline evidence only")
-        if (r.model_checkpoint, r.adapter_hash) != (cfg.policy_checkpoint, cfg.policy_adapter_hash) and not r.scripted:
+        if r.adapter_hash != cfg.policy_adapter_hash or (not r.scripted and r.model_checkpoint != cfg.policy_checkpoint):
             raise DatasetError("stale_rollouts", f"{r.episode_id} was produced by {r.model_checkpoint}, not {cfg.policy_checkpoint}")
-        if r.scripted and r.adapter_hash != cfg.policy_adapter_hash:
-            raise DatasetError("stale_rollouts", f"{r.episode_id} does not match the policy adapter being updated")
         if r.memory_enabled:
             raise DatasetError("inexact_prompt", f"{r.episode_id}: memory-enabled rollouts do not store their full prompt")
         last = r.turns[-1].messages if r.turns else ()
