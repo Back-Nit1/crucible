@@ -20,7 +20,7 @@ deployed or called on Modal; every stage is verified offline.
 | A10 | Human steps + commands for iteration 1 (SFT) and 2 (GRPO) | `docs/model-runs/RUNBOOK.md` | — |
 | A11 | `--algorithm grpo` through Agent B's `train_lora --algorithm grpo --rollouts`; dry-run GRPO end to end | `scripts/run_loop.py` | `test_grpo_dry_run_end_to_end` (runs on this branch after merging main) |
 
-Full suite after merging main (A through A10 + B): 604 passed, 2 skipped. Secret scan: 0 findings.
+Full suite after merging main (A through A10 + B) and the review fixes: 607 passed, 2 skipped. Secret scan: 0 findings.
 
 ## Honesty rules kept
 - Dry runs use the scripted oracle (reads the answer key) on the synthetic catalog: every stage file says
@@ -38,6 +38,11 @@ Every real stage stops with exit 3 until the human sets, in the env file:
 - Plus a Modal payment method and deploy flags (`CRUCIBLE_ENABLE_L4_PROBE` / `_TRAIN` / `_RL`). See the runbook.
 
 ## Notes
+- `group_id` = (task, checkpoint, iteration) as specified, so one GRPO group spans every genome (prompt variant,
+  temperature) that ran the task. Code review flagged this: if advantages should compare like with like, add
+  `genome_id` to the group key (a CONTRACT change Agent B must ACK).
+- Code review (high) fixes landed in `91d46ef`, `a0930d1`. The duplicated cost-bound arithmetic between
+  `run_loop --plan` and `train_lora` `rl_cost` (B's file; it assumes 2 calls/step, the loop 4) is posted to B.
 - Kill rules are episode-level; a rollout attributes them to the terminal turn.
 - The inference cost bound is worst case (120 s per call, retries, 900 s episode cap); pass `--seconds-per-call`
   after the first measured run to tighten it.

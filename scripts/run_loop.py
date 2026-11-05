@@ -59,6 +59,13 @@ def require_inference_gate() -> None:
         raise _blocked(exc) from None
 
 
+def _write(path: Path, body: dict) -> None:
+    """Atomic: /loop/status may read a stage file while the loop writes it."""
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(body, indent=1, sort_keys=True) + "\n")
+    tmp.replace(path)
+
+
 def _quiet(fn, *args, **kw):
     """Sub-commands print their own JSON; keep the loop's stdout one JSON document."""
     with contextlib.redirect_stdout(sys.stderr):
@@ -88,7 +95,13 @@ def generate(a, d: Path, done: dict) -> dict:
         argv += ["--provider", "elastic_snapshot", "--taskset", str(a.taskset), "--model", "qwen",
                  "--traces", "elastic", *(["--env-file", a.env_file] if a.env_file else []),
                  *(["--adapter-manifest", str(a.adapter_manifest)] if a.adapter_manifest else [])]
-    if (rc := _quiet(run_generation, argv)) != 0:
+    from agents.model import InferenceError
+    from world.runtime import ModelUnavailable
+    try:
+        rc = _quiet(run_generation, argv)
+    except (ModelUnavailable, InferenceError) as exc:  # backend down or spend ceiling reached: resumable
+        raise Stop(0, "paused", f"{type(exc).__name__}: {getattr(exc, 'code', 'model unavailable')}; rerun to resume") from None
+    if rc != 0:
         raise Stop(1, "failed", f"run_generation exited {rc}")
     out = d / "generation" / gen
     if not (out / "training_manifest.json").is_file():
@@ -117,7 +130,8 @@ def audit(a, d: Path, done: dict) -> dict:
     if not report.passed:
         raise Stop(2, "refused", "split-leakage audit failed",
                    failed=[n for n, c in report.checks.items() if c.status != "pass"])
-    return {"audit_hash": report.content_hash}
+    # GRPO trains on every rollout: train_lora audits that rollout manifest itself (its hash is in stages/plan.json)
+    return {"audit_hash": report.content_hash, "audited": "curated SFT training manifest"}
 
 
 def _train_argv(a, done: dict) -> list[str]:
@@ -137,6 +151,7 @@ def plan(a, d: Path, done: dict) -> dict:
     body = json.loads((d / "train" / "training_plan.json").read_text())
     out = {k: body[k] for k in ("plan_hash", "dataset_hash", "training_manifest_hash", "record_count", "total_steps",
                                 "maximum_approved_cost_usd", "budget_seconds_at_list_rates")}
+    out["leakage_audit_hash"] = body["leakage_audit_hash"]  # the audit of exactly what this algorithm trains on
     if "rl" in body:  # GRPO: its approval binds to the rollout set hash, with its own ceiling variable
         out |= {"rollout_set_hash": body["rl"]["rollout_set_hash"], "gate_env": body["rl"]["env"]}
     return out
@@ -209,11 +224,11 @@ def train(a, d: Path, done: dict) -> dict:
         return _dry_train(a, d, done)
     from scripts.train_lora import main as train_lora
     rc = _quiet(train_lora, [*_train_argv(a, done), "--launch", *(["--env-file", a.env_file] if a.env_file else [])])
+    if rc not in (0, 3):  # refused (2) or failed (1): training_run.json may be absent or from an earlier attempt
+        raise Stop(rc, "failed" if rc == 1 else "refused", f"train_lora --launch exited {rc}")
     run = json.loads((d / "train" / "training_run.json").read_text())
     if rc == 3:
         raise _blocked(run.get("blocker", ""), tuple(done["plan"].get("gate_env", {})) or TRAIN_VARS)
-    if rc != 0:
-        raise Stop(rc, "failed" if rc == 1 else "refused", f"train_lora --launch exited {rc}")
     if run["status"] != "trained":
         raise Stop(0, "paused", f"training {run['status']} at step {run.get('step')}; rerun to resume")
     return {"artifact_manifest": str(d / "train" / "artifact_manifest.json"), "checkpoint_id": run["checkpoint_id"],
@@ -231,21 +246,24 @@ def evaluate(a, d: Path, done: dict) -> dict:
                                           "--seeds", ",".join(str(20261201 + i) for i in range(a.eval_seeds))])) != 0:
             raise Stop(2, "refused", f"run_evaluation plan exited {rc}")
     manifest = EvaluationStore(root, eid).load_manifest()
+    if done["train"]["adapter_hash"] not in {c.adapter_sha256 for c in manifest.contenders}:
+        raise Stop(2, "refused", f"{eid} was planned for a different adapter: delete {root / eid} to re-plan")
     out = {"evaluation_id": eid, "manifest_hash": manifest.manifest_hash, "contenders": [c.id for c in manifest.contenders]}
     if a.dry_run:
         return out | {"measured": False, "note": "dry run: evaluation planned (leakage-audited, contenders pinned), not run"}
     require_inference_gate()
     env = ["--env-file", a.env_file] if a.env_file else []
-    try:
-        rc = _quiet(run_evaluation, ["run", *common, *env])
-    except SystemExit as exc:  # run_evaluation exits 3 itself when a client cannot be authorized
-        rc = exc.code
+    rc = _quiet(run_evaluation, ["run", *common, *env])  # exits 3 itself when a client cannot be authorized
     if rc == 3:
         raise _blocked("inference gate refused the evaluation clients", INFERENCE_VARS)
     if rc != 0:
         raise Stop(1, "failed", f"run_evaluation run exited {rc}")
-    if (rc := _quiet(run_evaluation, ["report", *common])) != 0:
-        raise Stop(0, "paused", "evaluation not complete yet; rerun to resume")
+    try:
+        rc = _quiet(run_evaluation, ["report", *common])
+    except Exception as exc:  # eval.runner.Incomplete: some pairs still missing
+        rc = type(exc).__name__
+    if rc != 0:
+        raise Stop(0, "paused", f"evaluation not complete yet ({rc}); rerun to resume")
     return out | {"measured": True, "report": str(root / eid / "report.json")}
 
 
@@ -253,9 +271,12 @@ def reenter(a, d: Path, done: dict) -> dict:
     from training.checkpoints import CheckpointCatalog
     path = Path(done["train"]["artifact_manifest"])
     label = CheckpointCatalog.from_manifest_files([path]).labels()[1]  # verifies every hash before it can re-enter
-    nxt = f"{a.iteration_id}-next"
+    stem, _, n = a.iteration_id.rpartition("-")
+    nxt = f"{stem}-{int(n) + 1}" if stem and n.isdigit() else f"{a.iteration_id}-2"
+    keep = (f"--algorithm {a.algorithm} --taskset {a.taskset} --population {a.population} --tasks {a.tasks} "
+            f"--samples-per-task {a.samples_per_task} --max-train-cost {a.max_train_cost}")
     return {"checkpoint": label, "adapter_manifest": str(path),
-            "next_command": f"uv run python -m scripts.run_loop --iteration-id {nxt} --adapter-manifest {path}"
+            "next_command": f"uv run python -m scripts.run_loop --iteration-id {nxt} --adapter-manifest {path} {keep}"
                             + (" --dry-run" if a.dry_run else " --env-file <ENV_FILE>")}
 
 
@@ -269,8 +290,9 @@ def cost_plan(a) -> dict:
     rate, q, cfg = cost_per_second(list_rates()), Decimal("0.000001"), RunnerConfig()
     # per step: runner retries a transient error once, QwenModelAdapter(max_retries=1) invokes up to twice per try
     calls_per_episode = cfg.max_tool_calls * (cfg.max_retries + 1) * 2
-    # the episode wall-clock cap ends an episode, plus at most the one call still in flight
-    episode_seconds = min(calls_per_episode * a.seconds_per_call, int(cfg.max_episode_seconds) + a.seconds_per_call)
+    # the wall-clock cap is checked before each step, so the step in flight can still make all its tries
+    step_calls = (cfg.max_retries + 1) * 2
+    episode_seconds = min(calls_per_episode * a.seconds_per_call, int(cfg.max_episode_seconds) + step_calls * a.seconds_per_call)
     idle = 60  # qwen_inference scaledown_window, billed once per stage
 
     def inference(episodes: int) -> dict:
@@ -357,16 +379,20 @@ def main(argv=None) -> int:
             print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "stopped_at": name, "status": "killed"}))
             return 4
         try:
-            body = {"stage": name, "status": "done", "evidence": evidence, **RUNNERS[name](a, d, done)}
+            try:
+                body = {"stage": name, "status": "done", "evidence": evidence, **RUNNERS[name](a, d, done)}
+            except Stop:
+                raise
+            except Exception as exc:  # class only: messages may carry URLs or credentials
+                raise Stop(1, "failed", f"unexpected {type(exc).__name__}") from exc
         except Stop as stop:
-            path.write_text(json.dumps({"stage": name, "status": stop.status, "evidence": evidence, **stop.extra},
-                                       indent=1, sort_keys=True) + "\n")
+            _write(path, {"stage": name, "status": stop.status, "evidence": evidence, **stop.extra})
             if stop.code == 3:
                 print(f"BLOCKED at {name}: set {', '.join(stop.extra.get('missing') or ['(see detail)'])} "
                       f"-- {stop.extra['detail']}", file=sys.stderr)
             print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "stopped_at": name, "status": stop.status}))
             return stop.code
-        path.write_text(json.dumps(body, indent=1, sort_keys=True) + "\n")
+        _write(path, body)
         done[name] = body
         ran.append(name)
     print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "status": "done", "evidence": evidence,
