@@ -36,6 +36,24 @@ def _metric(m, variance) -> dict:
             "unit": m.unit, "variance_across_seeds": _num(variance), "failure_reasons": m.failure_reasons}
 
 
+def _fitness(eps) -> dict:
+    """Mean fitness over scored episodes; unscored ones (model failure, tool limit) are excluded, never counted as 0."""
+    values = [Decimal(str(e.score_components["fitness"])) for e in eps if "fitness" in e.score_components]
+    total = sum(values, Decimal(0))
+    return {"numerator": str(total), "denominator": str(len(values)), "excluded": len(eps) - len(values),
+            "value": _num((total / len(values)).quantize(Decimal("0.000001")) if values else None), "unit": "mean_fitness"}
+
+
+def _kill_rate(eps) -> dict:
+    killed = sum(e.killed for e in eps)
+    return {"numerator": str(killed), "denominator": str(len(eps)), "excluded": 0,
+            "value": _num((Decimal(killed) / len(eps)).quantize(Decimal("0.000001")) if eps else None), "unit": "rate"}
+
+
+def _delta(this: dict, base: dict) -> str | None:
+    return None if this["value"] is None or base["value"] is None else str(Decimal(this["value"]) - Decimal(base["value"]))
+
+
 def _percentile(values: list[float], q: float) -> float | None:
     if not values:
         return None
@@ -59,6 +77,7 @@ def build_report(manifest: EvaluationManifest, store: EvaluationStore, tasks: di
     comparison = compare_contenders(runs, tasks, pass_k=manifest.pass_k)   # enforces identical task/seed pairs
     base = next((r for r in runs if r.contender_id == "base-qwen"), None)
     held = sorted({t.category for t in manifest.tasks if t.held_out_category})
+    base_fitness, base_kill_rate = (_fitness(base.episodes), _kill_rate(base.episodes)) if base else (None, None)
     contenders = []
     for cfg, result, run in zip(manifest.contenders, comparison.contenders, runs):
         ev = result.evaluation
@@ -76,7 +95,11 @@ def build_report(manifest: EvaluationManifest, store: EvaluationStore, tasks: di
                       "only_this_succeeds": sum(ok(e) and not ok(b[(e.task_id, e.seed)]) for e in eps),
                       "only_base_succeeds": sum(not ok(e) and ok(b[(e.task_id, e.seed)]) for e in eps),
                       "neither": sum(not ok(e) and not ok(b[(e.task_id, e.seed)]) for e in eps), "pairs": len(eps)}
+        fitness, kill_rate = _fitness(eps), _kill_rate(eps)
         contenders.append({
+            "fitness": fitness, "kill_rate": kill_rate,
+            "vs_base": None if base is None or base is run else {
+                "fitness_delta": _delta(fitness, base_fitness), "kill_rate_delta": _delta(kill_rate, base_kill_rate)},
             "contender": cfg.model_dump(mode="json"), "identity_hash": cfg.identity_hash, "checkpoint": cfg.checkpoint,
             "metrics": {n: _metric(m, ev.variance_across_seeds.get(n)) for n, m in sorted(ev.metrics.items())},
             "success_rate_by_seed": per_seed,
@@ -138,6 +161,10 @@ def to_markdown(report: dict) -> str:
                     f"wall mean {lat['wall_seconds_mean']}s, p95 {lat['wall_seconds_p95']}s",
                 f"- cost: ${cost['total_usd_estimate']} estimated total, {cost['steps_with_unknown_cost']}/{cost['model_steps']} steps with unknown cost",
                 f"- failures: {fc}", ""]
+        out.append(f"- fitness {c['fitness']['value'] or 'N/A'} ({c['fitness']['denominator']} scored, {c['fitness']['excluded']} excluded); "
+                   f"kill rate {c['kill_rate']['value'] or 'N/A'} ({c['kill_rate']['numerator']}/{c['kill_rate']['denominator']})"
+                   + (f"; vs base-qwen: fitness {c['vs_base']['fitness_delta'] or 'N/A'}, kill rate {c['vs_base']['kill_rate_delta'] or 'N/A'}"
+                      if c["vs_base"] else ""))
         if c["paired_vs_base"]:
             out += [f"- paired vs base-qwen: {c['paired_vs_base']}", ""]
         w = c["webshop"]

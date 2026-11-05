@@ -132,6 +132,24 @@ export const readySchema = z.object({
     demo_mode: z.boolean(),
   }),
 });
+export const loopStatusSchema = z.object({
+  iterations: z.array(
+    z.object({
+      iteration_id: z.string(),
+      next_stage: z.string().nullable(),
+      stages: z.array(
+        z.object({
+          stage: z.string(),
+          status: z.string(),
+          evidence: z.string().optional(),
+          detail: z.string().optional(),
+          missing: z.array(z.string()).optional(),
+        }),
+      ),
+    }),
+  ),
+  kill_switch: z.boolean(),
+});
 export const configSchema = z.object({
   version: z.string(),
   demo_mode: z.boolean(),

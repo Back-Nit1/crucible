@@ -87,3 +87,42 @@ def test_over_budget_attempt_is_traced_and_instantly_killed():
     assert episode.kill_information[0]["rule_id"] == "K003_BUDGET_VIOLATION"
     assert episode.tool_calls[-1].error_code == "BudgetViolation"
     assert backend.ledger == []
+
+
+class Raising:
+    """Policy whose every call raises `exc`; counts calls."""
+    def __init__(self, exc):
+        self.exc, self.calls = exc, 0
+
+    def next_step(self, task, history, attempt):
+        self.calls += 1
+        raise self.exc
+
+
+def run_with(policy, **kw):
+    task = feasible_task()
+    _, executor = make_executor(task)
+    return run_episode(episode_id="ep-r", task=task, agent_id="agent-1", generation_id="gen-1", policy=policy,
+                       executor=executor, seed=7, clock=lambda: NOW, **kw)
+
+
+def test_only_transient_inference_errors_are_retried_never_refusals():
+    from agents.model import TRANSIENT_CODES, InferenceError
+    assert TRANSIENT_CODES == {"timeout", "transport_error", "invalid_response"}
+    assert InferenceError("timeout", "x").retryable and not InferenceError("model_identity_mismatch", "x").retryable
+    for code, calls in (("timeout", 2), ("model_identity_mismatch", 1), ("checkpoint_mismatch", 1), ("adapter_not_found", 1)):
+        policy = Raising(InferenceError(code, "x"))
+        ep = run_with(policy)
+        assert ep.termination == "model_failure" and policy.calls == calls, code
+    policy = Raising(ValueError("unparseable content"))  # content failures are not retried either
+    assert run_with(policy).termination == "model_failure" and policy.calls == 1
+
+
+def test_episode_wall_clock_cap_stops_a_slow_policy():
+    from agents.runner import RunnerConfig
+    task = feasible_task()
+    actions = [ParseIntent(raw_message=task.raw_message, category="running-shoes", max_total=Decimal("100"), assumptions=("a",)),
+               *[SearchCatalog(query="", filters={"category": "running-shoes"})] * 4]
+    ticks = iter(range(0, 1000, 100))
+    ep = run_with(ScriptedPolicy(actions), config=RunnerConfig(max_episode_seconds=250), monotonic=lambda: next(ticks))
+    assert ep.termination == "tool_limit" and "wall-clock" in ep.final_answer and len(ep.tool_calls) == 2

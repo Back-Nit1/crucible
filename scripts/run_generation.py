@@ -8,7 +8,8 @@ This is the single generation entry point (modal_app/world_runner.py drives the 
   ... --provider synthetic --traces memory      # offline deterministic fixture (test-only synthetic products)
   ... --model qwen --memory off|on              # model-backed; needs the Modal launch authorization (agents.qwen_client)
 
-Outputs: <out-dir>/<generation-id>/{summary.json,summary.md,sft.jsonl,training_manifest.json}; checkpoint in
+Outputs: <out-dir>/<generation-id>/{summary.json,summary.md,sft.jsonl,training_manifest.json,
+curation_report.json,rollouts.jsonl (every episode, training.rollouts)}; checkpoint in
 <checkpoint-dir>/gen-<id>.json. Same arguments => same tasks, population, ids and summary."""
 import argparse
 import json
@@ -60,6 +61,9 @@ def main(argv=None) -> int:
     ap.add_argument("--tasks", type=int, default=12)
     ap.add_argument("--no-fixtures", action="store_true", help="omit the deliberate fixture agents")
     ap.add_argument("--generation-id")
+    ap.add_argument("--samples-per-task", type=int, default=1,
+                    help="K independent samples per genome:task pair (distinct derived seeds, one rollout group)")
+    ap.add_argument("--iteration-id", help="expert-iteration id recorded on every rollout (groups samples)")
     ap.add_argument("--interrupt-after", type=int)
     ap.add_argument("--traces", default="elastic", choices=["elastic", "memory"])
     ap.add_argument("--checkpoint-dir", default="checkpoints/generations")
@@ -133,7 +137,7 @@ def main(argv=None) -> int:
                   "policy_id": model_policy_id(MODEL_ID, checkpoint)}
     store = GenerationStore(FileBlobStore(a.checkpoint_dir))
     res = run_generation(generation_id=gen, seed=a.seed, genomes=genomes, tasks=tasks, manifests=manifests, catalog=catalog,
-                         store=store, traces=traces, max_episodes=a.interrupt_after, log=lambda m: print(m, file=sys.stderr), **policy)
+                         store=store, traces=traces, max_episodes=a.interrupt_after, samples_per_task=a.samples_per_task, log=lambda m: print(m, file=sys.stderr), **policy)
     if not res.complete:
         print(json.dumps({"generation_id": gen, "status": res.state.status.value, "executed": len(res.executed),
                           "remaining": len(res.state.remaining())}))
@@ -163,6 +167,12 @@ def main(argv=None) -> int:
             publish(es, "evaluations", evaluation_docs((run_,), {t.id: t for t in tasks}, ctx))
     (out / "sft.jsonl").write_text("".join(r.model_dump_json() + "\n" for r in curated.records))
     (out / "training_manifest.json").write_text(curated.manifest.model_dump_json(indent=2) + "\n")
+    (out / "curation_report.json").write_text(json.dumps(curated.drop_report(), indent=1, sort_keys=True) + "\n")
+    from training.rollouts import write_rollouts
+    write_rollouts(out / "rollouts.jsonl", episodes, tasks={t.id: t for t in tasks},
+                   genomes={g.id: g for g in res.state.checkpoint.genomes}, catalog=catalog, policy_id=res.state.compat.policy_id,
+                   iteration_id=a.iteration_id,
+                   adapter_hash=checkpoint_catalog.manifest(checkpoint).adapter_hash if a.adapter_manifest else None)
     print(json.dumps({"generation_id": gen, "status": summary["status"], "executed_this_run": len(res.executed),
                       "episodes": summary["episodes"], "kills": summary["kills"]["by_rule"], "survivors": len(summary["survivors"]),
                       "safety": summary["safety"], "sft_records": len(curated.records), "elastic_calls": calls["elastic"],
