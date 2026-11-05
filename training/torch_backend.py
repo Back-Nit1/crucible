@@ -95,8 +95,9 @@ class TorchLoraBackend:
         if hp.grpo is not None:
             if policy_adapter_dir is not None:
                 config = json.loads((policy_adapter_dir / "adapter_config.json").read_text())
-                if config.get("r") != hp.lora_rank or set(config.get("target_modules") or ()) != set(hp.target_modules):
-                    raise BackendError("policy_adapter_incompatible", "policy adapter rank/targets differ from this run's LoRA")
+                if (config.get("r"), config.get("lora_alpha"), set(config.get("target_modules") or ())) != (
+                        hp.lora_rank, hp.lora_alpha, set(hp.target_modules)):
+                    raise BackendError("policy_adapter_incompatible", "policy adapter rank/alpha/targets differ from this run's LoRA")
                 self._load_adapter(policy_adapter_dir / "adapter_model.safetensors")
             # per example, aligned with labels[1:]: advantage of the turn each predicted token belongs to
             self.token_advantages = [[adv[t] if t >= 0 else 0.0 for t in turns[1:]]
