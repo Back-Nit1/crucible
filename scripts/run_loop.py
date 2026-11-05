@@ -1,0 +1,292 @@
+"""One resumable expert-iteration: generation (real model) -> curation -> leakage audit -> LoRA plan -> gated train ->
+gated evaluation -> re-entry of the adapter into the next population.
+
+  uv run python -m scripts.run_loop --iteration-id it-1 --env-file <ENV_FILE>                    # real; stops at the first gate
+  uv run python -m scripts.run_loop --iteration-id it-2 --adapter-manifest <it-1 artifact_manifest.json> --env-file <ENV_FILE>
+  uv run python -m scripts.run_loop --iteration-id dry-1 --dry-run                               # offline, scripted, $0
+
+Each stage writes <root>/<iteration>/stages/<stage>.json; rerunning resumes at the first stage not `done`. A missing gate
+variable stops the loop with exit 3 and names the variable(s). `--dry-run` uses the scripted oracle shopper (it reads the
+answer key), the synthetic catalog, `--allow-scripted-traces` and an offline null trainer: pipeline evidence only — its
+"adapter" is a placeholder file, never a model. Exit codes: 0 ok/paused, 1 failed, 2 refused, 3 blocked by a gate."""
+from __future__ import annotations
+
+import argparse
+import contextlib
+import datetime as dt
+import json
+import sys
+from decimal import Decimal
+from pathlib import Path
+
+STAGES = ("generate", "curate", "audit", "plan", "train", "evaluate", "reenter")
+INFERENCE_VARS = ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD")
+TRAIN_VARS = ("CRUCIBLE_MODAL_TRAINING_CEILING_USD", "CRUCIBLE_MODAL_TRAINING_APPROVED_MANIFEST_HASH")
+GATE_VARS = INFERENCE_VARS + TRAIN_VARS
+ELASTIC_VARS = ("ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID")
+DRY_EVIDENCE, MODEL_EVIDENCE = "pipeline_evidence_scripted_dry_run", "model_rollouts"
+NOW = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)  # dry-run clock: identical inputs, identical artifacts
+
+
+class Stop(Exception):
+    def __init__(self, code: int, status: str, detail: str, **extra):
+        super().__init__(detail)
+        self.code, self.status, self.extra = code, status, {"detail": detail, **extra}
+
+
+def _missing(message: str) -> list[str]:
+    """Gate errors read `...missing confirmations: A, B`; anything else (e.g. a hash mismatch) names no variable."""
+    _, _, names = str(message).partition("missing confirmations: ")
+    return [n.strip() for n in names.split(",") if n.strip()]
+
+
+def _blocked(message: str, fallback: tuple[str, ...] = ()) -> Stop:
+    names = _missing(message) or list(fallback)
+    return Stop(3, "blocked", str(message), missing=names)
+
+
+def require_inference_gate() -> None:
+    from agents.model import InferenceError
+    from agents.qwen_client import require_launch_authorization
+    try:
+        require_launch_authorization()
+    except InferenceError as exc:
+        raise _blocked(exc) from None
+
+
+def _quiet(fn, *args, **kw):
+    """Sub-commands print their own JSON; keep the loop's stdout one JSON document."""
+    with contextlib.redirect_stdout(sys.stderr):
+        return fn(*args, **kw)
+
+
+# --- stages: each takes (args, iteration dir, outputs of earlier stages) and returns this stage's outputs ----------
+def generate(a, d: Path, done: dict) -> dict:
+    from scripts.run_generation import main as run_generation
+    gen = f"{a.iteration_id}-gen"
+    argv = ["--seed", str(a.seed), "--population", str(a.population), "--tasks", str(a.tasks), "--generation-id", gen,
+            "--iteration-id", a.iteration_id, "--samples-per-task", str(a.samples_per_task),
+            "--checkpoint-dir", str(d / "checkpoints"), "--out-dir", str(d / "generation")]
+    if a.dry_run:
+        argv += ["--provider", "synthetic", "--traces", "memory", "--model", "scripted"]
+    else:
+        if a.adapter_manifest:
+            from modal_app.adapter_artifact import load_manifest
+            if load_manifest(a.adapter_manifest).data_source_model_version.startswith("scripted"):
+                raise Stop(2, "refused", "adapter was trained on scripted oracle traces (a dry run): never re-enters a real run")
+        require_inference_gate()
+        argv += ["--provider", "elastic_snapshot", "--taskset", str(a.taskset), "--model", "qwen", "--memory", "off",
+                 "--traces", "elastic", *(["--env-file", a.env_file] if a.env_file else []),
+                 *(["--adapter-manifest", str(a.adapter_manifest)] if a.adapter_manifest else [])]
+    if (rc := _quiet(run_generation, argv)) != 0:
+        raise Stop(1, "failed", f"run_generation exited {rc}")
+    out = d / "generation" / gen
+    if not (out / "training_manifest.json").is_file():
+        raise Stop(0, "paused", "generation is not complete yet; rerun to resume")
+    rollouts = (out / "rollouts.jsonl").read_text().count("\n")
+    return {"generation_dir": str(out), "rollouts": rollouts}
+
+
+def curate(a, d: Path, done: dict) -> dict:
+    out = Path(done["generate"]["generation_dir"])
+    report = json.loads((out / "curation_report.json").read_text())
+    manifest = json.loads((out / "training_manifest.json").read_text())
+    if not report["records"]:
+        raise Stop(2, "refused", "curation kept no training records", dropped_by_reason=report["dropped_by_reason"])
+    return {"records": report["records"], "dropped_by_reason": report["dropped_by_reason"],
+            "training_manifest_hash": manifest["content_hash"], "training_data_source": manifest["model_version"]}
+
+
+def audit(a, d: Path, done: dict) -> dict:
+    from scripts.audit_split_leakage import audit_paths
+    meta = json.loads((a.taskset / "taskset.json").read_text())
+    report = audit_paths(protected_path=a.taskset / "protected.jsonl", reference_path=a.taskset / "reference.jsonl",
+                         training_manifest_paths=(Path(done["generate"]["generation_dir"]) / "training_manifest.json",),
+                         protected_hash=meta["protected_hash"], reference_hash=meta["reference_hash"],
+                         allow_not_run=frozenset({"memory_eligibility"}))
+    if not report.passed:
+        raise Stop(2, "refused", "split-leakage audit failed",
+                   failed=[n for n, c in report.checks.items() if c.status != "pass"])
+    return {"audit_hash": report.content_hash}
+
+
+def _train_argv(a, done: dict) -> list[str]:
+    out = Path(done["generate"]["generation_dir"])
+    return ["--records", str(out / "sft.jsonl"), "--manifest", str(out / "training_manifest.json"), "--taskset", str(a.taskset),
+            "--run-id", f"{a.iteration_id}-sft", "--max-cost", str(a.max_train_cost), "--out", str(a.dir / "train"),
+            *(["--max-steps", str(a.max_steps)] if a.max_steps else []),
+            *(["--allow-scripted-traces"] if a.dry_run else [])]
+
+
+def plan(a, d: Path, done: dict) -> dict:
+    from scripts.train_lora import main as train_lora
+    if (rc := _quiet(train_lora, [*_train_argv(a, done), "--plan-only"])) != 0:
+        raise Stop(2, "refused", f"train_lora --plan-only exited {rc}")
+    body = json.loads((d / "train" / "training_plan.json").read_text())
+    return {k: body[k] for k in ("plan_hash", "dataset_hash", "training_manifest_hash", "record_count", "total_steps",
+                                 "maximum_approved_cost_usd", "budget_seconds_at_list_rates")}
+
+
+def _dry_train(a, d: Path, done: dict) -> dict:
+    """Offline: the real training service (verification, resume, sealing) over a null backend. No GPU, no Modal."""
+    from modal_app.adapter_artifact import ADAPTER_CONFIG, ADAPTER_WEIGHTS, ArtifactManifest
+    from modal_app.qwen_toolcalls import GPU_TYPE, MODEL_ID, MODEL_REVISION
+    from modal_app.train_protocol import TrainingApproval, TrainRequest
+    from scripts.train_lora import load_records
+    from training.curation import TrainingManifest
+    from training.dataset import build_dataset
+    from training.gates import affordable_seconds, list_rates
+    from training.planning import LoRAHyperparameters, build_lora_plan
+    from training.service import execute
+
+    class NullBackend:  # deterministic stand-in numerics: the adapter it exports is a labelled placeholder
+        n = 0
+
+        def train_step(self, idx):
+            self.n += 1
+            return 1.0 / self.n
+
+        def capture(self, directory):
+            (directory / "null.json").write_text(json.dumps({"n": self.n}))
+
+        def restore(self, directory):
+            self.n = json.loads((directory / "null.json").read_text())["n"]
+
+        def export_adapter(self, directory):
+            (directory / ADAPTER_CONFIG).write_text('{"dry_run": true}')
+            (directory / ADAPTER_WEIGHTS).write_text("dry-run placeholder: not a trained adapter")
+
+    out = Path(done["generate"]["generation_dir"])
+    manifest = TrainingManifest.model_validate_json((out / "training_manifest.json").read_text())
+    dataset = build_dataset(load_records(out / "sft.jsonl"), manifest)
+    lora = build_lora_plan(manifest, base_model=MODEL_ID, base_revision=MODEL_REVISION, gpu=GPU_TYPE,
+                           maximum_approved_cost=a.max_train_cost,
+                           hyperparameters=LoRAHyperparameters(max_steps=a.max_steps, checkpoint_every_steps=1))
+    rates = list_rates()
+    approval = TrainingApproval(ceiling_usd=a.max_train_cost, manifest_hash=manifest.content_hash,
+                                budget_seconds=float(affordable_seconds(a.max_train_cost, rates)), rates=rates)
+    response = execute(TrainRequest(run_id=f"{a.iteration_id}-sft", plan=lora, shard=dataset.shard.decode(),
+                                    dataset_hash=dataset.dataset_hash, approval=approval),
+                       runs_root=d / "train" / "dry-run-volume", backend_factory=lambda s, h, n: NullBackend(),
+                       signature="dry-run-null-backend", clock=lambda: NOW, monotonic=lambda: 0.0)
+    artifact = ArtifactManifest.model_validate(response.manifest)
+    path = d / "train" / "artifact_manifest.json"
+    path.write_text(json.dumps(artifact.model_dump(mode="json"), indent=2, sort_keys=True) + "\n")
+    return {"artifact_manifest": str(path), "checkpoint_id": artifact.checkpoint_id, "adapter_hash": artifact.adapter_hash}
+
+
+def train(a, d: Path, done: dict) -> dict:
+    if a.algorithm == "grpo":
+        raise Stop(2, "refused", "grpo trainer not available yet: waiting for Agent B's GRPO entry-point CONTRACT")
+    if a.dry_run:
+        return _dry_train(a, d, done)
+    from scripts.train_lora import main as train_lora
+    rc = _quiet(train_lora, [*_train_argv(a, done), "--launch", *(["--env-file", a.env_file] if a.env_file else [])])
+    run = json.loads((d / "train" / "training_run.json").read_text())
+    if rc == 3:
+        raise _blocked(run.get("blocker", ""), TRAIN_VARS)
+    if rc != 0:
+        raise Stop(rc, "failed" if rc == 1 else "refused", f"train_lora --launch exited {rc}")
+    if run["status"] != "trained":
+        raise Stop(0, "paused", f"training {run['status']} at step {run.get('step')}; rerun to resume")
+    return {"artifact_manifest": str(d / "train" / "artifact_manifest.json"), "checkpoint_id": run["checkpoint_id"],
+            "adapter_hash": run["adapter_hash"]}
+
+
+def evaluate(a, d: Path, done: dict) -> dict:
+    from eval.runner import EvaluationStore
+    from scripts.run_evaluation import main as run_evaluation
+    eid, root = f"{a.iteration_id}-eval", d / "eval"
+    common = ["--evaluation-id", eid, "--root", str(root)]
+    if EvaluationStore(root, eid).load_manifest() is None:  # plan once: a re-plan would stamp a new manifest
+        if (rc := _quiet(run_evaluation, ["plan", *common, "--taskset", str(a.taskset),
+                                          "--adapter-manifest", done["train"]["artifact_manifest"]])) != 0:
+            raise Stop(2, "refused", f"run_evaluation plan exited {rc}")
+    manifest = EvaluationStore(root, eid).load_manifest()
+    out = {"evaluation_id": eid, "manifest_hash": manifest.manifest_hash, "contenders": [c.id for c in manifest.contenders]}
+    if a.dry_run:
+        return out | {"measured": False, "note": "dry run: evaluation planned (leakage-audited, contenders pinned), not run"}
+    require_inference_gate()
+    env = ["--env-file", a.env_file] if a.env_file else []
+    try:
+        rc = _quiet(run_evaluation, ["run", *common, *env])
+    except SystemExit as exc:  # run_evaluation exits 3 itself when a client cannot be authorized
+        rc = exc.code
+    if rc == 3:
+        raise _blocked("inference gate refused the evaluation clients", INFERENCE_VARS)
+    if rc != 0:
+        raise Stop(1, "failed", f"run_evaluation run exited {rc}")
+    if (rc := _quiet(run_evaluation, ["report", *common])) != 0:
+        raise Stop(0, "paused", "evaluation not complete yet; rerun to resume")
+    return out | {"measured": True, "report": str(root / eid / "report.json")}
+
+
+def reenter(a, d: Path, done: dict) -> dict:
+    from training.checkpoints import CheckpointCatalog
+    path = Path(done["train"]["artifact_manifest"])
+    label = CheckpointCatalog.from_manifest_files([path]).labels()[1]  # verifies every hash before it can re-enter
+    nxt = f"{a.iteration_id}-next"
+    return {"checkpoint": label, "adapter_manifest": str(path),
+            "next_command": f"uv run python -m scripts.run_loop --iteration-id {nxt} --adapter-manifest {path}"
+                            + (" --dry-run" if a.dry_run else " --env-file <ENV_FILE>")}
+
+
+RUNNERS = {"generate": generate, "curate": curate, "audit": audit, "plan": plan, "train": train, "evaluate": evaluate,
+           "reenter": reenter}
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--iteration-id", required=True)
+    ap.add_argument("--root", type=Path, default=Path("checkpoints/loop"))
+    ap.add_argument("--env-file")
+    ap.add_argument("--algorithm", choices=["sft", "grpo"], default="sft")
+    ap.add_argument("--adapter-manifest", type=Path, help="previous iteration's sealed adapter: pins this generation to it")
+    ap.add_argument("--taskset", type=Path, default=Path("docs/evaluations/taskset-20261110"))
+    ap.add_argument("--seed", type=int, default=20261101)
+    ap.add_argument("--population", type=int, default=4)
+    ap.add_argument("--tasks", type=int, default=8)
+    ap.add_argument("--samples-per-task", type=int, default=1)
+    ap.add_argument("--max-train-cost", type=Decimal, default=Decimal("0.50"))
+    ap.add_argument("--max-steps", type=int)
+    ap.add_argument("--dry-run", action="store_true", help="offline scripted chain: pipeline evidence only, $0")
+    a = ap.parse_args(argv)
+    import re
+    if not re.match(r"^[a-z0-9][a-z0-9-]{2,40}$", a.iteration_id):
+        ap.error("--iteration-id must be lowercase letters, digits and dashes (3-41 chars)")
+    if a.dry_run and a.max_steps is None:
+        a.max_steps = 2
+    if a.env_file:
+        from scripts._env import load
+        load(a.env_file, set(GATE_VARS + ELASTIC_VARS))
+    a.dir = d = a.root / a.iteration_id
+    stages = d / "stages"
+    stages.mkdir(parents=True, exist_ok=True)
+    evidence = DRY_EVIDENCE if a.dry_run else MODEL_EVIDENCE
+    done, ran = {}, []
+    for name in STAGES:
+        path = stages / f"{name}.json"
+        prior = json.loads(path.read_text()) if path.is_file() else {}
+        if prior.get("status") == "done":
+            done[name] = prior
+            continue
+        try:
+            body = {"stage": name, "status": "done", "evidence": evidence, **RUNNERS[name](a, d, done)}
+        except Stop as stop:
+            path.write_text(json.dumps({"stage": name, "status": stop.status, "evidence": evidence, **stop.extra},
+                                       indent=1, sort_keys=True) + "\n")
+            if stop.code == 3:
+                print(f"BLOCKED at {name}: set {', '.join(stop.extra.get('missing') or ['(see detail)'])} "
+                      f"-- {stop.extra['detail']}", file=sys.stderr)
+            print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "stopped_at": name, "status": stop.status}))
+            return stop.code
+        path.write_text(json.dumps(body, indent=1, sort_keys=True) + "\n")
+        done[name] = body
+        ran.append(name)
+    print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "status": "done", "evidence": evidence,
+                      "next_command": done["reenter"]["next_command"]}))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
