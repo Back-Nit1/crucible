@@ -21,10 +21,12 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 
+from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR
+
 STAGES = ("generate", "curate", "audit", "plan", "train", "evaluate", "reenter")
 INFERENCE_VARS = ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD")
-TRAIN_VARS = ("CRUCIBLE_MODAL_TRAINING_CEILING_USD", "CRUCIBLE_MODAL_TRAINING_APPROVED_MANIFEST_HASH")
-RL_VARS = ("CRUCIBLE_MODAL_RL_CEILING_USD", "CRUCIBLE_MODAL_RL_APPROVED_ROLLOUTS_HASH")  # Agent B's GRPO approval
+TRAIN_VARS = (TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR)
+RL_VARS = (RL_CEILING_VAR, RL_ROLLOUTS_VAR)
 GATE_VARS = INFERENCE_VARS + TRAIN_VARS + RL_VARS
 ELASTIC_VARS = ("ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID")
 DRY_EVIDENCE, MODEL_EVIDENCE = "pipeline_evidence_scripted_dry_run", "model_rollouts"
@@ -65,11 +67,6 @@ def _quiet(fn, *args, **kw):
         except SystemExit as exc:  # argparse / sub-command refusals exit; the loop records them as a stage outcome
             return exc.code if isinstance(exc.code, int) else 2
 
-
-def require_grpo_trainer(a) -> None:
-    import importlib.util
-    if a.algorithm == "grpo" and importlib.util.find_spec("training.rl") is None:
-        raise Stop(2, "refused", "grpo trainer (training.rl, Agent B) is not on this branch")
 
 
 # --- stages: each takes (args, iteration dir, outputs of earlier stages) and returns this stage's outputs ----------
@@ -135,7 +132,6 @@ def _train_argv(a, done: dict) -> list[str]:
 
 def plan(a, d: Path, done: dict) -> dict:
     from scripts.train_lora import main as train_lora
-    require_grpo_trainer(a)
     if (rc := _quiet(train_lora, [*_train_argv(a, done), "--plan-only"])) != 0:
         raise Stop(2, "refused", f"train_lora --plan-only exited {rc}")
     body = json.loads((d / "train" / "training_plan.json").read_text())
@@ -209,7 +205,6 @@ def _dry_train(a, d: Path, done: dict) -> dict:
 
 
 def train(a, d: Path, done: dict) -> dict:
-    require_grpo_trainer(a)
     if a.dry_run:
         return _dry_train(a, d, done)
     from scripts.train_lora import main as train_lora
@@ -269,7 +264,7 @@ def cost_plan(a) -> dict:
     the trainer's affordable budget seconds for training. Modal billing is the truth; cold start is not measured."""
     from agents.runner import RunnerConfig
     from eval.taskset import load_tasks
-    from training.gates import MAX_LAUNCH_SECONDS, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR, affordable_seconds, cost_per_second, list_rates
+    from training.gates import MAX_LAUNCH_SECONDS, affordable_seconds, cost_per_second, list_rates
     from agents.qwen_client import PROBE_CEILING_USD
     rate, q, cfg = cost_per_second(list_rates()), Decimal("0.000001"), RunnerConfig()
     # per step: runner retries a transient error once, QwenModelAdapter(max_retries=1) invokes up to twice per try

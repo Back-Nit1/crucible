@@ -53,15 +53,6 @@ def test_real_run_without_gates_stops_at_generation_with_exit_3_and_names_the_va
     assert "CRUCIBLE_MODAL_APPROVED_CEILING_USD" in st["generate"]["missing"]
 
 
-def test_grpo_refuses_at_plan_until_agent_b_trainer_is_on_the_branch(tmp_path, capsys):
-    import importlib.util
-    if importlib.util.find_spec("training.rl") is not None:
-        pytest.skip("GRPO trainer present: covered by the end-to-end grpo dry run")
-    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY, "--algorithm", "grpo"]) == 2
-    st = status(tmp_path)
-    assert st["plan"]["status"] == "refused" and "training.rl" in st["plan"]["detail"] and "train" not in st
-
-
 def test_a_dry_run_adapter_never_re_enters_a_real_run(tmp_path, capsys):
     assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
     artifact = status(tmp_path)["train"]["artifact_manifest"]
@@ -115,8 +106,7 @@ def test_loop_status_endpoint_is_read_only_and_leaks_no_paths(tmp_path, monkeypa
     assert sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json")) == before
 
 
-def test_grpo_dry_run_end_to_end_once_agent_b_trainer_is_present(tmp_path, capsys):
-    pytest.importorskip("training.rl")
+def test_grpo_dry_run_end_to_end(tmp_path, capsys):
     assert main(["--iteration-id", "it-g", "--root", str(tmp_path), *DRY, "--algorithm", "grpo", "--samples-per-task", "2"]) == 0
     st = status(tmp_path, "it-g")
     assert all(s["status"] == "done" for s in st.values()) and st["plan"]["rollout_set_hash"]
