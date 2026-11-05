@@ -71,6 +71,8 @@ def test_invalid_order_terminates_without_payment():
     episode = run_episode(episode_id="ep-bad", task=task, agent_id="agent-1", generation_id="gen-1",
         policy=ScriptedPolicy([SearchCatalog(query="shoe")]), executor=executor, seed=1, clock=lambda: NOW)
     assert episode.termination == "malformed_action" and backend.ledger == []
+    (rejected,) = episode.tool_calls  # the refused call is recorded so rollouts can credit that turn
+    assert rejected.error_code == "parse_intent_first" and rejected.action.type == "search_catalog"
 
 
 def test_over_budget_attempt_is_traced_and_instantly_killed():

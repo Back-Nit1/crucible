@@ -13,7 +13,7 @@ from agents.actions import (
     ProposePurchase, RecordedToolCall, ReportNoMatch, SearchCatalog,
     SummarizeReviewEvidence,
 )
-from agents.state import EpisodeState
+from agents.state import EpisodeState, InvalidActionOrder
 
 
 class InMemoryToolExecutor:
@@ -31,8 +31,18 @@ class InMemoryToolExecutor:
         self.state = EpisodeState(catalog, min_candidates=min_candidates)
         self.records: list[RecordedToolCall] = []
 
+    def _reject(self, action: Action, code: str, summary: str) -> None:
+        """A refused call is still a turn the policy took: record it so rollouts can credit it (schema_valid=False)."""
+        self.records.append(RecordedToolCall(
+            sequence=len(self.records), action=action, arguments=action.model_dump(mode="json", exclude={"type"}),
+            result_summary=summary, error_code=code, timestamp=self.clock()))
+
     def execute(self, action: Action) -> RecordedToolCall:
-        self.state.validate(action)
+        try:
+            self.state.validate(action)
+        except InvalidActionOrder as exc:
+            self._reject(action, exc.code, f"invalid action: {exc}")
+            raise
         references: tuple[str, ...] = ()
         summary = "action accepted"
         if isinstance(action, ParseIntent):
@@ -71,13 +81,7 @@ class InMemoryToolExecutor:
                     action.expected_total, self.budget_cap,
                 )
             except GuardViolation as exc:
-                record = RecordedToolCall(
-                    sequence=len(self.records), action=action,
-                    arguments=action.model_dump(mode="json", exclude={"type"}),
-                    result_summary=f"payment guard rejected: {type(exc).__name__}",
-                    error_code=type(exc).__name__, timestamp=self.clock(),
-                )
-                self.records.append(record)
+                self._reject(action, type(exc).__name__, f"payment guard rejected: {type(exc).__name__}")
                 self.state.calls += 1
                 raise
             references = (pending.id, pending.order_id)
