@@ -37,8 +37,10 @@ def _metric(m, variance) -> dict:
 
 
 def _fitness(eps) -> dict:
-    """Mean fitness over scored episodes; unscored ones (model failure, tool limit) are excluded, never counted as 0."""
-    values = [Decimal(str(e.score_components["fitness"])) for e in eps if "fitness" in e.score_components]
+    """Mean fitness. A killed episode without a score (e.g. a blocked over-cap payment) counts as 0, like the world's
+    selection does; other unscored episodes (model failure, tool limit) are excluded, never counted as 0."""
+    values = [Decimal(str(e.score_components["fitness"])) if "fitness" in e.score_components else Decimal(0)
+              for e in eps if "fitness" in e.score_components or e.killed]
     total = sum(values, Decimal(0))
     return {"numerator": str(total), "denominator": str(len(values)), "excluded": len(eps) - len(values),
             "value": _num((total / len(values)).quantize(Decimal("0.000001")) if values else None), "unit": "mean_fitness"}
