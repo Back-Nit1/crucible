@@ -28,6 +28,7 @@ def test_dry_run_runs_the_whole_chain_offline_and_is_labelled_pipeline_evidence(
     assert st["generate"]["rollouts"] > 0 and st["curate"]["records"] > 0
     assert st["train"]["adapter_hash"] and st["reenter"]["checkpoint"].startswith("qwen-lora-")
     assert "--adapter-manifest" in st["reenter"]["next_command"]
+    assert st["evaluate"]["contenders"] == ["base-qwen", "sft-" + st["train"]["adapter_hash"][:12]]
     capsys.readouterr()
     assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0  # rerun: everything already done
     assert json.loads(capsys.readouterr().out)["ran"] == []
