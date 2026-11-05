@@ -90,6 +90,10 @@ def _job(generation_id: str | None, seed: int, population: int, tasks: int, max_
                              params={"seed": seed, "population": population, "tasks": tasks, "model": "scripted",
                                      "payments": "mock", "provider": "elastic_snapshot", "runner": "modal"})
         report.write(s, f"{VOLUME_ROOT}/reports/{generation_id}")
+        from training.rollouts import write_rollouts
+        write_rollouts(f"{VOLUME_ROOT}/reports/{generation_id}/rollouts.jsonl", eps, tasks={t.id: t for t in task_set},
+                       genomes={g.id: g for g in genomes}, catalog=catalog, policy_id=res.state.compat.policy_id)
+        Path(f"{VOLUME_ROOT}/reports/{generation_id}/curation_report.json").write_text(json.dumps(cur.drop_report(), indent=1))
         from world.publish import publish_generation, publish_kill_rules
         publish_generation(es, res.state, s, runner="modal")
         publish_kill_rules(es, s["kills"]["by_rule"])

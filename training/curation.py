@@ -6,6 +6,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+from collections import Counter
 from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,6 +48,12 @@ class CurationResult:
     records: tuple[SFTRecord, ...]
     manifest: TrainingManifest
     exclusions: dict[str, str]
+
+    def drop_report(self) -> dict:
+        """Why every non-record episode was dropped (counts per reason + per-episode reason), deterministic."""
+        return {"episodes": len(self.records) + len(self.exclusions), "records": len(self.records),
+                "dropped_by_reason": dict(sorted(Counter(self.exclusions.values()).items())),
+                "dropped": dict(sorted(self.exclusions.items()))}
 
 
 def _normalized(value: str) -> str:

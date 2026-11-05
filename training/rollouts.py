@@ -110,3 +110,20 @@ def rollout_from_episode(episode: EpisodeRecord, task: TaskSpec, genome: Genome,
         quality=Decimal(str(sc["quality"])) if scored else None,
         efficiency_penalty=Decimal(str(sc["efficiency_penalty"])) if scored else None,
         fitness=Decimal(str(sc["fitness"])) if scored else None, killed=episode.killed, kill_reasons=kills)
+
+
+def write_rollouts(path, episodes, *, tasks: dict, genomes: dict, catalog: FrozenCatalogProvider, policy_id: str,
+                   iteration_id: str | None = None, adapter_hash: str | None = None) -> int:
+    """Every episode -> one JSONL line, ordered by episode id (byte-identical for identical runs)."""
+    from pathlib import Path
+    lines = [rollout_from_episode(e, tasks[e.task_id], genomes[e.agent_id], catalog=catalog, policy_id=policy_id,
+                                  iteration_id=iteration_id, sample_index=sample_index(e.episode_id),
+                                  adapter_hash=adapter_hash).model_dump_json() + "\n"
+             for e in sorted(episodes, key=lambda e: e.episode_id)]
+    Path(path).write_text("".join(lines))
+    return len(lines)
+
+
+def sample_index(episode_id: str) -> int:
+    """`<gen>:<genome>:<task>` is sample 0; `...#<k>` is sample k (identifiers never contain '#')."""
+    return int(episode_id.rpartition("#")[2]) if "#" in episode_id else 0
