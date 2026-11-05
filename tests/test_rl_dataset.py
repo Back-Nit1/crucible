@@ -42,7 +42,7 @@ def test_shard_carries_per_turn_advantages_and_parses_in_the_container():
     rollouts = group() + group("t-2", "b" * 64, (D("0.5"), D("0.5")))  # second group: zero variance, no penalties
     out = build_rl_dataset(rollouts, CFG, created_at=NOW)
     assert out.stats == {"rollouts": 4, "groups": 2, "zero_variance_groups": 1, "killed": 0, "unscored": 0,
-                         "rows": 2, "dropped_no_signal": 2, "dropped_no_turns": 0}
+                         "rows": 2, "dropped_no_signal": 2, "dropped_no_turns": 0, "excluded_protected_split": 0}
     sh = parse_shard(out.dataset.shard, expected_dataset_hash=out.dataset.dataset_hash,
                      expected_manifest_hash=out.manifest.content_hash)
     assert sh.format == GRPO_FORMAT and sh.episode_ids == ["t-1-s0", "t-1-s1"]
@@ -76,8 +76,7 @@ def test_killed_and_unscored_failures_are_kept_as_negative_rows():
 
 
 @pytest.mark.parametrize("change, code", [
-    (lambda rs: [rs[0].model_copy(update={"split": "test"}), *rs[1:]], "forbidden_split"),
-    (lambda rs: [rs[0].model_copy(update={"split": "held_out_category"}), *rs[1:]], "forbidden_split"),
+    (lambda rs: [r.model_copy(update={"split": "test"}) for r in rs], "empty_rollouts"),  # protected only: nothing left
     (lambda rs: [r.model_copy(update={"scripted": True}) for r in rs], "scripted_traces"),
     (lambda rs: [rs[0].model_copy(update={"adapter_hash": "f" * 64, "model_checkpoint": "qwen-lora-ffffffffffff"}), *rs[1:]],
      "stale_rollouts"),
@@ -91,6 +90,15 @@ def test_refusals(change, code):
     with pytest.raises(DatasetError) as err:
         build_rl_dataset(change(group()), CFG, created_at=NOW)
     assert err.value.code == code
+
+
+@pytest.mark.parametrize("split", ["test", "held_out_category"])
+def test_protected_split_rollouts_are_excluded_and_counted_never_trained_or_audited_as_training(split):
+    protected = [r.model_copy(update={"split": split, "episode_id": "p-" + r.episode_id, "group_id": "c" * 64}) for r in group()]
+    out = build_rl_dataset(group() + protected, CFG, created_at=NOW)
+    assert out.stats["excluded_protected_split"] == 2 and out.stats["rollouts"] == 2
+    assert not any(e.startswith("p-") for e in out.manifest.source_episode_ids) and b"p-t-1" not in out.dataset.shard
+    assert out.manifest.content_hash == rollout_set_hash(group())
 
 
 def test_scripted_rollouts_need_the_flag_and_are_labelled():

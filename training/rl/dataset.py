@@ -2,7 +2,8 @@
 
 Laptop side, like training.dataset: every refusal is fail-closed with a stable code. Advantages are computed HERE and
 sealed into the shard bytes, so the container trains on exactly what was hashed and approved. Refused:
-  * protected splits (test / held-out category), duplicate episodes, an empty set;
+  * duplicate episodes, an empty set (protected-split rollouts, test / held-out category, are excluded first and
+    counted, exactly as curation excludes them: they never reach the shard, the rollout set hash or the audit input);
   * scripted rollouts unless allow_scripted (they read the answer key: pipeline evidence only);
   * stale rollouts: any rollout not produced by the checkpoint this run updates (cfg.policy_*), i.e. off-policy data;
   * memory-enabled rollouts: their stored prompts omit the retrieved examples, so log-probs would be off-prompt;
@@ -54,8 +55,6 @@ def _check(rollouts: list[RolloutRecord], cfg: GRPOConfig, allow_scripted: bool)
         raise DatasetError("duplicate_episode", "a rollout episode appears twice")
     groups: dict[str, list[RolloutRecord]] = {}
     for r in rollouts:
-        if r.split not in ALLOWED_SPLITS:
-            raise DatasetError("forbidden_split", f"{r.episode_id} is not from an allowed training split")
         if r.scripted and not allow_scripted:
             raise DatasetError("scripted_traces", "scripted (oracle) rollouts; pass --allow-scripted-traces for pipeline evidence only")
         if r.adapter_hash != cfg.policy_adapter_hash or (not r.scripted and r.model_checkpoint != cfg.policy_checkpoint):
@@ -81,7 +80,7 @@ def _row(r: RolloutRecord, advantages: tuple[float, ...]) -> dict[str, object]:
 
 def build_rl_dataset(rollouts: Sequence[RolloutRecord], cfg: GRPOConfig, *, created_at: dt.datetime,
                      allow_scripted: bool = False) -> RLDataset:
-    ordered = _canonical(rollouts)
+    ordered = [r for r in _canonical(rollouts) if r.split in ALLOWED_SPLITS]
     groups = _check(ordered, cfg, allow_scripted)
     advantage: dict[str, tuple[float, ...]] = {}
     zero_variance = 0
@@ -104,7 +103,7 @@ def build_rl_dataset(rollouts: Sequence[RolloutRecord], cfg: GRPOConfig, *, crea
     stats = {"rollouts": len(ordered), "groups": len(groups), "zero_variance_groups": zero_variance,
              "killed": sum(r.killed for r in ordered), "unscored": sum(r.fitness is None and not r.killed for r in ordered),
              "rows": len(rows), "dropped_no_signal": sum(1 for r in ordered if r.turns and not any(advantage[r.episode_id])),
-             "dropped_no_turns": sum(not r.turns for r in ordered)}
+             "dropped_no_turns": sum(not r.turns for r in ordered), "excluded_protected_split": len(rollouts) - len(ordered)}
     manifest = TrainingManifest(
         catalog_hash="unrecorded-in-rollouts", task_version="unrecorded-in-rollouts", rule_version="unrecorded-in-rollouts",
         model_version=source, source_episode_ids=tuple(r.episode_id for r in ordered),
