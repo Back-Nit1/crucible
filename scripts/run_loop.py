@@ -21,10 +21,13 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 
+from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR
+
 STAGES = ("generate", "curate", "audit", "plan", "train", "evaluate", "reenter")
 INFERENCE_VARS = ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD")
-TRAIN_VARS = ("CRUCIBLE_MODAL_TRAINING_CEILING_USD", "CRUCIBLE_MODAL_TRAINING_APPROVED_MANIFEST_HASH")
-GATE_VARS = INFERENCE_VARS + TRAIN_VARS
+TRAIN_VARS = (TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR)
+RL_VARS = (RL_CEILING_VAR, RL_ROLLOUTS_VAR)
+GATE_VARS = INFERENCE_VARS + TRAIN_VARS + RL_VARS
 ELASTIC_VARS = ("ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID")
 DRY_EVIDENCE, MODEL_EVIDENCE = "pipeline_evidence_scripted_dry_run", "model_rollouts"
 NOW = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)  # dry-run clock: identical inputs, identical artifacts
@@ -59,7 +62,11 @@ def require_inference_gate() -> None:
 def _quiet(fn, *args, **kw):
     """Sub-commands print their own JSON; keep the loop's stdout one JSON document."""
     with contextlib.redirect_stdout(sys.stderr):
-        return fn(*args, **kw)
+        try:
+            return fn(*args, **kw)
+        except SystemExit as exc:  # argparse / sub-command refusals exit; the loop records them as a stage outcome
+            return exc.code if isinstance(exc.code, int) else 2
+
 
 
 # --- stages: each takes (args, iteration dir, outputs of earlier stages) and returns this stage's outputs ----------
@@ -68,7 +75,8 @@ def generate(a, d: Path, done: dict) -> dict:
     gen = f"{a.iteration_id}-gen"
     argv = ["--seed", str(a.seed), "--population", str(a.population), "--tasks", str(a.tasks), "--generation-id", gen,
             "--iteration-id", a.iteration_id, "--samples-per-task", str(a.samples_per_task),
-            "--checkpoint-dir", str(d / "checkpoints"), "--out-dir", str(d / "generation")]
+            "--checkpoint-dir", str(d / "checkpoints"), "--out-dir", str(d / "generation"),
+            "--memory", "off"]  # rollout prompts must be exact: retrieved memory is not stored on episodes
     if a.dry_run:
         argv += ["--provider", "synthetic", "--traces", "memory", "--model", "scripted"]
     else:
@@ -77,7 +85,7 @@ def generate(a, d: Path, done: dict) -> dict:
             if load_manifest(a.adapter_manifest).data_source_model_version.startswith("scripted"):
                 raise Stop(2, "refused", "adapter was trained on scripted oracle traces (a dry run): never re-enters a real run")
         require_inference_gate()
-        argv += ["--provider", "elastic_snapshot", "--taskset", str(a.taskset), "--model", "qwen", "--memory", "off",
+        argv += ["--provider", "elastic_snapshot", "--taskset", str(a.taskset), "--model", "qwen",
                  "--traces", "elastic", *(["--env-file", a.env_file] if a.env_file else []),
                  *(["--adapter-manifest", str(a.adapter_manifest)] if a.adapter_manifest else [])]
     if (rc := _quiet(run_generation, argv)) != 0:
@@ -93,7 +101,7 @@ def curate(a, d: Path, done: dict) -> dict:
     out = Path(done["generate"]["generation_dir"])
     report = json.loads((out / "curation_report.json").read_text())
     manifest = json.loads((out / "training_manifest.json").read_text())
-    if not report["records"]:
+    if not report["records"] and a.algorithm == "sft":  # GRPO trains on every rollout, not on curated records
         raise Stop(2, "refused", "curation kept no training records", dropped_by_reason=report["dropped_by_reason"])
     return {"records": report["records"], "dropped_by_reason": report["dropped_by_reason"],
             "training_manifest_hash": manifest["content_hash"], "training_data_source": manifest["model_version"]}
@@ -114,8 +122,10 @@ def audit(a, d: Path, done: dict) -> dict:
 
 def _train_argv(a, done: dict) -> list[str]:
     out = Path(done["generate"]["generation_dir"])
-    return ["--records", str(out / "sft.jsonl"), "--manifest", str(out / "training_manifest.json"), "--taskset", str(a.taskset),
-            "--run-id", f"{a.iteration_id}-sft", "--max-cost", str(a.max_train_cost), "--out", str(a.dir / "train"),
+    data = (["--algorithm", "grpo", "--rollouts", str(out / "rollouts.jsonl"),
+             *(["--policy-adapter-manifest", str(a.adapter_manifest)] if a.adapter_manifest and not a.dry_run else [])]
+            if a.algorithm == "grpo" else ["--records", str(out / "sft.jsonl"), "--manifest", str(out / "training_manifest.json")])
+    return [*data, "--taskset", str(a.taskset), "--run-id", f"{a.iteration_id}-{a.algorithm}", "--max-cost", str(a.max_train_cost), "--out", str(a.dir / "train"),
             *(["--max-steps", str(a.max_steps)] if a.max_steps else []),
             *(["--allow-scripted-traces"] if a.dry_run else [])]
 
@@ -125,8 +135,11 @@ def plan(a, d: Path, done: dict) -> dict:
     if (rc := _quiet(train_lora, [*_train_argv(a, done), "--plan-only"])) != 0:
         raise Stop(2, "refused", f"train_lora --plan-only exited {rc}")
     body = json.loads((d / "train" / "training_plan.json").read_text())
-    return {k: body[k] for k in ("plan_hash", "dataset_hash", "training_manifest_hash", "record_count", "total_steps",
-                                 "maximum_approved_cost_usd", "budget_seconds_at_list_rates")}
+    out = {k: body[k] for k in ("plan_hash", "dataset_hash", "training_manifest_hash", "record_count", "total_steps",
+                                "maximum_approved_cost_usd", "budget_seconds_at_list_rates")}
+    if "rl" in body:  # GRPO: its approval binds to the rollout set hash, with its own ceiling variable
+        out |= {"rollout_set_hash": body["rl"]["rollout_set_hash"], "gate_env": body["rl"]["env"]}
+    return out
 
 
 def _dry_train(a, d: Path, done: dict) -> dict:
@@ -140,6 +153,8 @@ def _dry_train(a, d: Path, done: dict) -> dict:
     from training.gates import affordable_seconds, list_rates
     from training.planning import LoRAHyperparameters, build_lora_plan
     from training.service import execute
+
+    run_id = f"{a.iteration_id}-{a.algorithm}"
 
     class NullBackend:  # deterministic stand-in numerics: the adapter it exports is a labelled placeholder
         n = 0
@@ -156,21 +171,33 @@ def _dry_train(a, d: Path, done: dict) -> dict:
 
         def export_adapter(self, directory):
             (directory / ADAPTER_CONFIG).write_text('{"dry_run": true}')
-            (directory / ADAPTER_WEIGHTS).write_text("dry-run placeholder: not a trained adapter")
+            (directory / ADAPTER_WEIGHTS).write_text(f"dry-run placeholder for {run_id}: not a trained adapter")
 
     out = Path(done["generate"]["generation_dir"])
-    manifest = TrainingManifest.model_validate_json((out / "training_manifest.json").read_text())
-    dataset = build_dataset(load_records(out / "sft.jsonl"), manifest)
+    hp = dict(max_steps=a.max_steps, checkpoint_every_steps=1)
+    if a.algorithm == "grpo":  # Agent B's GRPO dataset over every rollout (scripted allowed: dry run only)
+        from training.planning import GRPOConfig
+        from training.rl.dataset import build_rl_dataset
+        from training.rollouts import RolloutRecord
+        rollouts = tuple(RolloutRecord.model_validate_json(x) for x in (out / "rollouts.jsonl").read_text().splitlines() if x)
+        rl = build_rl_dataset(rollouts, GRPOConfig(), created_at=NOW, allow_scripted=True)
+        manifest, dataset = rl.manifest, rl.dataset
+        extra = {"hyperparameters": LoRAHyperparameters(method="qlora_grpo", grpo=GRPOConfig(), **hp),
+                 "record_count": dataset.record_count}
+    else:
+        manifest = TrainingManifest.model_validate_json((out / "training_manifest.json").read_text())
+        dataset = build_dataset(load_records(out / "sft.jsonl"), manifest)
+        extra = {"hyperparameters": LoRAHyperparameters(**hp)}
     lora = build_lora_plan(manifest, base_model=MODEL_ID, base_revision=MODEL_REVISION, gpu=GPU_TYPE,
-                           maximum_approved_cost=a.max_train_cost,
-                           hyperparameters=LoRAHyperparameters(max_steps=a.max_steps, checkpoint_every_steps=1))
+                           maximum_approved_cost=a.max_train_cost, **extra)
     rates = list_rates()
     approval = TrainingApproval(ceiling_usd=a.max_train_cost, manifest_hash=manifest.content_hash,
                                 budget_seconds=float(affordable_seconds(a.max_train_cost, rates)), rates=rates)
-    response = execute(TrainRequest(run_id=f"{a.iteration_id}-sft", plan=lora, shard=dataset.shard.decode(),
+    response = execute(TrainRequest(run_id=run_id, plan=lora, shard=dataset.shard.decode(),
                                     dataset_hash=dataset.dataset_hash, approval=approval),
                        runs_root=d / "train" / "dry-run-volume", backend_factory=lambda s, h, n: NullBackend(),
-                       signature="dry-run-null-backend", clock=lambda: NOW, monotonic=lambda: 0.0)
+                       signature="dry-run-null-backend", clock=lambda: NOW, monotonic=lambda: 0.0,
+                       **({"algorithms": frozenset({"grpo"})} if a.algorithm == "grpo" else {}))
     artifact = ArtifactManifest.model_validate(response.manifest)
     path = d / "train" / "artifact_manifest.json"
     path.write_text(json.dumps(artifact.model_dump(mode="json"), indent=2, sort_keys=True) + "\n")
@@ -178,15 +205,13 @@ def _dry_train(a, d: Path, done: dict) -> dict:
 
 
 def train(a, d: Path, done: dict) -> dict:
-    if a.algorithm == "grpo":
-        raise Stop(2, "refused", "grpo trainer not available yet: waiting for Agent B's GRPO entry-point CONTRACT")
     if a.dry_run:
         return _dry_train(a, d, done)
     from scripts.train_lora import main as train_lora
     rc = _quiet(train_lora, [*_train_argv(a, done), "--launch", *(["--env-file", a.env_file] if a.env_file else [])])
     run = json.loads((d / "train" / "training_run.json").read_text())
     if rc == 3:
-        raise _blocked(run.get("blocker", ""), TRAIN_VARS)
+        raise _blocked(run.get("blocker", ""), tuple(done["plan"].get("gate_env", {})) or TRAIN_VARS)
     if rc != 0:
         raise Stop(rc, "failed" if rc == 1 else "refused", f"train_lora --launch exited {rc}")
     if run["status"] != "trained":
@@ -239,7 +264,7 @@ def cost_plan(a) -> dict:
     the trainer's affordable budget seconds for training. Modal billing is the truth; cold start is not measured."""
     from agents.runner import RunnerConfig
     from eval.taskset import load_tasks
-    from training.gates import MAX_LAUNCH_SECONDS, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR, affordable_seconds, cost_per_second, list_rates
+    from training.gates import MAX_LAUNCH_SECONDS, affordable_seconds, cost_per_second, list_rates
     from agents.qwen_client import PROBE_CEILING_USD
     rate, q, cfg = cost_per_second(list_rates()), Decimal("0.000001"), RunnerConfig()
     # per step: runner retries a transient error once, QwenModelAdapter(max_retries=1) invokes up to twice per try
@@ -269,11 +294,14 @@ def cost_plan(a) -> dict:
             "total_max_cost_usd": str(sum(Decimal(s["max_cost_usd"]) for s in stages.values())),
             "env": {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1",
                     "CRUCIBLE_MODAL_APPROVED_CEILING_USD": str(inference_ceiling),
-                    TRAIN_CEILING_VAR: str(a.max_train_cost),
-                    TRAIN_MANIFEST_VAR: "<training_manifest_hash from stages/curate.json, known after curate>"},
+                    **({RL_VARS[0]: str(a.max_train_cost),
+                        RL_VARS[1]: "<rollout_set_hash from stages/plan.json, known after plan>"} if a.algorithm == "grpo" else
+                       {TRAIN_CEILING_VAR: str(a.max_train_cost),
+                        TRAIN_MANIFEST_VAR: "<training_manifest_hash from stages/curate.json, known after curate>"})},
             "notes": [f"recorded approved probe ceiling is ${PROBE_CEILING_USD}; a larger value needs new explicit approval",
                       "the inference client stops at its ceiling; rerunning resumes, so a lower ceiling only splits the work",
-                      "deploy flags: CRUCIBLE_ENABLE_L4_PROBE=1 (inference), CRUCIBLE_ENABLE_L4_TRAIN=1 (training)"]}
+                      "deploy flags: CRUCIBLE_ENABLE_L4_PROBE=1 (inference), CRUCIBLE_ENABLE_L4_TRAIN=1 (SFT) or "
+                      "CRUCIBLE_ENABLE_L4_RL=1 (GRPO) for training"]}
 
 
 RUNNERS = {"generate": generate, "curate": curate, "audit": audit, "plan": plan, "train": train, "evaluate": evaluate,
