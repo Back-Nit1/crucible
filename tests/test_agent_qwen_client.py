@@ -110,6 +110,10 @@ def test_wrong_model_identity_and_bad_schema_fail_closed():
     with pytest.raises(InferenceError) as e:
         QwenModelAdapter(client(Fake({"raw_output": "x"})), max_retries=0).generate(request())
     assert e.value.code == "invalid_response"
+    t = Fake({"error_code": 7}, result())                         # malformed refusal: still a refusal, not retried
+    with pytest.raises(InferenceError) as e:
+        QwenModelAdapter(client(t), max_retries=2).generate(request())
+    assert e.value.code == "invalid_refusal" and not e.value.retryable and len(t.payloads) == 1
     with pytest.raises(InferenceError) as e:                      # a request pinning another checkpoint is refused
         client(Fake(result())).invoke(request(checkpoint="some-other-adapter"), 0)
     assert e.value.code == "checkpoint_mismatch"

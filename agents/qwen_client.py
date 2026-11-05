@@ -129,7 +129,7 @@ class ModalQwenClient:
             try:
                 refusal = QwenRejection.model_validate(result)
             except ValidationError:
-                raise InferenceError("invalid_response", "server refusal failed schema validation") from None
+                raise InferenceError("invalid_refusal", "server refusal failed schema validation")  # a refusal: never retried from None
             raise InferenceError(refusal.error_code, refusal.detail)
         try:
             parsed = QwenResult.model_validate(result)
