@@ -85,7 +85,10 @@ def test_grpo_hyperparameters_need_their_config_and_leave_sft_dumps_unchanged():
     from training.planning import GRPOConfig, LoRAHyperparameters
     sft = LoRAHyperparameters()
     assert sft.algorithm == "sft" and "grpo" not in sft.model_dump(mode="json")  # SFT plan hashes / run identities stay stable
+    with pytest.raises(ValueError):  # dropout would make the PPO ratio != 1 before any update
+        LoRAHyperparameters(method="qlora_grpo", grpo=GRPOConfig(), lora_dropout=Decimal("0.05"))
     grpo = LoRAHyperparameters(method="qlora_grpo", grpo=GRPOConfig())
+    assert grpo.lora_dropout == 0
     assert grpo.algorithm == "grpo" and grpo.model_dump(mode="json")["grpo"]["kl_beta"] == "0.04"
     assert LoRAHyperparameters.model_validate(grpo.model_dump(mode="json")) == grpo
     for bad in ({"method": "qlora_grpo"}, {"method": "qlora_sft", "grpo": GRPOConfig()},

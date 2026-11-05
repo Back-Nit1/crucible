@@ -70,6 +70,13 @@ class LoRAHyperparameters(PlanModel):
     max_steps: int | None = Field(default=None, ge=1)  # hard cap, used by the cost-bounded smoke run
     grpo: GRPOConfig | None = None  # required iff method is *_grpo
 
+    @model_validator(mode="before")
+    @classmethod
+    def _grpo_defaults_to_no_dropout(cls, data):
+        if isinstance(data, dict) and str(data.get("method", "")).endswith("_grpo"):
+            data = {"lora_dropout": 0, **data}
+        return data
+
     @model_validator(mode="after")
     def _method_matches_quantization(self) -> "LoRAHyperparameters":
         if self.method not in {"qlora_sft", "lora_sft", "qlora_grpo", "lora_grpo"} or \
@@ -77,6 +84,8 @@ class LoRAHyperparameters(PlanModel):
             raise ValueError("method must be qlora_{sft,grpo} with nf4 quantization or lora_{sft,grpo} with none")
         if (self.algorithm == "grpo") != (self.grpo is not None):
             raise ValueError("a grpo method needs a grpo config, and only a grpo method may have one")
+        if self.grpo is not None and self.lora_dropout != 0:
+            raise ValueError("grpo needs lora_dropout 0: old log-probs are taken without dropout, so dropout would move the ratio")
         return self
 
     @model_serializer(mode="wrap")
