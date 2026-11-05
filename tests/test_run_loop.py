@@ -53,10 +53,13 @@ def test_real_run_without_gates_stops_at_generation_with_exit_3_and_names_the_va
     assert "CRUCIBLE_MODAL_APPROVED_CEILING_USD" in st["generate"]["missing"]
 
 
-def test_grpo_is_a_refusing_stub_until_its_trainer_contract_lands(tmp_path, capsys):
+def test_grpo_refuses_at_plan_until_agent_b_trainer_is_on_the_branch(tmp_path, capsys):
+    import importlib.util
+    if importlib.util.find_spec("training.rl") is not None:
+        pytest.skip("GRPO trainer present: covered by the end-to-end grpo dry run")
     assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY, "--algorithm", "grpo"]) == 2
     st = status(tmp_path)
-    assert st["plan"]["status"] == "done" and st["train"]["status"] == "refused" and "evaluate" not in st
+    assert st["plan"]["status"] == "refused" and "training.rl" in st["plan"]["detail"] and "train" not in st
 
 
 def test_a_dry_run_adapter_never_re_enters_a_real_run(tmp_path, capsys):
@@ -110,3 +113,21 @@ def test_loop_status_endpoint_is_read_only_and_leaks_no_paths(tmp_path, monkeypa
     assert "CRUCIBLE_MODAL_APPROVED_CEILING_USD" in its["it-2"]["stages"][0]["missing"]
     assert str(tmp_path) not in r.text and body["kill_switch"] is False
     assert sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json")) == before
+
+
+def test_grpo_dry_run_end_to_end_once_agent_b_trainer_is_present(tmp_path, capsys):
+    pytest.importorskip("training.rl")
+    assert main(["--iteration-id", "it-g", "--root", str(tmp_path), *DRY, "--algorithm", "grpo", "--samples-per-task", "2"]) == 0
+    st = status(tmp_path, "it-g")
+    assert all(s["status"] == "done" for s in st.values()) and st["plan"]["rollout_set_hash"]
+    assert "CRUCIBLE_MODAL_RL_CEILING_USD" in st["plan"]["gate_env"]
+    artifact = json.loads((tmp_path / "it-g" / "train" / "artifact_manifest.json").read_text())
+    assert artifact["hyperparameters"]["method"] == "qlora_grpo"
+    assert st["evaluate"]["contenders"] == ["base-qwen", "grpo-" + st["train"]["adapter_hash"][:12]]
+
+
+def test_grpo_plan_names_the_rl_gate_variables(tmp_path, capsys):
+    assert main(["--iteration-id", "it-2", "--root", str(tmp_path), "--plan", "--algorithm", "grpo"]) == 0
+    env = json.loads(capsys.readouterr().out)["env"]
+    assert "CRUCIBLE_MODAL_RL_CEILING_USD" in env and "rollout_set_hash" in env["CRUCIBLE_MODAL_RL_APPROVED_ROLLOUTS_HASH"]
+    assert "CRUCIBLE_MODAL_TRAINING_CEILING_USD" not in env
