@@ -160,7 +160,9 @@ from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR  # noqa: E402
 @pytest.fixture
 def rollouts_file(tmp_path):
     path = tmp_path / "rollouts.jsonl"
-    path.write_text("".join(r.model_dump_json() + "\n" for r in group() + group("t-2", "b" * 64, (D("0.1"), D("0.4"), D("0.7")))))
+    protected = [r.model_copy(update={"split": "test", "episode_id": "p-" + r.episode_id, "group_id": "c" * 64}) for r in group()]
+    path.write_text("".join(r.model_dump_json() + "\n"
+                            for r in group() + group("t-2", "b" * 64, (D("0.1"), D("0.4"), D("0.7"))) + protected))
     return path, tmp_path
 
 
@@ -187,6 +189,7 @@ def test_grpo_plan_only_prints_cost_and_the_exact_rl_gates(rollouts_file, monkey
     assert plan["hyperparameters"]["method"] == "qlora_grpo" and plan["hyperparameters"]["grpo"]["kl_beta"] == "0.1"
     assert plan["rl"]["stats"]["rollouts"] == 5 and plan["rl"]["stats"]["groups"] == 2 and plan["record_count"] == 4  # zero-advantage middle sample dropped
     cost = plan["rl"]["cost"]
+    assert plan["rl"]["stats"]["excluded_protected_split"] == 2
     assert cost["rollout_inference"]["episodes"] == 5 and D(cost["max_cost_usd"]) == \
         D(cost["rollout_inference"]["max_cost_usd"]) + D(cost["update"]["max_cost_usd"])
     env = plan["rl"]["env"]

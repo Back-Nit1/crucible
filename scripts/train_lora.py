@@ -202,7 +202,8 @@ def main(argv=None, *, transport: Transport | None = None, now: Callable[[], dt.
     if rl is not None:
         ceiling_var, hash_var = gate_vars(plan)
         summary["rl"] = {"rollout_set_hash": manifest.content_hash, "stats": rl.stats,
-                         "cost": rl_cost(rollouts, plan.maximum_approved_cost, rates, args.seconds_per_call),
+                         "cost": rl_cost([r for r in rollouts if r.episode_id in set(manifest.source_episode_ids)],
+                                         plan.maximum_approved_cost, rates, args.seconds_per_call),
                          "env": {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1",
                                  ceiling_var: str(plan.maximum_approved_cost), hash_var: manifest.content_hash},
                          "deploy_env": {"CRUCIBLE_ENABLE_L4_RL": "1"}}
