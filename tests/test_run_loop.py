@@ -1,5 +1,6 @@
 """One-command expert-iteration loop, offline: dry-run chain, resume, gates exit 3 with the exact variable names."""
 import json
+from decimal import Decimal
 
 import pytest
 
@@ -63,3 +64,22 @@ def test_a_dry_run_adapter_never_re_enters_a_real_run(tmp_path, capsys):
     assert main(["--iteration-id", "it-2", "--root", str(tmp_path), "--adapter-manifest", artifact]) == 2
     assert status(tmp_path, "it-2")["generate"]["status"] == "refused"
     assert main(["--iteration-id", "it-3", "--root", str(tmp_path), *DRY, "--adapter-manifest", artifact]) == 0  # dry re-entry ok
+
+
+def test_plan_prints_per_stage_max_cost_and_the_exact_gate_values(tmp_path, capsys):
+    from training.gates import cost_per_second, list_rates
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), "--plan", "--population", "2", "--tasks", "3",
+                 "--max-train-cost", "0.40"]) == 0
+    p = json.loads(capsys.readouterr().out)
+    rate = cost_per_second(list_rates())
+    gen = p["stages"]["generate"]
+    assert gen["max_model_calls"] == 2 * 3 * 20 * 2 and gen["seconds_per_call"] == 120  # episodes x steps x (1 + retry)
+    assert gen["max_cost_usd"] == str((gen["max_seconds"] * rate).quantize(Decimal("0.000001")))
+    assert Decimal(p["stages"]["train"]["max_cost_usd"]) <= Decimal("0.40") and p["stages"]["train"]["budget_seconds"] > 0
+    assert p["stages"]["curate"]["max_cost_usd"] == "0"
+    env = p["env"]
+    assert env["CRUCIBLE_MODAL_TOKEN_ROTATED"] == "1" and env["CRUCIBLE_MODAL_TRAINING_CEILING_USD"] == "0.40"
+    assert env["CRUCIBLE_MODAL_APPROVED_CEILING_USD"] == max(gen["max_cost_usd"], p["stages"]["evaluate"]["max_cost_per_client_usd"],
+                                                             key=Decimal)
+    assert "after curate" in env["CRUCIBLE_MODAL_TRAINING_APPROVED_MANIFEST_HASH"]
+    assert p["cold_start_seconds"] is None and not (tmp_path / "it-1").exists()  # planning runs nothing, writes nothing

@@ -15,6 +15,7 @@ import argparse
 import contextlib
 import datetime as dt
 import json
+import re
 import sys
 from decimal import Decimal
 from pathlib import Path
@@ -200,7 +201,8 @@ def evaluate(a, d: Path, done: dict) -> dict:
     common = ["--evaluation-id", eid, "--root", str(root)]
     if EvaluationStore(root, eid).load_manifest() is None:  # plan once: a re-plan would stamp a new manifest
         if (rc := _quiet(run_evaluation, ["plan", *common, "--taskset", str(a.taskset),
-                                          "--adapter-manifest", done["train"]["artifact_manifest"]])) != 0:
+                                          "--adapter-manifest", done["train"]["artifact_manifest"],
+                                          "--seeds", ",".join(str(20261201 + i) for i in range(a.eval_seeds))])) != 0:
             raise Stop(2, "refused", f"run_evaluation plan exited {rc}")
     manifest = EvaluationStore(root, eid).load_manifest()
     out = {"evaluation_id": eid, "manifest_hash": manifest.manifest_hash, "contenders": [c.id for c in manifest.contenders]}
@@ -231,6 +233,44 @@ def reenter(a, d: Path, done: dict) -> dict:
                             + (" --dry-run" if a.dry_run else " --env-file <ENV_FILE>")}
 
 
+def cost_plan(a) -> dict:
+    """Upper bounds at recorded list rates (training.gates): model calls x seconds per call x $/s for inference,
+    the trainer's affordable budget seconds for training. Modal billing is the truth; cold start is not measured."""
+    from agents.runner import RunnerConfig
+    from eval.taskset import load_tasks
+    from training.gates import MAX_LAUNCH_SECONDS, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR, affordable_seconds, cost_per_second, list_rates
+    from agents.qwen_client import PROBE_CEILING_USD
+    rate, q = cost_per_second(list_rates()), Decimal("0.000001")
+    calls_per_episode = RunnerConfig().max_tool_calls * 2  # QwenModelAdapter max_retries=1: up to two invokes per step
+    idle = 60  # qwen_inference scaledown_window, billed once per stage
+
+    def inference(episodes: int) -> dict:
+        seconds = episodes * calls_per_episode * a.seconds_per_call + idle
+        return {"episodes": episodes, "max_model_calls": episodes * calls_per_episode, "seconds_per_call": a.seconds_per_call,
+                "max_seconds": seconds, "max_cost_usd": str((seconds * rate).quantize(q))}
+    gen = inference(a.population * a.tasks * a.samples_per_task)
+    contenders = 2  # base-qwen + the trained adapter (no memory pool in the loop)
+    protected = len(load_tasks(a.taskset / "protected.jsonl"))
+    ev = inference(protected * a.eval_seeds * contenders)
+    ev["max_cost_per_client_usd"] = str((Decimal(ev["max_cost_usd"]) / contenders).quantize(q))  # each client has its own cap
+    budget = min(affordable_seconds(a.max_train_cost, list_rates()), MAX_LAUNCH_SECONDS * 4)
+    free = {"max_cost_usd": "0"}
+    stages = {"generate": gen, "curate": free, "audit": free, "plan": free,
+              "train": {"algorithm": a.algorithm, "budget_seconds": budget, "max_cost_usd": str((budget * rate).quantize(q))},
+              "evaluate": ev, "reenter": free}
+    inference_ceiling = max(Decimal(gen["max_cost_usd"]), Decimal(ev["max_cost_per_client_usd"]))
+    return {"iteration_id": a.iteration_id, "rate_usd_per_second": str(rate), "rates": list_rates().model_dump(mode="json"),
+            "cold_start_seconds": None, "stages": stages,
+            "total_max_cost_usd": str(sum(Decimal(s["max_cost_usd"]) for s in stages.values())),
+            "env": {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1",
+                    "CRUCIBLE_MODAL_APPROVED_CEILING_USD": str(inference_ceiling),
+                    TRAIN_CEILING_VAR: str(a.max_train_cost),
+                    TRAIN_MANIFEST_VAR: "<training_manifest_hash from stages/curate.json, known after curate>"},
+            "notes": [f"recorded approved probe ceiling is ${PROBE_CEILING_USD}; a larger value needs new explicit approval",
+                      "the inference client stops at its ceiling; rerunning resumes, so a lower ceiling only splits the work",
+                      "deploy flags: CRUCIBLE_ENABLE_L4_PROBE=1 (inference), CRUCIBLE_ENABLE_L4_TRAIN=1 (training)"]}
+
+
 RUNNERS = {"generate": generate, "curate": curate, "audit": audit, "plan": plan, "train": train, "evaluate": evaluate,
            "reenter": reenter}
 
@@ -250,12 +290,18 @@ def main(argv=None) -> int:
     ap.add_argument("--max-train-cost", type=Decimal, default=Decimal("0.50"))
     ap.add_argument("--max-steps", type=int)
     ap.add_argument("--dry-run", action="store_true", help="offline scripted chain: pipeline evidence only, $0")
+    ap.add_argument("--plan", action="store_true", help="print per-stage maximum cost and the gate values to set; runs nothing")
+    ap.add_argument("--seconds-per-call", type=int, default=120,
+                    help="billable seconds bound per model call (default: the client's hard 120 s timeout)")
+    ap.add_argument("--eval-seeds", type=int, default=3)
     a = ap.parse_args(argv)
-    import re
     if not re.match(r"^[a-z0-9][a-z0-9-]{2,40}$", a.iteration_id):
         ap.error("--iteration-id must be lowercase letters, digits and dashes (3-41 chars)")
     if a.dry_run and a.max_steps is None:
         a.max_steps = 2
+    if a.plan:
+        print(json.dumps(cost_plan(a), indent=1))
+        return 0
     if a.env_file:
         from scripts._env import load
         load(a.env_file, set(GATE_VARS + ELASTIC_VARS))
