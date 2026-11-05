@@ -158,12 +158,16 @@ class QwenInferenceResponse(ModelContract):
     cost: Decimal | None = Field(default=Decimal("0"), ge=0)  # None = unknown (never silently reported as free)
 
 
-class InferenceError(RuntimeError):
-    """Structured, secret-free inference failure. `retryable` errors may be retried within the adapter's bound."""
+TRANSIENT_CODES = frozenset({"timeout", "transport_error", "invalid_response"})  # the only retryable failures
 
-    def __init__(self, code: str, message: str, *, retryable: bool = False):
+
+class InferenceError(RuntimeError):
+    """Structured, secret-free inference failure. Retryable iff the code is transient: content, identity, checkpoint
+    and authorization refusals are never retried, whoever raises them."""
+
+    def __init__(self, code: str, message: str):
         super().__init__(f"{code}: {message}")
-        self.code, self.retryable = code, retryable
+        self.code, self.retryable = code, code in TRANSIENT_CODES
 
 
 class QwenInferenceClient(Protocol):

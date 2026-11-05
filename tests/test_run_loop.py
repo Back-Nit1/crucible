@@ -1,0 +1,112 @@
+"""One-command expert-iteration loop, offline: dry-run chain, resume, gates exit 3 with the exact variable names."""
+import json
+from decimal import Decimal
+
+import pytest
+
+from scripts.run_loop import GATE_VARS, STAGES, main
+
+DRY = ["--dry-run", "--population", "6", "--tasks", "4", "--seed", "5"]
+
+
+@pytest.fixture(autouse=True)
+def no_gates(monkeypatch):
+    for k in GATE_VARS:
+        monkeypatch.delenv(k, raising=False)
+
+
+def status(root, it="it-1"):
+    return {s: json.loads((root / it / "stages" / f"{s}.json").read_text()) for s in STAGES
+            if (root / it / "stages" / f"{s}.json").exists()}
+
+
+def test_dry_run_runs_the_whole_chain_offline_and_is_labelled_pipeline_evidence(tmp_path, capsys):
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+    st = status(tmp_path)
+    assert list(st) == list(STAGES) and all(s["status"] == "done" for s in st.values())
+    assert all(s["evidence"] == "pipeline_evidence_scripted_dry_run" for s in st.values())
+    assert st["generate"]["rollouts"] > 0 and st["curate"]["records"] > 0
+    assert st["train"]["adapter_hash"] and st["reenter"]["checkpoint"].startswith("qwen-lora-")
+    assert "--adapter-manifest" in st["reenter"]["next_command"]
+    assert st["evaluate"]["contenders"] == ["base-qwen", "sft-" + st["train"]["adapter_hash"][:12]]
+    capsys.readouterr()
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0  # rerun: everything already done
+    assert json.loads(capsys.readouterr().out)["ran"] == []
+
+
+def test_rerun_resumes_at_the_first_unfinished_stage(tmp_path, capsys):
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+    for s in ("evaluate", "reenter"):
+        (tmp_path / "it-1" / "stages" / f"{s}.json").unlink()
+    capsys.readouterr()
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+    assert json.loads(capsys.readouterr().out)["ran"] == ["evaluate", "reenter"]
+
+
+def test_real_run_without_gates_stops_at_generation_with_exit_3_and_names_the_variables(tmp_path, capsys):
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path)]) == 3
+    out = capsys.readouterr()
+    for name in ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD"):
+        assert name in out.err
+    st = status(tmp_path)
+    assert list(st) == ["generate"] and st["generate"]["status"] == "blocked"
+    assert "CRUCIBLE_MODAL_APPROVED_CEILING_USD" in st["generate"]["missing"]
+
+
+def test_grpo_is_a_refusing_stub_until_its_trainer_contract_lands(tmp_path, capsys):
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY, "--algorithm", "grpo"]) == 2
+    st = status(tmp_path)
+    assert st["plan"]["status"] == "done" and st["train"]["status"] == "refused" and "evaluate" not in st
+
+
+def test_a_dry_run_adapter_never_re_enters_a_real_run(tmp_path, capsys):
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+    artifact = status(tmp_path)["train"]["artifact_manifest"]
+    assert main(["--iteration-id", "it-2", "--root", str(tmp_path), "--adapter-manifest", artifact]) == 2
+    assert status(tmp_path, "it-2")["generate"]["status"] == "refused"
+    assert main(["--iteration-id", "it-3", "--root", str(tmp_path), *DRY, "--adapter-manifest", artifact]) == 0  # dry re-entry ok
+
+
+def test_plan_prints_per_stage_max_cost_and_the_exact_gate_values(tmp_path, capsys):
+    from training.gates import cost_per_second, list_rates
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), "--plan", "--population", "2", "--tasks", "3",
+                 "--max-train-cost", "0.40"]) == 0
+    p = json.loads(capsys.readouterr().out)
+    rate = cost_per_second(list_rates())
+    gen = p["stages"]["generate"]
+    assert gen["max_model_calls"] == 2 * 3 * 20 * 4 and gen["seconds_per_call"] == 120  # episodes x steps x runner x adapter tries
+    assert gen["max_seconds_per_episode"] == 900 + 120 and gen["max_seconds"] == 6 * 1020 + 60  # wall-clock cap bounds it
+    assert gen["max_cost_usd"] == str((gen["max_seconds"] * rate).quantize(Decimal("0.000001")))
+    assert Decimal(p["stages"]["train"]["max_cost_usd"]) <= Decimal("0.40") and p["stages"]["train"]["budget_seconds"] > 0
+    assert p["stages"]["curate"]["max_cost_usd"] == "0"
+    env = p["env"]
+    assert env["CRUCIBLE_MODAL_TOKEN_ROTATED"] == "1" and env["CRUCIBLE_MODAL_TRAINING_CEILING_USD"] == "0.40"
+    assert env["CRUCIBLE_MODAL_APPROVED_CEILING_USD"] == max(gen["max_cost_usd"], p["stages"]["evaluate"]["max_cost_per_client_usd"],
+                                                             key=Decimal)
+    assert "after curate" in env["CRUCIBLE_MODAL_TRAINING_APPROVED_MANIFEST_HASH"]
+    assert p["cold_start_seconds"] is None and not (tmp_path / "it-1").exists()  # planning runs nothing, writes nothing
+
+
+def test_kill_switch_file_stops_the_loop_between_stages(tmp_path, capsys):
+    (tmp_path / "STOP").write_text("operator stop")
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 4
+    assert status(tmp_path) == {} and "STOP" in capsys.readouterr().err
+    (tmp_path / "STOP").unlink()
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+
+
+def test_loop_status_endpoint_is_read_only_and_leaks_no_paths(tmp_path, monkeypatch, capsys):
+    from tests.test_api_endpoints import client
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+    assert main(["--iteration-id", "it-2", "--root", str(tmp_path)]) == 3  # real run blocked at the inference gate
+    monkeypatch.setenv("CRUCIBLE_LOOP_ROOT", str(tmp_path))
+    before = sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json"))
+    r = client().get("/loop/status")
+    assert r.status_code == 200
+    body = r.json()
+    its = {i["iteration_id"]: i for i in body["iterations"]}
+    assert [s["stage"] for s in its["it-1"]["stages"]] == list(STAGES) and its["it-1"]["next_stage"] is None
+    assert its["it-2"]["next_stage"] == "generate" and its["it-2"]["stages"][0]["status"] == "blocked"
+    assert "CRUCIBLE_MODAL_APPROVED_CEILING_USD" in its["it-2"]["stages"][0]["missing"]
+    assert str(tmp_path) not in r.text and body["kill_switch"] is False
+    assert sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json")) == before

@@ -206,7 +206,7 @@ class Broken:
 
 @pytest.mark.parametrize("exc,code,action", [
     (MalformedModelOutput(()), "model_malformed_output", "retry"),
-    (InferenceError("timeout", "slow", retryable=True), "timeout", "retry"),
+    (InferenceError("timeout", "slow"), "timeout", "retry"),
     (InferenceError("gpu_launch_not_authorized", "no"), "model_unavailable", "reconfigure_model"),
     (RuntimeError("boom https://secret"), "model_failed", "retry")])
 def test_model_failures_are_typed_actionable_and_leak_nothing(exc, code, action):

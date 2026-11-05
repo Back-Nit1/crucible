@@ -71,6 +71,7 @@ class GenerationCheckpoint(WorldModel):
     fitness: dict[str, Decimal] = Field(default_factory=dict)
     killed_agent_ids: tuple[str, ...] = ()
     status: Literal["running", "complete"] = "running"
+    samples_per_task: int = Field(default=1, ge=1)  # K independent samples per genome:task pair (group sampling)
 
     @model_validator(mode="after")
     def unique_references(self) -> GenerationCheckpoint:
@@ -84,13 +85,17 @@ class GenerationCheckpoint(WorldModel):
         return self
 
     def content_hash(self) -> str:
-        payload = self.model_dump(mode="json")
+        payload = self.model_dump(mode="json", exclude={"samples_per_task"} if self.samples_per_task == 1 else None)
         return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    def episode_keys(self) -> tuple[str, ...]:
+        """`genome:task` for sample 0, `genome:task#k` for sample k (so K=1 keeps today's keys)."""
+        return tuple(f"{genome.id}:{task_id}" + (f"#{k}" if k else "") for genome in self.genomes
+                     for task_id in self.task_ids for k in range(self.samples_per_task))
 
     def remaining_episode_keys(self) -> tuple[str, ...]:
         completed = set(self.completed_episode_keys)
-        return tuple(f"{genome.id}:{task_id}" for genome in self.genomes for task_id in self.task_ids
-                     if f"{genome.id}:{task_id}" not in completed)
+        return tuple(key for key in self.episode_keys() if key not in completed)
 
 
 class MutationProposer(Protocol):

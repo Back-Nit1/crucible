@@ -274,3 +274,30 @@ def test_trained_checkpoint_needs_a_validated_artifact_and_real_evaluations(worl
     artifact.write_bytes(b"tampered")
     with pytest.raises(ContenderError, match="hash does not match"):
         trained_checkpoint_doc(ref, plan, [], created_at=NOW)
+
+
+def test_base_sft_and_grpo_adapters_are_contenders_with_fitness_and_kill_rate_deltas(world, tmp_path):
+    from eval.contenders import AdapterReference
+    from eval.leakage import audit
+    from eval.report import build_report
+    cat, tasks, reference = world
+
+    def ref(h):
+        return AdapterReference(adapter_ref=f"modal-volume://crucible-qwen-adapters/runs/run-{h}/final@{h * 64}",
+                                adapter_sha256=h * 64, base_model="Qwen/Qwen2.5-7B-Instruct", base_revision=REV,
+                                training_manifest_hash="d" * 64)
+    cs = tuple(c for c in standard_contenders(model_id="Qwen/Qwen2.5-7B-Instruct", base_revision=REV,
+                                              prompt_version="shopper-prompts-v1", endpoint="test:double",
+                                              adapters={"sft-a": ref("a"), "grpo-b": ref("b")}) if not c.memory_enabled)
+    assert [c.request_checkpoint for c in cs] == [REV, "qwen-lora-" + "a" * 12, "qwen-lora-" + "b" * 12]  # no base fallback
+    manifest, out, _ = go(world, tmp_path, cs=cs)
+    rep = audit(protected=tasks, reference=reference, allow_not_run=frozenset({"memory_eligibility", "training_source_leakage",
+                                                                                "catalog_manifest_match"}))
+    report = build_report(manifest, EvaluationStore(tmp_path, EVAL), {t.id: t for t in tasks}, audit=rep, allow_test_double=True)
+    by = {c["contender"]["id"]: c for c in report["contenders"]}
+    assert list(by) == ["base-qwen", "sft-a", "grpo-b"] and by["base-qwen"]["vs_base"] is None
+    for c in by.values():
+        f, k = c["fitness"], c["kill_rate"]
+        assert int(f["denominator"]) + f["excluded"] == 8 and k["denominator"] == "8" and f["value"] is not None
+    for cid in ("sft-a", "grpo-b"):  # the scripted double plays every contender identically: deltas are exactly zero
+        assert Decimal(by[cid]["vs_base"]["fitness_delta"]) == 0 and Decimal(by[cid]["vs_base"]["kill_rate_delta"]) == 0

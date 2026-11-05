@@ -1,6 +1,6 @@
 """Reproducible contender evaluation over identical task/seed pairs. Mock payments only; resumable; never invents a number.
 
-  uv run python -m scripts.run_evaluation plan    --taskset docs/evaluations/taskset-X --seeds 1,2,3 [--memory-pool pool.jsonl] [--adapter-ref adapter_ref.json]
+  uv run python -m scripts.run_evaluation plan    --taskset docs/evaluations/taskset-X --seeds 1,2,3 [--memory-pool pool.jsonl] [--adapter-ref adapter_ref.json | --adapter-manifest A [--adapter-manifest B]]
   uv run python -m scripts.run_evaluation run     --evaluation-id ID --env-file <.env> [--max-workers 2] [--max-episodes N]   # re-run to resume
   uv run python -m scripts.run_evaluation webshop --evaluation-id ID --webshop-sessions 0-49                                   # needs WEBSHOP_HOME/PYTHON
   uv run python -m scripts.run_evaluation report  --evaluation-id ID --out-dir docs/evaluations/ID
@@ -52,10 +52,15 @@ def cmd_plan(a) -> int:
     pool = ()
     if a.memory_pool:
         pool = tuple(TraceRecord.model_validate_json(l) for l in Path(a.memory_pool).read_text().splitlines() if l.strip())
-    adapter = (AdapterReference.from_artifact_manifest(a.adapter_manifest) if a.adapter_manifest else
-               load_adapter_reference(a.adapter_ref) if a.adapter_ref else None)
+    from modal_app.adapter_artifact import load_manifest
+    adapters = {}
+    for path in a.adapter_manifest or ():  # each sealed adapter (SFT or GRPO) is its own contender; ids never collide
+        sealed = load_manifest(Path(path))
+        kind = "grpo" if "grpo" in str(sealed.hyperparameters.get("method", "")) else "sft"
+        adapters[f"{kind}-{sealed.adapter_hash[:12]}"] = AdapterReference.from_artifact_manifest(sealed)
     contenders = standard_contenders(model_id=MODEL_ID, base_revision=MODEL_REVISION, prompt_version=PROMPT_VERSION,
-                                     endpoint="modal:crucible-qwen-inference/Qwen", memory_k=a.memory_k, adapter=adapter)
+                                     endpoint="modal:crucible-qwen-inference/Qwen", memory_k=a.memory_k,
+                                     adapter=load_adapter_reference(a.adapter_ref) if a.adapter_ref else None, adapters=adapters)
     if not pool:  # a memory contender over an empty pool would silently equal base
         contenders = tuple(c for c in contenders if not c.memory_enabled)
         print("note: no --memory-pool, base-qwen-memory is NOT planned", file=sys.stderr)
@@ -72,7 +77,7 @@ def cmd_plan(a) -> int:
         pass_k=a.pass_k, created_at=dt.datetime.now(dt.UTC), memory_pool_hash=pool_hash(pool) if pool else None, memory_pool_size=len(pool))
     manifest = manifest.with_state(result_artifacts={"protected_tasks": str(ts / "protected.jsonl"), "protected_hash": meta["protected_hash"],
                                                       "taskset": str(ts), "memory_pool": a.memory_pool or "", "audit_hash": report.content_hash,
-                                                      "adapter_manifest": a.adapter_manifest or ""})
+                                                      "adapter_manifest": ",".join(a.adapter_manifest or ())})
     store = _paths(a)
     existing = store.load_manifest()
     if existing and existing.manifest_hash != manifest.manifest_hash:
@@ -226,7 +231,8 @@ def main(argv=None) -> int:
     sub.choices["plan"].add_argument("--memory-pool")
     adapter = sub.choices["plan"].add_mutually_exclusive_group()
     adapter.add_argument("--adapter-ref")
-    adapter.add_argument("--adapter-manifest")
+    adapter.add_argument("--adapter-manifest", action="append",
+                         help="sealed artifact_manifest.json; repeat for base vs SFT vs GRPO (one contender each)")
     sub.choices["run"].add_argument("--max-workers", type=int, default=1)
     sub.choices["run"].add_argument("--max-episodes", type=int)
     sub.choices["webshop"].add_argument("--webshop-sessions", default="0-49")

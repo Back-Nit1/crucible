@@ -120,16 +120,18 @@ def load_adapter_reference(path: str | Path) -> AdapterReference:
 
 def standard_contenders(*, model_id: str, base_revision: str, prompt_version: str, endpoint: str,
                         temperature: Decimal = Decimal("0"), memory_k: int = 2,
-                        adapter: AdapterReference | None = None) -> tuple[ContenderConfig, ...]:
-    """Base, base+memory and (only when a real adapter reference is supplied) the fine-tuned survivor."""
+                        adapter: AdapterReference | None = None,
+                        adapters: dict[str, AdapterReference] | None = None) -> tuple[ContenderConfig, ...]:
+    """Base, base+memory and one fine-tuned contender per real adapter reference (`adapter` is "survivor-finetuned";
+    `adapters` maps contender id -> reference, e.g. {"sft-<hash>": ..., "grpo-<hash>": ...})."""
     common = dict(model_id=model_id, base_revision=base_revision, prompt_version=prompt_version, endpoint=endpoint,
                   temperature=temperature, memory_k=memory_k)
     out = [ContenderConfig(id="base-qwen", kind="base", memory_enabled=False, **common),
            ContenderConfig(id="base-qwen-memory", kind="base", memory_enabled=True, **common)]
-    if adapter is not None:
-        if (adapter.base_model, adapter.base_revision) != (model_id, base_revision):
+    for cid, ref in (({"survivor-finetuned": adapter} if adapter else {}) | (adapters or {})).items():
+        if (ref.base_model, ref.base_revision) != (model_id, base_revision):
             raise ContenderError("adapter was trained on a different base model or revision")
-        out.append(ContenderConfig(id="survivor-finetuned", kind="finetuned", memory_enabled=False,
-                                   adapter_ref=adapter.adapter_ref, adapter_sha256=adapter.adapter_sha256,
-                                   training_manifest_hash=adapter.training_manifest_hash, **common))
+        out.append(ContenderConfig(id=cid, kind="finetuned", memory_enabled=False,
+                                   adapter_ref=ref.adapter_ref, adapter_sha256=ref.adapter_sha256,
+                                   training_manifest_hash=ref.training_manifest_hash, **common))
     return tuple(out)
