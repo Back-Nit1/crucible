@@ -69,3 +69,15 @@ def test_taskset_loader_refuses_product_leakage(tmp_path):
     }))
     with pytest.raises(ValueError, match="product_overlap"):
         load_audited_taskset(taskset, manifests, 1)
+
+
+def test_every_episode_is_kept_as_a_rollout_and_curation_reports_drops(tmp_path, capsys):
+    assert run(tmp_path, "a", "--iteration-id", "it-1") == 0 and run(tmp_path, "b", "--iteration-id", "it-1") == 0
+    out = [tmp_path / f"out-{t}" / "gen-5-p8-t6" for t in "ab"]
+    assert (out[0] / "rollouts.jsonl").read_bytes() == (out[1] / "rollouts.jsonl").read_bytes()  # byte-identical rerun
+    rows = [json.loads(line) for line in (out[0] / "rollouts.jsonl").read_text().splitlines()]
+    assert len(rows) == 48 and any(r["killed"] for r in rows) and all(r["iteration_id"] == "it-1" and r["scripted"] for r in rows)
+    report = json.loads((out[0] / "curation_report.json").read_text())
+    sft = (out[0] / "sft.jsonl").read_text().splitlines()
+    assert report["records"] == len(sft) and report["episodes"] == 48
+    assert sum(report["dropped_by_reason"].values()) + len(sft) == 48 and report["dropped_by_reason"]["killed"] > 0

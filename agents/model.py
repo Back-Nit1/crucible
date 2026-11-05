@@ -255,6 +255,47 @@ class QwenModelAdapter:
         raise MalformedModelOutput(tuple(attempts))
 
 
+def render_messages(task: TaskSpec, history: tuple, memory_examples: tuple = ()) -> tuple[Message, ...]:
+    """The exact conversation a model policy sees before its next call (also used to rebuild rollout prompts)."""
+    messages: list[Message] = []
+    for episode in memory_examples:
+        messages.append(
+            Message(
+                role="assistant",
+                content=json.dumps(
+                    {
+                        "retrieved_episode_id": episode.episode_id,
+                        "recommended_products": episode.recommended_products,
+                        "termination": episode.termination,
+                        "final_answer": episode.final_answer,
+                    },
+                    sort_keys=True,
+                ),
+            )
+        )
+    messages.append(Message(role="user", content=task.raw_message))
+    for record in history:
+        messages.append(
+            Message(
+                role="assistant",
+                tool_name=record.action.type,
+                tool_arguments=record.arguments,
+            )
+        )
+        messages.append(
+            Message(
+                role="tool",
+                tool_name=record.action.type,
+                tool_result={
+                    "references": record.result_references,
+                    "summary": record.result_summary,
+                    "error_code": record.error_code,
+                },
+            )
+        )
+    return tuple(messages)
+
+
 class AdapterPolicy(ActionPolicy):
     """Translate runner history into a structured model request and typed action."""
 
@@ -272,47 +313,12 @@ class AdapterPolicy(ActionPolicy):
         self.memory_examples = episodes
 
     def next_step(self, task: TaskSpec, history: tuple, attempt: int) -> ModelStep | None:
-        messages: list[Message] = []
-        for episode in self.memory_examples:
-            messages.append(
-                Message(
-                    role="assistant",
-                    content=json.dumps(
-                        {
-                            "retrieved_episode_id": episode.episode_id,
-                            "recommended_products": episode.recommended_products,
-                            "termination": episode.termination,
-                            "final_answer": episode.final_answer,
-                        },
-                        sort_keys=True,
-                    ),
-                )
-            )
-        messages.append(Message(role="user", content=task.raw_message))
-        for record in history:
-            messages.append(
-                Message(
-                    role="assistant",
-                    tool_name=record.action.type,
-                    tool_arguments=record.arguments,
-                )
-            )
-            messages.append(
-                Message(
-                    role="tool",
-                    tool_name=record.action.type,
-                    tool_result={
-                        "references": record.result_references,
-                        "summary": record.result_summary,
-                        "error_code": record.error_code,
-                    },
-                )
-            )
+        messages = render_messages(task, history, self.memory_examples)
         request = ModelRequest(
             request_id=self.request_id or task.id,
             sequence=len(history),
             system_prompt=self.system_prompt,
-            messages=tuple(messages),
+            messages=messages,
             tools=action_tools(),
             seed=self.seed,
             temperature=self.temperature,
