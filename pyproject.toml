@@ -28,4 +28,4 @@ addopts = "-m 'not live'"
 markers = ["live: hits real sandbox/cloud services; run with `pytest -m live` and credentials in the environment"]
 
 [tool.setuptools]
-packages = ["catalog", "catalog.providers", "catalog.sources", "payments", "api", "modal_app", "memory", "tasks", "agents", "scoring", "world", "training", "eval"]
+packages = ["catalog", "catalog.providers", "catalog.sources", "payments", "api", "modal_app", "memory", "tasks", "agents", "scoring", "world", "training", "training.rl", "eval"]
