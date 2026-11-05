@@ -6,11 +6,12 @@ export const dynamic = "force-dynamic";
 
 export default async function SystemPage() {
   const api = serverApi();
-  const [health, readiness, config, generations] = await Promise.allSettled([
+  const [health, readiness, config, generations, loop] = await Promise.allSettled([
     api.health(),
     api.ready(),
     api.config(),
     api.generations(),
+    api.loopStatus(),
   ]);
   return (
     <SystemDashboard
@@ -18,6 +19,7 @@ export default async function SystemPage() {
       readiness={readiness.status === "fulfilled" ? readiness.value : null}
       config={config.status === "fulfilled" ? config.value : null}
       generations={generations.status === "fulfilled" ? generations.value : null}
+      loop={loop.status === "fulfilled" ? loop.value : null}
       sample={publicEnv.NEXT_PUBLIC_DATA_MODE === "sample"}
       refreshedAt={new Date().toISOString()}
     />
