@@ -60,3 +60,34 @@ def test_group_advantage_refuses_degenerate_groups():
         group_advantages([D("1")])
     with pytest.raises(ValueError):
         group_advantages([])
+
+
+# --- B3: per-turn credit -------------------------------------------------------------------------------------------
+from scoring.step_credit import StepCreditWeights, turn_penalty  # noqa: E402
+from training.rl.advantage import turn_advantages  # noqa: E402
+
+W = StepCreditWeights(invalid_schema=D("0.5"), ungrounded=D("0.25"), kill_rule=D("1"))
+
+
+def test_turn_penalty_names_the_turn_that_broke_a_rule():
+    assert turn_penalty(turn(), W) == 0
+    assert turn_penalty(turn(grounded=True), W) == 0
+    assert turn_penalty(turn(schema_valid=False), W) == D("0.5")
+    assert turn_penalty(turn(grounded=False), W) == D("0.25")
+    assert turn_penalty(turn(kill_rules=("K001", "K002")), W) == D("2")  # each attributed rule counts
+    assert turn_penalty(turn(schema_valid=False, grounded=False, kill_rules=("K001",)), W) == D("1.75")
+
+
+def test_turn_advantage_is_group_advantage_minus_that_turns_penalty():
+    good = rollout(episode_id="a", fitness=D("0.9"), turns=(turn(0), turn(1)))
+    bad = rollout(episode_id="b", sample=1, fitness=D("0.1"), killed=True,
+                  turns=(turn(0), turn(1, grounded=False), turn(2, kill_rules=("K001",))))
+    out = turn_advantages([good, bad], floor=D("-1"), weights=W)
+    assert out[0] == pytest.approx((1.0, 1.0), abs=1e-5)
+    assert out[1] == pytest.approx((-1.0, -1.25, -2.0), abs=1e-5)  # only the offending turns pay extra
+
+
+def test_zero_variance_group_still_penalizes_the_offending_turn():
+    a = rollout(episode_id="a", killed=True, turns=(turn(0), turn(1, kill_rules=("K001",))))
+    b = rollout(episode_id="b", sample=1, killed=True, turns=(turn(0, schema_valid=False),))
+    assert turn_advantages([a, b], floor=D("-1"), weights=W) == ((0.0, -1.0), (-0.5,))

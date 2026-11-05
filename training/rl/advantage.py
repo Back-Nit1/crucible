@@ -8,6 +8,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from decimal import Decimal
 
+from scoring.step_credit import turn_penalty
+from training.planning import StepCreditWeights
 from training.rollouts import RolloutRecord
 
 EPS = Decimal("1e-6")
@@ -26,3 +28,10 @@ def group_advantages(rewards: Sequence[Decimal], *, eps: Decimal = EPS) -> tuple
         return tuple(0.0 for _ in rewards)
     std = var.sqrt()
     return tuple(float((r - mean) / (std + eps)) for r in rewards)
+
+
+def turn_advantages(group: Sequence[RolloutRecord], *, floor: Decimal,
+                    weights: StepCreditWeights) -> tuple[tuple[float, ...], ...]:
+    """Per rollout, per turn: A_i - penalty(turn) (scoring.step_credit). Order follows `group`."""
+    episode = group_advantages([episode_reward(r, floor=floor) for r in group])
+    return tuple(tuple(a - float(turn_penalty(t, weights)) for t in r.turns) for a, r in zip(episode, group))

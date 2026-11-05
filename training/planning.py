@@ -18,6 +18,13 @@ class PlanModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+class StepCreditWeights(PlanModel):
+    """Per-turn penalties (see scoring.step_credit.turn_penalty). RL reward shaping only: fitness is untouched."""
+    invalid_schema: Decimal = Field(default=Decimal("0.5"), ge=0)
+    ungrounded: Decimal = Field(default=Decimal("0.5"), ge=0)
+    kill_rule: Decimal = Field(default=Decimal("1"), ge=0)
+
+
 class LoRAHyperparameters(PlanModel):
     method: str = "qlora_sft"
     epochs: int = Field(default=1, ge=1, le=5)
