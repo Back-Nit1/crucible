@@ -8,6 +8,7 @@ import json
 from dataclasses import dataclass
 
 DATASET_FORMAT = "crucible-sft-chat-v1"
+GRPO_FORMAT = "crucible-grpo-v1"  # same layout + per-row system prompt and one advantage per assistant turn
 
 
 class ShardError(ValueError):
@@ -25,6 +26,9 @@ class Shard:
     training_manifest_hash: str
     dataset_hash: str
     source_model_version: str       # which policy produced the traces (e.g. "scripted-v1" = oracle, not a model)
+    format: str = DATASET_FORMAT
+    example_systems: list[str] | None = None        # GRPO: the system prompt each rollout's policy saw
+    turn_advantages: list[list[float]] | None = None  # GRPO: one advantage per assistant turn, in order
 
 
 def parse_shard(data: bytes, *, expected_dataset_hash: str, expected_manifest_hash: str) -> Shard:
@@ -36,14 +40,20 @@ def parse_shard(data: bytes, *, expected_dataset_hash: str, expected_manifest_ha
         header = lines[0]["header"]
         examples = [line["messages"] for line in lines[1:]]
         ids = [line["source_episode_id"] for line in lines[1:]]
+        grpo = header.get("format") == GRPO_FORMAT
+        systems = [str(line["system"]) for line in lines[1:]] if grpo else None
+        advantages = [[float(a) for a in line["turn_advantages"]] for line in lines[1:]] if grpo else None
     except (ValueError, KeyError, IndexError, TypeError):
-        raise ShardError("malformed_shard", "shard is not valid crucible-sft-chat-v1 JSONL") from None
-    if header.get("format") != DATASET_FORMAT:
+        raise ShardError("malformed_shard", "shard is not valid crucible JSONL") from None
+    if header.get("format") not in (DATASET_FORMAT, GRPO_FORMAT):
         raise ShardError("unsupported_format", "unknown dataset format")
+    if grpo and any(sum(m.get("role") == "assistant" for m in ex) != len(adv) for ex, adv in zip(examples, advantages)):
+        raise ShardError("advantage_turn_mismatch", "each assistant turn needs exactly one advantage")
     if header.get("training_manifest_hash") != expected_manifest_hash:
         raise ShardError("training_manifest_mismatch", "shard was built from a different training manifest")
     if header.get("record_count") != len(examples) or not examples:
         raise ShardError("record_count_mismatch", "header record_count disagrees with the shard body")
     return Shard(system=header["system"], tools=header["tools"], examples=examples, episode_ids=ids,
                  training_manifest_hash=expected_manifest_hash, dataset_hash=actual,
-                 source_model_version=str(header.get("source_model_version", "")))
+                 source_model_version=str(header.get("source_model_version", "")), format=header["format"],
+                 example_systems=systems, turn_advantages=advantages)

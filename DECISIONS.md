@@ -121,3 +121,13 @@ Evidence: `docs/spikes/platform-day1.md`. Config: `config/providers.yaml`.
 - **Tags m6-product, m7-polish** (2026-11-03): created on request at the submission-package commits although their prompt.md contents are not all met (no Render deploy, no Astropods, no final evaluation). `m4-world` and `m5-train-eval` were not created because their contents (Modal-trained, evaluated model) do not exist. `docs/submission/PRE_SUBMIT_CHECKLIST.md` states the real status of each.
 - **Postman duplicate capture** (2026-11-03): the collection now accepts either a 422 `ORDER_ALREADY_CAPTURED` or a 2xx that leaves one capture (live sandbox behaviour); step 10 proves one capture.
 - **Graph refresh** (2026-11-03): `graphify update .` is AST-only, so `docs/graph/` reflects code, not re-extracted docs.
+
+## 2026-11-05 GRPO (agent B, `feat/grpo-rl`)
+- **Custom GRPO loss on the existing PEFT backend, not TRL `GRPOTrainer`.** Criteria: (1) *fit*: `GRPOTrainer` samples its own
+  completions from a prompt dataset (its multi-turn path runs tools through its own `environment_factory` loop); our rollouts are
+  multi-turn tool-call episodes produced and scored by the world (fitness, kill rules), so TRL would either re-generate them
+  (off our world, off our scorer) or need its rollout path replaced. (2) *pins*: current TRL needs newer `transformers`/`peft` than
+  the pinned `transformers 4.49.0` / `peft 0.14.0` / `torch 2.6.0`; an older TRL would freeze us on an early GRPO implementation.
+  (3) *code*: the clipped-ratio + k3-KL objective is ~40 lines on top of `torch_backend` and reuses the trainer, resume, artifact
+  and gates unchanged; TRL would add a dependency plus an adapter layer around its Trainer state that breaks our bit-identical resume.
+  No new dependency. Reference policy = base via PEFT `disable_adapter()` on the same weights (no second model copy).
