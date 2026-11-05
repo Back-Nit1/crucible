@@ -91,3 +91,8 @@ def test_zero_variance_group_still_penalizes_the_offending_turn():
     a = rollout(episode_id="a", killed=True, turns=(turn(0), turn(1, kill_rules=("K001",))))
     b = rollout(episode_id="b", sample=1, killed=True, turns=(turn(0, schema_valid=False),))
     assert turn_advantages([a, b], floor=D("-1"), weights=W) == ((0.0, -1.0), (-0.5,))
+
+
+def test_equal_rewards_are_zero_variance_even_when_the_decimal_mean_rounds():
+    r = D(1) / D(3) + D("0.46")  # 0.79333...: the Decimal mean of copies is not exactly r
+    assert group_advantages([r, r, r, r]) == (0.0, 0.0, 0.0, 0.0)

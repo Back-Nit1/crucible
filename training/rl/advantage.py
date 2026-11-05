@@ -22,11 +22,10 @@ def episode_reward(rollout: RolloutRecord, *, floor: Decimal) -> Decimal:
 def group_advantages(rewards: Sequence[Decimal], *, eps: Decimal = EPS) -> tuple[float, ...]:
     if len(rewards) < 2:
         raise ValueError("a GRPO group needs at least 2 samples")
-    mean = sum(rewards, Decimal(0)) / len(rewards)
-    var = sum(((r - mean) ** 2 for r in rewards), Decimal(0)) / len(rewards)
-    if var == 0:
+    if len(set(rewards)) == 1:  # equal rewards: decide on the values, not on a Decimal variance that rounds to ~1e-44
         return tuple(0.0 for _ in rewards)
-    std = var.sqrt()
+    mean = sum(rewards, Decimal(0)) / len(rewards)
+    std = (sum(((r - mean) ** 2 for r in rewards), Decimal(0)) / len(rewards)).sqrt()
     return tuple(float((r - mean) / (std + eps)) for r in rewards)
 
 
