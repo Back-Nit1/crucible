@@ -79,3 +79,20 @@ def test_step_arithmetic_and_method_quantization_consistency():
     plan = build_lora_plan(curated().manifest, base_model="m", base_revision="a" * 40, gpu="L4",
                            maximum_approved_cost=Decimal("1"))
     assert plan_hash(plan) == plan_hash(plan.model_copy()) and len(plan_hash(plan)) == 64
+
+
+def test_grpo_hyperparameters_need_their_config_and_leave_sft_dumps_unchanged():
+    from training.planning import GRPOConfig, LoRAHyperparameters
+    sft = LoRAHyperparameters()
+    assert sft.algorithm == "sft" and "grpo" not in sft.model_dump(mode="json")  # SFT plan hashes / run identities stay stable
+    grpo = LoRAHyperparameters(method="qlora_grpo", grpo=GRPOConfig())
+    assert grpo.algorithm == "grpo" and grpo.model_dump(mode="json")["grpo"]["kl_beta"] == "0.04"
+    assert LoRAHyperparameters.model_validate(grpo.model_dump(mode="json")) == grpo
+    for bad in ({"method": "qlora_grpo"}, {"method": "qlora_sft", "grpo": GRPOConfig()},
+                {"method": "lora_grpo", "grpo": GRPOConfig()}):  # lora_* needs quantization none
+        with pytest.raises(ValueError):
+            LoRAHyperparameters(**bad)
+    with pytest.raises(ValueError):
+        GRPOConfig(min_group_size=1)
+    with pytest.raises(ValueError):
+        GRPOConfig(policy_checkpoint="qwen-lora-0123456789ab")  # an adapter policy must name its adapter
