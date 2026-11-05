@@ -74,7 +74,8 @@ def test_plan_prints_per_stage_max_cost_and_the_exact_gate_values(tmp_path, caps
     p = json.loads(capsys.readouterr().out)
     rate = cost_per_second(list_rates())
     gen = p["stages"]["generate"]
-    assert gen["max_model_calls"] == 2 * 3 * 20 * 2 and gen["seconds_per_call"] == 120  # episodes x steps x (1 + retry)
+    assert gen["max_model_calls"] == 2 * 3 * 20 * 4 and gen["seconds_per_call"] == 120  # episodes x steps x runner x adapter tries
+    assert gen["max_seconds_per_episode"] == 900 + 120 and gen["max_seconds"] == 6 * 1020 + 60  # wall-clock cap bounds it
     assert gen["max_cost_usd"] == str((gen["max_seconds"] * rate).quantize(Decimal("0.000001")))
     assert Decimal(p["stages"]["train"]["max_cost_usd"]) <= Decimal("0.40") and p["stages"]["train"]["budget_seconds"] > 0
     assert p["stages"]["curate"]["max_cost_usd"] == "0"
@@ -84,3 +85,11 @@ def test_plan_prints_per_stage_max_cost_and_the_exact_gate_values(tmp_path, caps
                                                              key=Decimal)
     assert "after curate" in env["CRUCIBLE_MODAL_TRAINING_APPROVED_MANIFEST_HASH"]
     assert p["cold_start_seconds"] is None and not (tmp_path / "it-1").exists()  # planning runs nothing, writes nothing
+
+
+def test_kill_switch_file_stops_the_loop_between_stages(tmp_path, capsys):
+    (tmp_path / "STOP").write_text("operator stop")
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 4
+    assert status(tmp_path) == {} and "STOP" in capsys.readouterr().err
+    (tmp_path / "STOP").unlink()
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0

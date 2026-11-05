@@ -8,7 +8,8 @@ gated evaluation -> re-entry of the adapter into the next population.
 Each stage writes <root>/<iteration>/stages/<stage>.json; rerunning resumes at the first stage not `done`. A missing gate
 variable stops the loop with exit 3 and names the variable(s). `--dry-run` uses the scripted oracle shopper (it reads the
 answer key), the synthetic catalog, `--allow-scripted-traces` and an offline null trainer: pipeline evidence only — its
-"adapter" is a placeholder file, never a model. Exit codes: 0 ok/paused, 1 failed, 2 refused, 3 blocked by a gate."""
+"adapter" is a placeholder file, never a model. Exit codes: 0 ok/paused, 1 failed, 2 refused, 3 blocked by a gate, 4 stopped by the kill switch (<root>/STOP).
+Model calls retry only transient errors and each episode is capped at RunnerConfig.max_episode_seconds."""
 from __future__ import annotations
 
 import argparse
@@ -240,13 +241,17 @@ def cost_plan(a) -> dict:
     from eval.taskset import load_tasks
     from training.gates import MAX_LAUNCH_SECONDS, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR, affordable_seconds, cost_per_second, list_rates
     from agents.qwen_client import PROBE_CEILING_USD
-    rate, q = cost_per_second(list_rates()), Decimal("0.000001")
-    calls_per_episode = RunnerConfig().max_tool_calls * 2  # QwenModelAdapter max_retries=1: up to two invokes per step
+    rate, q, cfg = cost_per_second(list_rates()), Decimal("0.000001"), RunnerConfig()
+    # per step: runner retries a transient error once, QwenModelAdapter(max_retries=1) invokes up to twice per try
+    calls_per_episode = cfg.max_tool_calls * (cfg.max_retries + 1) * 2
+    # the episode wall-clock cap ends an episode, plus at most the one call still in flight
+    episode_seconds = min(calls_per_episode * a.seconds_per_call, int(cfg.max_episode_seconds) + a.seconds_per_call)
     idle = 60  # qwen_inference scaledown_window, billed once per stage
 
     def inference(episodes: int) -> dict:
-        seconds = episodes * calls_per_episode * a.seconds_per_call + idle
+        seconds = episodes * episode_seconds + idle
         return {"episodes": episodes, "max_model_calls": episodes * calls_per_episode, "seconds_per_call": a.seconds_per_call,
+                "max_seconds_per_episode": episode_seconds,
                 "max_seconds": seconds, "max_cost_usd": str((seconds * rate).quantize(q))}
     gen = inference(a.population * a.tasks * a.samples_per_task)
     contenders = 2  # base-qwen + the trained adapter (no memory pool in the loop)
@@ -294,6 +299,8 @@ def main(argv=None) -> int:
     ap.add_argument("--seconds-per-call", type=int, default=120,
                     help="billable seconds bound per model call (default: the client's hard 120 s timeout)")
     ap.add_argument("--eval-seeds", type=int, default=3)
+    ap.add_argument("--kill-switch", type=Path, help="file whose existence stops the loop before the next stage "
+                                                     "(default <root>/STOP)")
     a = ap.parse_args(argv)
     if not re.match(r"^[a-z0-9][a-z0-9-]{2,40}$", a.iteration_id):
         ap.error("--iteration-id must be lowercase letters, digits and dashes (3-41 chars)")
@@ -306,6 +313,7 @@ def main(argv=None) -> int:
         from scripts._env import load
         load(a.env_file, set(GATE_VARS + ELASTIC_VARS))
     a.dir = d = a.root / a.iteration_id
+    a.kill_switch = a.kill_switch or a.root / "STOP"
     stages = d / "stages"
     stages.mkdir(parents=True, exist_ok=True)
     evidence = DRY_EVIDENCE if a.dry_run else MODEL_EVIDENCE
@@ -316,6 +324,10 @@ def main(argv=None) -> int:
         if prior.get("status") == "done":
             done[name] = prior
             continue
+        if a.kill_switch.exists():  # operator stop: checked before every stage; delete the file and rerun to resume
+            print(f"STOPPED before {name}: kill switch {a.kill_switch} exists", file=sys.stderr)
+            print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "stopped_at": name, "status": "killed"}))
+            return 4
         try:
             body = {"stage": name, "status": "done", "evidence": evidence, **RUNNERS[name](a, d, done)}
         except Stop as stop:
