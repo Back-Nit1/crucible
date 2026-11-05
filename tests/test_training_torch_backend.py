@@ -22,7 +22,7 @@ from training.dataset import build_dataset  # noqa: E402
 from training.planning import LoRAHyperparameters, plan_hash, build_lora_plan  # noqa: E402
 from training.resume import CheckpointStore, RunIdentity  # noqa: E402
 from training.shard import parse_shard  # noqa: E402
-from training.torch_backend import IGNORE_INDEX, TorchLoraBackend, backend_signature, encode_example, load_base_model  # noqa: E402
+from training.torch_backend import IGNORE_INDEX, TorchLoraBackend, backend_signature, encode_turns, load_base_model  # noqa: E402
 from training.trainer import run_training  # noqa: E402
 
 NOW = dt.datetime(2026, 11, 1, tzinfo=dt.timezone.utc)
@@ -57,7 +57,7 @@ def shard():
 def test_labels_cover_only_assistant_tool_call_turns(tiny_model_dir):
     sh, _, _ = shard()
     tok = transformers.AutoTokenizer.from_pretrained(tiny_model_dir)
-    ids, labels = encode_example(tok, sh.system, sh.tools, sh.examples[0], 4096)
+    ids, labels, _ = encode_turns(tok, sh.system, sh.tools, sh.examples[0], 4096)
     trained = tok.decode([t for t in labels if t != IGNORE_INDEX])
     assert trained.count("<tool_call>") == trained.count("</tool_call>") >= 6 and trained.rstrip().endswith("<|im_end|>")
     assert "<tool_response>" not in trained and "need running shoes" not in trained and "careful shopping agent" not in trained

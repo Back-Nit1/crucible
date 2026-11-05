@@ -67,11 +67,6 @@ def encode_turns(tokenizer, system: str, tools: list[dict], messages: list[dict]
     return ids, labels, turns
 
 
-def encode_example(tokenizer, system: str, tools: list[dict], messages: list[dict], max_length: int) -> tuple[list[int], list[int]]:
-    ids, labels, _ = encode_turns(tokenizer, system, tools, messages, max_length)
-    return ids, labels
-
-
 class TorchLoraBackend:
     def __init__(self, *, model, tokenizer, shard: Shard, hp: LoRAHyperparameters, total_steps: int, device: str,
                  policy_adapter_dir: Path | None = None):
