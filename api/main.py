@@ -6,6 +6,7 @@ import os
 import time
 import uuid
 from decimal import Decimal
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -26,6 +27,9 @@ from payments.mock import MockPayments
 
 log = logging.getLogger("crucible.api")
 APP_VERSION = "0.2.0"
+LOOP_FIELDS = {"stage", "status", "evidence", "detail", "missing", "failed", "rollouts", "records", "dropped_by_reason",
+               "training_manifest_hash", "training_data_source", "audit_hash", "plan_hash", "dataset_hash", "total_steps",
+               "maximum_approved_cost_usd", "checkpoint_id", "adapter_hash", "contenders", "measured", "checkpoint"}
 
 
 def configure_logging() -> None:
@@ -280,6 +284,21 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
                 "require_all_in_quote": os.environ.get("REQUIRE_ALL_IN_QUOTE") == "1",
                 "catalog": get_router().status()["live_chat"], "snapshot_as_of": "2023-09-30",
                 "data_notice": "Frozen Amazon Reviews 2023 snapshot; shopper requests are generated; payments are PayPal sandbox or mock."}
+
+    @app.get("/loop/status")
+    def loop_status():
+        """Read-only view of scripts.run_loop stage status files under CRUCIBLE_LOOP_ROOT (default checkpoints/loop).
+        Only whitelisted fields are returned: never local paths."""
+        from scripts.run_loop import STAGES
+        root = Path(os.environ.get("CRUCIBLE_LOOP_ROOT", "checkpoints/loop"))
+        iterations = []
+        for d in sorted(p for p in root.glob("*") if (p / "stages").is_dir()):
+            stages = [{k: v for k, v in json.loads(f.read_text()).items() if k in LOOP_FIELDS}
+                      for s in STAGES if (f := d / "stages" / f"{s}.json").is_file()]
+            done = {s["stage"] for s in stages if s.get("status") == "done"}
+            iterations.append({"iteration_id": d.name, "stages": stages,
+                               "next_stage": next((s for s in STAGES if s not in done), None)})
+        return {"iterations": iterations, "kill_switch": (root / "STOP").exists()}
 
     @app.get("/providers/status", response_model=ProviderStatus)
     def providers_status():

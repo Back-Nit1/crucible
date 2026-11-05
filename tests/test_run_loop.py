@@ -93,3 +93,20 @@ def test_kill_switch_file_stops_the_loop_between_stages(tmp_path, capsys):
     assert status(tmp_path) == {} and "STOP" in capsys.readouterr().err
     (tmp_path / "STOP").unlink()
     assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+
+
+def test_loop_status_endpoint_is_read_only_and_leaks_no_paths(tmp_path, monkeypatch, capsys):
+    from tests.test_api_endpoints import client
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+    assert main(["--iteration-id", "it-2", "--root", str(tmp_path)]) == 3  # real run blocked at the inference gate
+    monkeypatch.setenv("CRUCIBLE_LOOP_ROOT", str(tmp_path))
+    before = sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json"))
+    r = client().get("/loop/status")
+    assert r.status_code == 200
+    body = r.json()
+    its = {i["iteration_id"]: i for i in body["iterations"]}
+    assert [s["stage"] for s in its["it-1"]["stages"]] == list(STAGES) and its["it-1"]["next_stage"] is None
+    assert its["it-2"]["next_stage"] == "generate" and its["it-2"]["stages"][0]["status"] == "blocked"
+    assert "CRUCIBLE_MODAL_APPROVED_CEILING_USD" in its["it-2"]["stages"][0]["missing"]
+    assert str(tmp_path) not in r.text and body["kill_switch"] is False
+    assert sorted(p.read_bytes() for p in tmp_path.rglob("stages/*.json")) == before
