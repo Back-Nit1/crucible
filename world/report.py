@@ -68,7 +68,7 @@ def summarize(*, result, tasks: tuple[TaskSpec, ...], episodes: tuple[EpisodeRec
                   "impossible": sum(t.is_impossible for t in tasks), "review_traps": sum(t.is_review_trap for t in tasks),
                   "by_split": dict(Counter(t.split.value for t in tasks)),
                   "by_category": dict(Counter(t.hard_constraints.category for t in tasks))},
-        "episodes": {"expected": len(st.checkpoint.genomes) * len(st.checkpoint.task_ids), "completed": len(st.checkpoint.completed_episode_keys),
+        "episodes": {"expected": len(st.checkpoint.episode_keys()), "completed": len(st.checkpoint.completed_episode_keys),
                      "traced": len(episodes), "scored": len(scored), "by_termination": dict(Counter(e.termination for e in episodes)),
                      "script_unavailable": sum(o.termination == "script_unavailable" for o in st.outcomes.values())},
         "kills": {"episodes_killed": sum(e.killed for e in episodes), "by_rule": dict(kills), "killed_agents": list(st.checkpoint.killed_agent_ids),

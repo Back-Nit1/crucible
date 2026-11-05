@@ -61,6 +61,8 @@ def main(argv=None) -> int:
     ap.add_argument("--tasks", type=int, default=12)
     ap.add_argument("--no-fixtures", action="store_true", help="omit the deliberate fixture agents")
     ap.add_argument("--generation-id")
+    ap.add_argument("--samples-per-task", type=int, default=1,
+                    help="K independent samples per genome:task pair (distinct derived seeds, one rollout group)")
     ap.add_argument("--iteration-id", help="expert-iteration id recorded on every rollout (groups samples)")
     ap.add_argument("--interrupt-after", type=int)
     ap.add_argument("--traces", default="elastic", choices=["elastic", "memory"])
@@ -135,7 +137,7 @@ def main(argv=None) -> int:
                   "policy_id": model_policy_id(MODEL_ID, checkpoint)}
     store = GenerationStore(FileBlobStore(a.checkpoint_dir))
     res = run_generation(generation_id=gen, seed=a.seed, genomes=genomes, tasks=tasks, manifests=manifests, catalog=catalog,
-                         store=store, traces=traces, max_episodes=a.interrupt_after, log=lambda m: print(m, file=sys.stderr), **policy)
+                         store=store, traces=traces, max_episodes=a.interrupt_after, samples_per_task=a.samples_per_task, log=lambda m: print(m, file=sys.stderr), **policy)
     if not res.complete:
         print(json.dumps({"generation_id": gen, "status": res.state.status.value, "executed": len(res.executed),
                           "remaining": len(res.state.remaining())}))

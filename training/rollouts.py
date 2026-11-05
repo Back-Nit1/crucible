@@ -86,6 +86,7 @@ def rollout_from_episode(episode: EpisodeRecord, task: TaskSpec, genome: Genome,
                          policy_id: str, iteration_id: str | None = None, sample_index: int = 0,
                          adapter_hash: str | None = None) -> RolloutRecord:
     from agents.prompts import system_prompt
+    from world.runtime import episode_seed
     try:
         prompt = system_prompt(genome.system_prompt_variant)
     except ValueError:
@@ -102,7 +103,7 @@ def rollout_from_episode(episode: EpisodeRecord, task: TaskSpec, genome: Genome,
     return RolloutRecord(
         episode_id=episode.episode_id, generation_id=episode.generation_id, iteration_id=iteration_id, task_id=task.id,
         split=task.split, group_id=group_id(task.id, genome.model_checkpoint, iteration_id), sample_index=sample_index,
-        seed=episode.seed, genome_id=genome.id, model_checkpoint=genome.model_checkpoint, adapter_hash=adapter_hash,
+        seed=episode_seed(episode.seed, episode.episode_id.removeprefix(f"{episode.generation_id}:")), genome_id=genome.id, model_checkpoint=genome.model_checkpoint, adapter_hash=adapter_hash,
         prompt_variant=genome.system_prompt_variant, system_prompt=prompt, temperature=genome.temperature,
         memory_enabled=genome.memory.enabled, model_version=policy_id,
         scripted=genome.model_checkpoint.startswith(PRIVILEGED_CHECKPOINT_PREFIX), turns=turns,

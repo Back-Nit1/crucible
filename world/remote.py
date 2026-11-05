@@ -22,7 +22,7 @@ def approx_cost_usd(seconds: float, gpu_rate_per_second: float = 0.0) -> dict:
 def brief(gid: str, st: GenerationState | None) -> dict:
     if st is None:
         return {"generation_id": gid, "status": "corrupt"}
-    done, total = len(st.checkpoint.completed_episode_keys), len(st.checkpoint.genomes) * len(st.checkpoint.task_ids)
+    done, total = len(st.checkpoint.completed_episode_keys), len(st.checkpoint.episode_keys())
     return {"generation_id": gid, "status": st.status.value, "episodes": f"{done}/{total}", "error": st.error,
             "survivors": list(st.summary.survivor_ids) if st.summary else None}
 

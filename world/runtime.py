@@ -110,16 +110,17 @@ class RunResult:
 
 
 def run_one(task: TaskSpec, genome: Genome, *, catalog: FrozenCatalogProvider, generation_id: str, seed: int,
-            memory: RepositoryMemoryProvider | None, policy_factory: PolicyFactory | None = None) -> EpisodeRecord:
+            memory: RepositoryMemoryProvider | None, policy_factory: PolicyFactory | None = None,
+            key: str | None = None) -> EpisodeRecord:
     agent_id, clock = genome.id, make_clock()
-    key = f"{genome.id}:{task.id}"
+    key = key or f"{genome.id}:{task.id}"
     policy = (policy_factory(task, genome, agent_id, episode_seed(seed, key)) if policy_factory
               else scripted_policy(task, catalog, genome, agent_id))
     backend = MockPayments()  # world runs NEVER touch PayPal sandbox
     executor = InMemoryToolExecutor(catalog, GuardedPayments(backend, catalog, clock=clock), task_id=task.id,
                                     agent_id=agent_id, budget_cap=task.hard_constraints.max_total,
                                     min_candidates=task.research_requirements.min_candidates_compared, clock=clock)
-    return run_episode(episode_id=f"{generation_id}:{genome.id}:{task.id}", task=task, agent_id=agent_id,
+    return run_episode(episode_id=f"{generation_id}:{key}", task=task, agent_id=agent_id,
                        generation_id=generation_id, policy=policy, executor=executor, seed=seed, clock=clock,
                        memory=memory if genome.memory.enabled else None, memory_k=genome.memory.k)
 
@@ -128,11 +129,13 @@ def run_generation(*, generation_id: str, seed: int, genomes: tuple[Genome, ...]
                    manifests: dict[str, str], catalog: FrozenCatalogProvider, store: GenerationStore,
                    traces: TraceRepository, max_episodes: int | None = None, owner: str | None = None,
                    log=lambda msg: None, policy_factory: PolicyFactory | None = None,
-                   policy_id: str = SCRIPTED_POLICY_ID, max_consecutive_model_failures: int = 3) -> RunResult:
+                   policy_id: str = SCRIPTED_POLICY_ID, max_consecutive_model_failures: int = 3,
+                   samples_per_task: int = 1) -> RunResult:
     if (policy_factory is None) != (policy_id == SCRIPTED_POLICY_ID):
         raise ValueError("policy_factory and a non-scripted policy_id must be given together")
     fresh = GenerationState(compat=compat_for(tasks, genomes, manifests, policy_id), checkpoint=GenerationCheckpoint(
-        generation_id=generation_id, seed=seed, genomes=genomes, task_ids=tuple(t.id for t in tasks)))
+        generation_id=generation_id, seed=seed, genomes=genomes, task_ids=tuple(t.id for t in tasks),
+        samples_per_task=samples_per_task))
     store.acquire(generation_id, owner or f"{socket.gethostname()}")
     memory, by_task, by_genome = RepositoryMemoryProvider(traces), {t.id: t for t in tasks}, {g.id: g for g in genomes}
     try:
@@ -147,18 +150,18 @@ def run_generation(*, generation_id: str, seed: int, genomes: tuple[Genome, ...]
             if max_episodes is not None and len(result.executed) + len(result.skipped) >= max_episodes:
                 result.state = store.set_status(generation_id, GenerationStatus.INTERRUPTED)
                 return result
-            gid, tid = key.split(":", 1)
+            gid, tid = key.split("#")[0].split(":", 1)
             genome, task = by_genome[gid], by_task[tid]
             try:
                 try:
                     episode = run_one(task, genome, catalog=catalog, generation_id=generation_id, seed=seed, memory=memory,
-                                      policy_factory=policy_factory)
+                                      policy_factory=policy_factory, key=key)
                 except ScriptUnavailable:
                     if policy_factory is not None or genome.system_prompt_variant not in FIXTURES:
                         raise
                     # a fixture that cannot misbehave on this task behaves honestly instead (recorded, not hidden)
                     episode = run_one(task, genome.model_copy(update={"system_prompt_variant": "grounded-shopper-v1"}),
-                                      catalog=catalog, generation_id=generation_id, seed=seed, memory=memory)
+                                      catalog=catalog, generation_id=generation_id, seed=seed, memory=memory, key=key)
                     result.inert_fixtures.append(key)
             except ScriptUnavailable as e:
                 result.skipped[key] = str(e)
@@ -175,7 +178,7 @@ def run_generation(*, generation_id: str, seed: int, genomes: tuple[Genome, ...]
             result.executed.append(key)
             if streak >= max_consecutive_model_failures:  # backend down: stop burning pairs; resume re-runs the rest
                 raise ModelUnavailable(f"{streak} consecutive model failures")
-            log(f"{len(state.checkpoint.completed_episode_keys)}/{len(state.checkpoint.genomes) * len(state.checkpoint.task_ids)} "
+            log(f"{len(state.checkpoint.completed_episode_keys)}/{len(state.checkpoint.episode_keys())} "
                 f"{key} {episode.termination} fitness={sc.get('fitness', '-')} kills={[k['rule_id'] for k in episode.kill_information]}")
         result.state = store.finalize(generation_id)
         result.complete = True

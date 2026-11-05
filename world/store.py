@@ -223,8 +223,9 @@ class GenerationStore:
         if stored.compat != fresh.compat:
             raise IncompatibleCheckpoint(f"{generation_id}: stored {stored.compat} != requested {fresh.compat}")
         if stored.checkpoint.seed != fresh.checkpoint.seed or stored.checkpoint.genomes != fresh.checkpoint.genomes \
-                or stored.checkpoint.task_ids != fresh.checkpoint.task_ids:
-            raise IncompatibleCheckpoint(f"{generation_id}: seed, genomes or tasks differ")
+                or stored.checkpoint.task_ids != fresh.checkpoint.task_ids \
+                or stored.checkpoint.samples_per_task != fresh.checkpoint.samples_per_task:
+            raise IncompatibleCheckpoint(f"{generation_id}: seed, genomes, tasks or samples per task differ")
         return stored
 
     def set_status(self, generation_id: str, status: GenerationStatus, error: str | None = None) -> GenerationState:
@@ -255,7 +256,7 @@ class GenerationStore:
         cp = state.checkpoint
         fitness, killed = {}, []
         for g in cp.genomes:
-            outs = [state.outcomes[f"{g.id}:{t}"] for t in cp.task_ids]
+            outs = [state.outcomes[k] for k in cp.episode_keys() if k.startswith(f"{g.id}:")]
             fitness[g.id] = (sum((o.fitness for o in outs), Decimal(0)) / len(outs)).quantize(Decimal("0.000001"))
             if any(o.killed for o in outs):
                 killed.append(g.id)
