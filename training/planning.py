@@ -8,7 +8,7 @@ import math
 from decimal import Decimal
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 if TYPE_CHECKING:  # planning stays a leaf (pydantic only) so the trainer container does not need the agent/catalog stack
     from training.curation import TrainingManifest
@@ -16,6 +16,37 @@ if TYPE_CHECKING:  # planning stays a leaf (pydantic only) so the trainer contai
 
 class PlanModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class StepCreditWeights(PlanModel):
+    """Per-turn penalties (see scoring.step_credit.turn_penalty). RL reward shaping only: fitness is untouched."""
+    invalid_schema: Decimal = Field(default=Decimal("0.5"), ge=0)
+    ungrounded: Decimal = Field(default=Decimal("0.5"), ge=0)
+    kill_rule: Decimal = Field(default=Decimal("1"), ge=0)
+
+
+class GRPOConfig(PlanModel):
+    """GRPO knobs (docs/model-runs/GRPO.md). The policy fields name the checkpoint the rollouts came from, which is
+    the checkpoint this run updates (on-policy): base, or one sealed adapter by run id + adapter hash."""
+    kl_beta: Decimal = Field(default=Decimal("0.04"), ge=0)
+    clip_epsilon: Decimal = Field(default=Decimal("0.2"), gt=0, lt=1)
+    reward_floor: Decimal = Decimal("-1")
+    min_group_size: int = Field(default=2, ge=2)
+    step_credit: StepCreditWeights = StepCreditWeights()
+    policy_checkpoint: str = "qwen-base"
+    policy_adapter_run_id: str | None = Field(default=None, pattern=r"^[a-z0-9][a-z0-9-]{2,62}$")
+    policy_adapter_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def _policy_is_base_or_one_adapter(self) -> "GRPOConfig":
+        if self.policy_checkpoint == "qwen-base":
+            ok = self.policy_adapter_run_id is None and self.policy_adapter_hash is None
+        else:
+            ok = bool(self.policy_adapter_run_id and self.policy_adapter_hash
+                      and self.policy_checkpoint == f"qwen-lora-{self.policy_adapter_hash[:12]}")
+        if not ok:
+            raise ValueError("policy is qwen-base (no adapter) or qwen-lora-<hash[:12]> with its run id and adapter hash")
+        return self
 
 
 class LoRAHyperparameters(PlanModel):
@@ -37,12 +68,27 @@ class LoRAHyperparameters(PlanModel):
     target_modules: tuple[str, ...] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
     checkpoint_every_steps: int = Field(default=5, ge=1)
     max_steps: int | None = Field(default=None, ge=1)  # hard cap, used by the cost-bounded smoke run
+    grpo: GRPOConfig | None = None  # required iff method is *_grpo
 
     @model_validator(mode="after")
     def _method_matches_quantization(self) -> "LoRAHyperparameters":
-        if (self.method == "qlora_sft") != (self.quantization == "nf4") or self.method not in {"qlora_sft", "lora_sft"}:
-            raise ValueError("method must be qlora_sft with nf4 quantization or lora_sft with none")
+        if self.method not in {"qlora_sft", "lora_sft", "qlora_grpo", "lora_grpo"} or \
+                self.method.startswith("qlora") != (self.quantization == "nf4"):
+            raise ValueError("method must be qlora_{sft,grpo} with nf4 quantization or lora_{sft,grpo} with none")
+        if (self.algorithm == "grpo") != (self.grpo is not None):
+            raise ValueError("a grpo method needs a grpo config, and only a grpo method may have one")
         return self
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_grpo(self, handler):
+        data = handler(self)  # SFT dumps stay byte-identical to before GRPO existed (plan hashes, run identities)
+        if self.grpo is None:
+            data.pop("grpo", None)
+        return data
+
+    @property
+    def algorithm(self) -> str:
+        return self.method.rsplit("_", 1)[1]
 
     def examples_per_step(self) -> int:
         return self.micro_batch_size * self.gradient_accumulation_steps
@@ -100,6 +146,7 @@ def build_lora_plan(
     gpu: str,
     maximum_approved_cost: Decimal,
     hyperparameters: LoRAHyperparameters = LoRAHyperparameters(),
+    record_count: int | None = None,  # GRPO: shard rows (rollouts with signal), fewer than the audited rollouts
 ) -> LoRAPlan:
     if not manifest.source_episode_ids:
         raise ValueError("LoRA planning requires at least one curated grounded trace")
@@ -107,7 +154,7 @@ def build_lora_plan(
         base_model=base_model,
         base_revision=base_revision,
         training_manifest_hash=manifest.content_hash,
-        record_count=len(manifest.source_episode_ids),
+        record_count=record_count or len(manifest.source_episode_ids),
         gpu=gpu,
         hyperparameters=hyperparameters,
         maximum_approved_cost=maximum_approved_cost,

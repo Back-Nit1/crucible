@@ -40,3 +40,20 @@ def test_timeout_is_under_the_approved_forty_five_minutes_and_above_the_soft_sto
     from training.gates import MAX_LAUNCH_SECONDS
     mod = load(monkeypatch, False)
     assert MAX_LAUNCH_SECONDS < mod.TIMEOUT_SECONDS <= 45 * 60
+
+
+def test_each_algorithm_is_enabled_by_its_own_deploy_flag(monkeypatch):
+    monkeypatch.delenv("CRUCIBLE_ENABLE_L4_TRAIN", raising=False)
+    monkeypatch.delenv("CRUCIBLE_ENABLE_L4_RL", raising=False)
+    import modal_app.qwen_training as mod
+    mod = importlib.reload(mod)
+    assert (mod.ENABLED, mod.ALGORITHMS) == (False, "")  # fail closed: no GPU, no algorithm
+    monkeypatch.setenv("CRUCIBLE_ENABLE_L4_RL", "1")
+    mod = importlib.reload(mod)
+    assert (mod.ENABLED, mod.ALGORITHMS) == (True, "grpo")  # RL alone does not enable SFT
+    monkeypatch.setenv("CRUCIBLE_ENABLE_L4_TRAIN", "1")
+    assert importlib.reload(mod).ALGORITHMS == "sft,grpo"
+    monkeypatch.delenv("CRUCIBLE_ENABLE_L4_RL")
+    monkeypatch.delenv("CRUCIBLE_ENABLE_L4_TRAIN")
+    importlib.reload(mod)
+    assert repr(mod.train) == "Function(train)"  # registers offline, never deployed

@@ -150,3 +150,99 @@ def test_inspect_rejects_tampered_manifest_and_adapter(files, monkeypatch, capsy
     assert "adapter_content_mismatch" in capsys.readouterr().out
     path.write_text(path.read_text().replace('"gpu": "L4"', '"gpu": "H100"'))
     assert inspect_main([str(path)]) == 1
+
+
+# --- GRPO: same CLI, --algorithm grpo --------------------------------------------------------------------------------
+from tests.test_rl_dataset import group  # noqa: E402
+from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR  # noqa: E402
+
+
+@pytest.fixture
+def rollouts_file(tmp_path):
+    path = tmp_path / "rollouts.jsonl"
+    protected = [r.model_copy(update={"split": TaskSplit.TEST, "episode_id": "p-" + r.episode_id, "group_id": "c" * 64}) for r in group()]
+    path.write_text("".join(r.model_dump_json() + "\n"
+                            for r in group() + group("t-2", "b" * 64, (D("0.1"), D("0.4"), D("0.7"))) + protected))
+    return path, tmp_path
+
+
+from decimal import Decimal as D  # noqa: E402
+
+
+def grpo_argv(rf, *extra, mode="--plan-only", cost="0.5"):
+    path, tmp = rf
+    return ["--algorithm", "grpo", "--rollouts", str(path), "--run-id", "run-grpo", "--max-cost", cost, "--out", str(tmp / "out"),
+            mode, *extra]
+
+
+def grpo_transport(root):
+    backend = Backend()
+    return lambda payload: execute(TrainRequest.model_validate(payload), runs_root=root, backend_factory=lambda s, h, n: backend,
+                                   signature="fake", clock=lambda: NOW, algorithms=frozenset({"grpo"})).model_dump(mode="json")
+
+
+def test_grpo_plan_only_prints_cost_and_the_exact_rl_gates(rollouts_file, monkeypatch, capsys):
+    clear_env(monkeypatch)
+    assert main(grpo_argv(rollouts_file, "--kl-beta", "0.1")) == 0
+    plan = json.loads((rollouts_file[1] / "out" / "training_plan.json").read_text())
+    assert plan["status"] == "planned" and plan["trained"] is False and plan["algorithm"] == "grpo"
+    assert plan["hyperparameters"]["method"] == "qlora_grpo" and plan["hyperparameters"]["grpo"]["kl_beta"] == "0.1"
+    assert plan["rl"]["stats"]["rollouts"] == 5 and plan["rl"]["stats"]["groups"] == 2 and plan["record_count"] == 4  # zero-advantage middle sample dropped
+    cost = plan["rl"]["cost"]
+    assert plan["rl"]["stats"]["excluded_protected_split"] == 2
+    assert cost["rollout_inference"]["episodes"] == 5 and D(cost["max_cost_usd"]) == \
+        D(cost["rollout_inference"]["max_cost_usd"]) + D(cost["update"]["max_cost_usd"])
+    env = plan["rl"]["env"]
+    assert env[RL_ROLLOUTS_VAR] == plan["training_manifest_hash"] == plan["rl"]["rollout_set_hash"]
+    assert env[RL_CEILING_VAR] == "0.5" and env["CRUCIBLE_MODAL_TOKEN_ROTATED"] == "1"
+    assert any("CRUCIBLE_ENABLE_L4_RL=1" in c for c in plan["launch_commands"])
+    assert (rollouts_file[1] / "out" / "rollout_manifest.json").exists()  # what the leakage audit checked
+
+
+def test_grpo_refuses_scripted_rollouts_without_the_flag(rollouts_file, capsys):
+    path, _ = rollouts_file
+    path.write_text("".join(r.model_copy(update={"scripted": True}).model_dump_json() + "\n" for r in group()))
+    assert main(grpo_argv(rollouts_file)) == 2 and "scripted_traces" in capsys.readouterr().out
+    assert main(grpo_argv(rollouts_file, "--allow-scripted-traces")) == 0
+
+
+def test_grpo_runs_the_leakage_audit_on_the_rollouts(rollouts_file, capsys):
+    path, _ = rollouts_file
+    leaked = [r.model_copy(update={"episode_id": f"gen:{r.episode_id}:batch-20261110-0002"}) for r in group()]
+    path.write_text("".join(r.model_dump_json() + "\n" for r in leaked))
+    assert main(grpo_argv(rollouts_file)) == 2 and "split_leakage" in capsys.readouterr().out
+
+
+def test_grpo_launch_needs_rl_gates_then_trains_a_verified_grpo_artifact(rollouts_file, monkeypatch, capsys):
+    clear_env(monkeypatch)
+    set_env(monkeypatch, "e" * 64)  # SFT approval only: must not unlock GRPO
+    assert main(grpo_argv(rollouts_file, mode="--launch"), transport=lambda p: pytest.fail("must not call")) == 3
+    blocked = json.loads((rollouts_file[1] / "out" / "training_run.json").read_text())
+    assert blocked["status"] == "blocked_not_run" and RL_ROLLOUTS_VAR in blocked["blocker"]
+    rollout_hash = blocked["training_manifest_hash"]
+    monkeypatch.setenv(RL_CEILING_VAR, "0.5")
+    monkeypatch.setenv(RL_ROLLOUTS_VAR, rollout_hash)
+    root = rollouts_file[1] / "volume"
+    assert main(grpo_argv(rollouts_file, "--max-steps", "2", mode="--launch"), transport=grpo_transport(root), now=lambda: NOW) == 0
+    done = json.loads((rollouts_file[1] / "out" / "training_run.json").read_text())
+    assert done["status"] == "trained" and done["checkpoint_id"].startswith("qwen-lora-") and done["algorithm"] == "grpo"
+    art = json.loads((rollouts_file[1] / "out" / "artifact_manifest.json").read_text())
+    assert art["hyperparameters"]["method"] == "qlora_grpo" and art["training_manifest_hash"] == rollout_hash
+    assert inspect_main([str(rollouts_file[1] / "out" / "artifact_manifest.json"), "--adapter-dir", str(root / "run-grpo" / "final")]) == 0
+
+
+def test_grpo_policy_adapter_manifest_pins_the_update_to_that_checkpoint(rollouts_file, monkeypatch, capsys):
+    path, tmp = rollouts_file
+    other = tmp / "prev.json"
+    # a real sealed manifest from an SFT run is a valid policy checkpoint; base rollouts are then stale for it
+    clear_env(monkeypatch)
+    from tests.test_adapter_artifact import manifest as sealed
+    m = sealed(tmp / "prev")
+    other.write_text(m.model_dump_json())
+    assert main(grpo_argv(rollouts_file, "--policy-adapter-manifest", str(other))) == 2
+    assert "stale_rollouts" in capsys.readouterr().out
+    path.write_text("".join(r.model_copy(update={"model_checkpoint": m.checkpoint_id, "adapter_hash": m.adapter_hash}).model_dump_json()
+                            + "\n" for r in group()))
+    assert main(grpo_argv(rollouts_file, "--policy-adapter-manifest", str(other))) == 0
+    plan = json.loads((tmp / "out" / "training_plan.json").read_text())
+    assert plan["hyperparameters"]["grpo"]["policy_adapter_hash"] == m.adapter_hash

@@ -38,9 +38,11 @@ def backend_signature() -> str:
     return ",".join(f"{n}=={v(n)}" for n in ("torch", "transformers", "peft", "accelerate", "bitsandbytes"))
 
 
-def encode_example(tokenizer, system: str, tools: list[dict], messages: list[dict], max_length: int) -> tuple[list[int], list[int]]:
-    """Chat-template render of the whole episode with labels ONLY on assistant turns (tool calls + <|im_end|>).
-    Spans come from re-rendering the template prefix by prefix, so they follow the exact inference-time format."""
+def encode_turns(tokenizer, system: str, tools: list[dict], messages: list[dict],
+                 max_length: int) -> tuple[list[int], list[int], list[int]]:
+    """Chat-template render of the whole episode with labels ONLY on assistant turns (tool calls + <|im_end|>), plus
+    the assistant-turn index of every token (-1 outside assistant turns). Spans come from re-rendering the template
+    prefix by prefix, so they follow the exact inference-time format."""
     full_messages = [{"role": "system", "content": system}, *messages]
     render = lambda msgs, gen: tokenizer.apply_chat_template(msgs, tools=tools, add_generation_prompt=gen, tokenize=False)
     text = render(full_messages, False)
@@ -58,21 +60,34 @@ def encode_example(tokenizer, system: str, tools: list[dict], messages: list[dic
     ids = list(enc["input_ids"])
     if len(ids) > max_length:
         raise BackendError("example_too_long", f"{len(ids)} tokens exceeds max_sequence_length {max_length}")
-    labels = [tok if any(s <= a and b <= e for s, e in spans) else IGNORE_INDEX
-              for tok, (a, b) in zip(ids, enc["offset_mapping"])]
+    turns = [next((j for j, (s, e) in enumerate(spans) if s <= a and b <= e), -1) for a, b in enc["offset_mapping"]]
+    labels = [tok if turn >= 0 else IGNORE_INDEX for tok, turn in zip(ids, turns)]
     if all(label == IGNORE_INDEX for label in labels):
         raise BackendError("no_target_tokens", "no tokens fall inside an assistant turn")
+    return ids, labels, turns
+
+
+def encode_example(tokenizer, system: str, tools: list[dict], messages: list[dict], max_length: int) -> tuple[list[int], list[int]]:
+    ids, labels, _ = encode_turns(tokenizer, system, tools, messages, max_length)
     return ids, labels
 
 
 class TorchLoraBackend:
-    def __init__(self, *, model, tokenizer, shard: Shard, hp: LoRAHyperparameters, total_steps: int, device: str):
+    def __init__(self, *, model, tokenizer, shard: Shard, hp: LoRAHyperparameters, total_steps: int, device: str,
+                 policy_adapter_dir: Path | None = None):
+        """GRPO (hp.grpo set): `policy_adapter_dir` holds the verified adapter the rollouts came from (None = base). Old
+        and reference log-probs are computed here, before any update or checkpoint restore, so a resumed run rebuilds
+        exactly the same ones."""
         import torch
         from peft import LoraConfig, get_peft_model
         from transformers import get_cosine_schedule_with_warmup
         self.torch, self.hp, self.device = torch, hp, device
-        self.encoded = [encode_example(tokenizer, shard.system, shard.tools, ex, hp.max_sequence_length)
-                        for ex in shard.examples]
+        systems = shard.example_systems or [shard.system] * len(shard.examples)
+        encoded = [encode_turns(tokenizer, system, shard.tools, ex, hp.max_sequence_length)
+                   for system, ex in zip(systems, shard.examples)]
+        self.encoded = [(ids, labels) for ids, labels, _ in encoded]
+        if (hp.grpo is None) != (shard.turn_advantages is None) or (policy_adapter_dir and hp.grpo is None):
+            raise BackendError("algorithm_shard_mismatch", "GRPO needs a crucible-grpo-v1 shard and SFT an SFT shard")
         torch.manual_seed(hp.seed)
         random.seed(hp.seed)
         config = LoraConfig(r=hp.lora_rank, lora_alpha=hp.lora_alpha, lora_dropout=float(hp.lora_dropout), bias="none",
@@ -82,6 +97,43 @@ class TorchLoraBackend:
         params = [p for p in self.model.parameters() if p.requires_grad]
         self.optimizer = torch.optim.AdamW(params, lr=float(hp.learning_rate), weight_decay=float(hp.weight_decay))
         self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, hp.warmup_steps, total_steps)
+        if hp.grpo is not None:
+            if policy_adapter_dir is not None:
+                config = json.loads((policy_adapter_dir / "adapter_config.json").read_text())
+                if config.get("r") != hp.lora_rank or set(config.get("target_modules") or ()) != set(hp.target_modules):
+                    raise BackendError("policy_adapter_incompatible", "policy adapter rank/targets differ from this run's LoRA")
+                self._load_adapter(policy_adapter_dir / "adapter_model.safetensors")
+            # per example, aligned with labels[1:]: advantage of the turn each predicted token belongs to
+            self.token_advantages = [[adv[t] if t >= 0 else 0.0 for t in turns[1:]]
+                                     for (_, _, turns), adv in zip(encoded, shard.turn_advantages)]
+            self.old_logp = self._frozen_logprobs(adapter=True)    # rollout checkpoint
+            self.ref_logp = self._frozen_logprobs(adapter=False)   # base: same weights, adapter disabled
+
+    # -- GRPO helpers -----------------------------------------------------------------------------------------------
+    def _token_logprobs(self, input_ids, labels, mask):
+        torch = self.torch
+        with torch.autocast(device_type=self.device.split(":")[0], dtype=torch.bfloat16, enabled=self.device != "cpu"):
+            logits = self.model(input_ids=input_ids, attention_mask=mask).logits
+        return -torch.nn.functional.cross_entropy(logits[:, :-1].float().transpose(1, 2), labels[:, 1:],
+                                                  ignore_index=IGNORE_INDEX, reduction="none")
+
+    def _frozen_logprobs(self, *, adapter: bool) -> list[list[float]]:
+        import contextlib
+        torch = self.torch
+        self.model.eval()
+        out = []
+        with torch.no_grad(), (contextlib.nullcontext() if adapter else self.model.disable_adapter()):
+            for ids, labels in self.encoded:
+                t = lambda rows: torch.tensor([rows], device=self.device)
+                out.append(self._token_logprobs(t(ids), t(labels), t([1] * len(ids)))[0].cpu().tolist())
+        return out
+
+    def _load_adapter(self, weights: Path) -> None:
+        from peft import set_peft_model_state_dict
+        from safetensors.torch import load_file
+        result = set_peft_model_state_dict(self.model, load_file(str(weights)))
+        if getattr(result, "unexpected_keys", None):
+            raise BackendError("adapter_keys_mismatch", "checkpoint adapter has unexpected keys for this model")
 
     # -- training ---------------------------------------------------------------------------------------------------
     def train_step(self, example_indices: Sequence[int]) -> float:
@@ -97,11 +149,19 @@ class TorchLoraBackend:
             input_ids = torch.tensor([ids + [pad] * (width - len(ids)) for ids, _ in chunk], device=self.device)
             labels = torch.tensor([lab + [IGNORE_INDEX] * (width - len(lab)) for _, lab in chunk], device=self.device)
             mask = torch.tensor([[1] * len(ids) + [0] * (width - len(ids)) for ids, _ in chunk], device=self.device)
-            with torch.autocast(device_type=self.device.split(":")[0], dtype=torch.bfloat16, enabled=self.device != "cpu"):
-                logits = self.model(input_ids=input_ids, attention_mask=mask).logits
-            loss = torch.nn.functional.cross_entropy(
-                logits[:, :-1].float().reshape(-1, logits.size(-1)), labels[:, 1:].reshape(-1),
-                ignore_index=IGNORE_INDEX, reduction="sum") / targets
+            if hp.grpo is None:
+                with torch.autocast(device_type=self.device.split(":")[0], dtype=torch.bfloat16, enabled=self.device != "cpu"):
+                    logits = self.model(input_ids=input_ids, attention_mask=mask).logits
+                loss = torch.nn.functional.cross_entropy(
+                    logits[:, :-1].float().reshape(-1, logits.size(-1)), labels[:, 1:].reshape(-1),
+                    ignore_index=IGNORE_INDEX, reduction="sum") / targets
+            else:
+                from training.rl.loss import grpo_token_loss
+                idx = example_indices[start:start + hp.micro_batch_size]
+                rows = lambda per: torch.tensor([per[i] + [0.0] * (width - 1 - len(per[i])) for i in idx], device=self.device)
+                loss = grpo_token_loss(self._token_logprobs(input_ids, labels, mask), rows(self.old_logp), rows(self.ref_logp),
+                                       rows(self.token_advantages), (labels[:, 1:] != IGNORE_INDEX).float(),
+                                       clip_epsilon=float(hp.grpo.clip_epsilon), kl_beta=float(hp.grpo.kl_beta)) / targets
             loss.backward()
             total += float(loss.detach())
         torch.nn.utils.clip_grad_norm_([p for p in self.model.parameters() if p.requires_grad], float(hp.max_grad_norm))
@@ -122,12 +182,7 @@ class TorchLoraBackend:
 
     def restore(self, directory: Path) -> None:
         torch = self.torch
-        from peft import set_peft_model_state_dict
-        from safetensors.torch import load_file
-        adapter = load_file(str(directory / ADAPTER_SUBDIR / "adapter_model.safetensors"))
-        result = set_peft_model_state_dict(self.model, adapter)
-        if getattr(result, "unexpected_keys", None):
-            raise BackendError("adapter_keys_mismatch", "checkpoint adapter has unexpected keys for this model")
+        self._load_adapter(directory / ADAPTER_SUBDIR / "adapter_model.safetensors")
         state = torch.load(directory / STATE_FILE, map_location="cpu", weights_only=True)  # tensors/primitives only
         self.optimizer.load_state_dict(state["optimizer"])
         self.scheduler.load_state_dict(state["scheduler"])

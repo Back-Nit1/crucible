@@ -12,11 +12,11 @@ from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
 
-from modal_app.adapter_artifact import canonical_bytes
+from modal_app.adapter_artifact import MANIFEST_FILENAME, canonical_bytes, load_manifest, verify_adapter_dir
 from modal_app.qwen_toolcalls import GPU_TYPE, MODEL_ID, MODEL_REVISION
 from modal_app.train_protocol import TrainRequest, TrainResponse
 from training.gates import MAX_LAUNCH_SECONDS, GateError, cost_per_second
-from training.planning import plan_hash
+from training.planning import LoRAPlan, plan_hash
 from training.resume import CheckpointStore, RunIdentity, atomic_write_bytes
 from training.shard import Shard, parse_shard
 from training.trainer import TrainBackend, run_training
@@ -24,8 +24,11 @@ from training.trainer import TrainBackend, run_training
 BackendFactory = Callable[[Shard, "object", int], TrainBackend]  # (shard, hyperparameters, total_steps) -> backend
 
 
-def check_request(request: TrainRequest) -> None:
+def check_request(request: TrainRequest, algorithms: frozenset[str] = frozenset({"sft"})) -> None:
     plan, approval = request.plan, request.approval
+    if plan.hyperparameters.algorithm not in algorithms:
+        raise GateError("algorithm_not_enabled", f"{plan.hyperparameters.algorithm} was not enabled when this app was deployed "
+                        "(CRUCIBLE_ENABLE_L4_TRAIN=1 for sft, CRUCIBLE_ENABLE_L4_RL=1 for grpo)")
     if (plan.base_model, plan.base_revision) != (MODEL_ID, MODEL_REVISION):
         raise GateError("unpinned_model", "plan does not use the pinned base model and revision")
     if plan.gpu != GPU_TYPE:
@@ -38,11 +41,27 @@ def check_request(request: TrainRequest) -> None:
         raise GateError("budget_exceeds_ceiling", "approval budget_seconds would cost more than the approved ceiling")
 
 
+def policy_adapter_dir(runs_root: Path, plan: LoRAPlan) -> Path | None:
+    """GRPO updates the checkpoint its rollouts came from: None for base, else that sealed adapter's verified `final/`
+    on this volume (same base, same adapter hash, every file re-hashed)."""
+    cfg = plan.hyperparameters.grpo
+    if cfg is None or cfg.policy_adapter_run_id is None:
+        return None
+    final = runs_root / cfg.policy_adapter_run_id / "final"
+    manifest = load_manifest(final / MANIFEST_FILENAME)
+    if (manifest.adapter_hash, manifest.base_model, manifest.base_revision) != (
+            cfg.policy_adapter_hash, plan.base_model, plan.base_revision):
+        raise GateError("policy_adapter_mismatch", "the policy adapter on the volume is not the one the rollouts came from")
+    verify_adapter_dir(manifest, final)
+    return final
+
+
 def execute(request: TrainRequest, *, runs_root: Path, backend_factory: BackendFactory, signature: str,
             volume_commit: Callable[[], None] = lambda: None, monotonic: Callable[[], float] = time.monotonic,
-            clock: Callable[[], dt.datetime] | None = None) -> TrainResponse:
-    check_request(request)
+            clock: Callable[[], dt.datetime] | None = None, algorithms: frozenset[str] = frozenset({"sft"})) -> TrainResponse:
+    check_request(request, algorithms)
     plan = request.plan
+    policy_adapter_dir(runs_root, plan)  # fail before creating the run; the backend factory resolves it again
     shard = parse_shard(request.shard.encode(), expected_dataset_hash=request.dataset_hash,
                         expected_manifest_hash=plan.training_manifest_hash)
     if plan.record_count != len(shard.examples):
