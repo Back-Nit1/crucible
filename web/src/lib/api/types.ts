@@ -17,6 +17,7 @@ import type {
   ledgerRowSchema,
   pickSchema,
   proposeResultSchema,
+  loopStatusSchema,
   readySchema,
   replayStepSchema,
 } from "./schemas";
@@ -34,6 +35,7 @@ export type ApiDocument = z.infer<typeof documentSchema>;
 export type LedgerRow = z.infer<typeof ledgerRowSchema>;
 export type Health = z.infer<typeof healthSchema>;
 export type Readiness = z.infer<typeof readySchema>;
+export type LoopStatus = z.infer<typeof loopStatusSchema>;
 export type PublicConfig = z.infer<typeof configSchema>;
 export type AgentRunResult = z.infer<typeof agentRunResultSchema>;
 export type ProductPick = z.infer<typeof pickSchema>;

@@ -18,6 +18,7 @@ import {
   ledgerRowSchema,
   pageSchema,
   proposeResultSchema,
+  loopStatusSchema,
   readySchema,
 } from "./schemas";
 import type { EpisodeQuery } from "./types";
@@ -116,6 +117,7 @@ export class CrucibleApi {
   health = async () => healthSchema.parse(await this.request("/health"));
   ready = async () => readySchema.parse(await this.request("/ready"));
   config = async () => configSchema.parse(await this.request("/config"));
+  loopStatus = async () => loopStatusSchema.parse(await this.request("/loop/status"));
   generations = async (offset = 0, limit = 50) =>
     pageSchema(generationSchema).parse(
       await this.request(withQuery("/world/generations", { offset, limit })),
