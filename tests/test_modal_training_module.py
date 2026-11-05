@@ -56,4 +56,4 @@ def test_each_algorithm_is_enabled_by_its_own_deploy_flag(monkeypatch):
     monkeypatch.delenv("CRUCIBLE_ENABLE_L4_RL")
     monkeypatch.delenv("CRUCIBLE_ENABLE_L4_TRAIN")
     importlib.reload(mod)
-    assert mod.app.registered_functions.keys() >= {"train"}  # registers offline, never deployed
+    assert repr(mod.train) == "Function(train)"  # registers offline, never deployed
