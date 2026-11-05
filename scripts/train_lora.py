@@ -89,8 +89,8 @@ def policy_fields(path: Path | None) -> dict[str, str]:
 
 
 def rl_cost(rollouts, max_cost: Decimal, rates: ResourceRates, seconds_per_call: int) -> dict:
-    """Upper bounds at list rates: re-producing these rollouts (episodes x max model calls x seconds per call, the same
-    bound scripts.run_loop --plan uses) plus the update's whole-run budget seconds."""
+    """Upper bounds at list rates: re-producing these rollouts (episodes x max model calls x seconds per call, no
+    wall-clock cap assumed, so at least as large as scripts.run_loop --plan's capped bound) plus the update's budget."""
     from agents.runner import RunnerConfig
     rate = cost_per_second(rates)
     calls = RunnerConfig().max_tool_calls * 2  # QwenModelAdapter max_retries=1: up to two invokes per step
@@ -201,8 +201,9 @@ def main(argv=None, *, transport: Transport | None = None, now: Callable[[], dt.
                "max_launch_seconds": MAX_LAUNCH_SECONDS, "rates": rates.model_dump(mode="json")}
     if rl is not None:
         ceiling_var, hash_var = gate_vars(plan)
+        used = set(manifest.source_episode_ids)
         summary["rl"] = {"rollout_set_hash": manifest.content_hash, "stats": rl.stats,
-                         "cost": rl_cost([r for r in rollouts if r.episode_id in set(manifest.source_episode_ids)],
+                         "cost": rl_cost([r for r in rollouts if r.episode_id in used],
                                          plan.maximum_approved_cost, rates, args.seconds_per_call),
                          "env": {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1",
                                  ceiling_var: str(plan.maximum_approved_cost), hash_var: manifest.content_hash},

@@ -131,7 +131,8 @@ def test_policy_adapter_is_the_starting_point_and_must_match_the_lora_shape(tiny
     first, store = run(tmp_path, tiny_model_dir, sh, out)
     b = backend(tiny_model_dir, sh, policy_adapter_dir=store.final_dir)
     assert b.old_logp != b.ref_logp  # old log-probs come from the adapter being updated, KL is to the base
-    wider = LoRAHyperparameters(**{**GRPO_HP.model_dump(), "lora_rank": 8})
-    with pytest.raises(BackendError) as err:
-        backend(tiny_model_dir, sh, hp=wider, policy_adapter_dir=store.final_dir)
-    assert err.value.code == "policy_adapter_incompatible"
+    for change in ({"lora_rank": 8}, {"lora_alpha": 16}):  # alpha changes the scaling, i.e. the policy
+        other = LoRAHyperparameters(**{**GRPO_HP.model_dump(), **change})
+        with pytest.raises(BackendError) as err:
+            backend(tiny_model_dir, sh, hp=other, policy_adapter_dir=store.final_dir)
+        assert err.value.code == "policy_adapter_incompatible"
