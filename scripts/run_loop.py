@@ -5,7 +5,8 @@ gated evaluation -> re-entry of the adapter into the next population.
   uv run python -m scripts.run_loop --iteration-id it-2 --adapter-manifest <it-1 artifact_manifest.json> --env-file <ENV_FILE>
   uv run python -m scripts.run_loop --iteration-id dry-1 --dry-run                               # offline, scripted, $0
 
-Each stage writes <root>/<iteration>/stages/<stage>.json; rerunning resumes at the first stage not `done`. A missing gate
+Each stage writes <root>/<iteration>/stages/<stage>.json; rerunning with the same settings resumes at the first stage not
+`done` (other settings: exit 2, use a new iteration id). A missing gate
 variable stops the loop with exit 3 and names the variable(s). `--dry-run` uses the scripted oracle shopper (it reads the
 answer key), the synthetic catalog, `--allow-scripted-traces` and an offline null trainer: pipeline evidence only — its
 "adapter" is a placeholder file, never a model. Exit codes: 0 ok/paused, 1 failed, 2 refused, 3 blocked by a gate, 4 stopped by the kill switch (<root>/STOP).
@@ -23,6 +24,8 @@ from pathlib import Path
 
 from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR
 
+ITERATION_SETTINGS = ("algorithm", "adapter_manifest", "taskset", "seed", "population", "tasks", "samples_per_task",
+                      "max_train_cost", "max_steps", "eval_seeds", "dry_run")
 STAGES = ("generate", "curate", "audit", "plan", "train", "evaluate", "reenter")
 INFERENCE_VARS = ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD")
 TRAIN_VARS = (TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR)
@@ -365,6 +368,14 @@ def main(argv=None) -> int:
     a.kill_switch = a.kill_switch or a.root / "STOP"
     stages = d / "stages"
     stages.mkdir(parents=True, exist_ok=True)
+    # resume must not reuse stages that ran under other settings: an iteration's settings are fixed on first run
+    config = {k: str(v) if isinstance(v, (Path, Decimal)) else v for k, v in vars(a).items() if k in ITERATION_SETTINGS}
+    if (cfg := d / "config.json").is_file() and (prior := json.loads(cfg.read_text())) != config:
+        changed = sorted(k for k in config.keys() | prior.keys() if config.get(k) != prior.get(k))
+        print(f"REFUSED: {a.iteration_id} ran with different {', '.join(changed)}; use a new --iteration-id", file=sys.stderr)
+        print(json.dumps({"iteration_id": a.iteration_id, "status": "refused", "changed_settings": changed}))
+        return 2
+    _write(cfg, config)
     evidence = DRY_EVIDENCE if a.dry_run else MODEL_EVIDENCE
     done, ran = {}, []
     for name in STAGES:

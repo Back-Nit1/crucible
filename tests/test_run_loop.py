@@ -43,6 +43,13 @@ def test_rerun_resumes_at_the_first_unfinished_stage(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)["ran"] == ["evaluate", "reenter"]
 
 
+def test_resume_with_different_settings_is_refused(tmp_path, capsys):
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]) == 0
+    capsys.readouterr()
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY, "--algorithm", "grpo", "--samples-per-task", "2"]) == 2
+    assert json.loads(capsys.readouterr().out)["changed_settings"] == ["algorithm", "samples_per_task"]
+
+
 def test_real_run_without_gates_stops_at_generation_with_exit_3_and_names_the_variables(tmp_path, capsys):
     assert main(["--iteration-id", "it-1", "--root", str(tmp_path)]) == 3
     out = capsys.readouterr()
