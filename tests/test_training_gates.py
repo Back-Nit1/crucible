@@ -68,3 +68,24 @@ def test_budget_seconds_never_buy_more_than_the_ceiling():
 
 def test_approved_ceiling_caps_a_larger_plan_request_only_by_rejecting_it():
     assert authorize_training(plan(maximum_approved_cost=Decimal("0.861948")), ENV).ceiling_usd == Decimal("0.861948")
+
+
+# --- GRPO: its own approval, bound to the exact rollout set -------------------------------------------------------
+from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR  # noqa: E402
+from training.planning import GRPOConfig  # noqa: E402
+
+GRPO = LoRAHyperparameters(method="qlora_grpo", grpo=GRPOConfig())
+RL_ENV = {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1", RL_CEILING_VAR: "0.5", RL_ROLLOUTS_VAR: H}
+
+
+def test_grpo_needs_the_rl_gates_and_sft_approval_does_not_count():
+    c, msg = code(ENV, plan(hyperparameters=GRPO))  # SFT ceiling + manifest approval set, RL ones absent
+    assert c == "training_not_authorized" and RL_CEILING_VAR in msg and RL_ROLLOUTS_VAR in msg and TRAIN_MANIFEST_VAR not in msg
+    approval = authorize_training(plan(hyperparameters=GRPO), RL_ENV)
+    assert approval.manifest_hash == H and approval.ceiling_usd == Decimal("0.5")
+    assert code(RL_ENV)[0] == "training_not_authorized"  # and RL approval does not unlock SFT
+
+
+def test_grpo_approval_is_bound_to_the_rollout_set_hash():
+    assert code({**RL_ENV, RL_ROLLOUTS_VAR: "f" * 64}, plan(hyperparameters=GRPO))[0] == "approved_manifest_mismatch"
+    assert code({**RL_ENV, RL_CEILING_VAR: "0.1"}, plan(hyperparameters=GRPO))[0] == "plan_exceeds_ceiling"
