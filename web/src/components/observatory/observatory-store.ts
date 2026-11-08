@@ -9,6 +9,10 @@ type ObservatoryState = {
   selectedProductId: string | null;
   selectedAgentId: string | null;
   selectedShopId: string | null;
+  time: number; // replay clock, seconds
+  focusWorld: number | null; // world index the camera is zoomed into
+  setTime: (time: number) => void;
+  setFocusWorld: (world: number | null) => void;
   setStep: (step: number) => void;
   setPlaying: (playing: boolean) => void;
   togglePlaying: () => void;
@@ -26,6 +30,10 @@ export const useObservatoryStore = create<ObservatoryState>((set) => ({
   selectedProductId: null,
   selectedAgentId: null,
   selectedShopId: null,
+  time: 0,
+  focusWorld: null,
+  setTime: (time) => set({ time }),
+  setFocusWorld: (focusWorld) => set({ focusWorld }),
   setStep: (stepIndex) => set({ stepIndex }),
   setPlaying: (playing) => set({ playing }),
   togglePlaying: () => set((state) => ({ playing: !state.playing })),
@@ -56,5 +64,7 @@ export const useObservatoryStore = create<ObservatoryState>((set) => ({
       selectedProductId: null,
       selectedAgentId: null,
       selectedShopId: null,
+      time: 0,
+      focusWorld: null,
     }),
 }));

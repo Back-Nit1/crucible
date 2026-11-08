@@ -1,10 +1,8 @@
-import samples from "@/generated/samples.json";
+import sample from "@/generated/snapshot-sample.json";
 import { generationSnapshotSchema } from "@/lib/api/schemas";
 import { BUDGET, buildLayout, ringRadius, selectRendered, writePositions } from "./motion";
 
-const snapshot = generationSnapshotSchema.parse(
-  samples.fixtures.world_generation_snapshot.body,
-);
+const snapshot = generationSnapshotSchema.parse(sample.body);
 
 describe("motion engine", () => {
   it("budget constants are exact", () => {

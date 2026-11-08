@@ -82,7 +82,7 @@ export class CrucibleApi {
         throw new ApiError("sample_read_only", "Sample data is read-only.", 405);
       }
       if (/^\/world\/generations\/[^/]+\/snapshot$/.test(plainPath)) {
-        return getSample("world_generation_snapshot").body;
+        return (await import("@/generated/snapshot-sample.json")).default.body; // own chunk: large
       }
       if (plainPath.startsWith("/world/generations/") && plainPath !== "/world/generations") {
         return getSample("world_generation_detail").body;
