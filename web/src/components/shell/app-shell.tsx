@@ -8,6 +8,7 @@ import {
   CreditCard,
   FlaskConical,
   Menu,
+  Orbit,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,6 +19,7 @@ import { ConnectionIndicator } from "./connection-indicator";
 
 const navigation = [
   { label: "Agent", href: "/", icon: Bot },
+  { label: "Observatory", href: "/observatory", icon: Orbit },
   { label: "World", href: "/world", icon: FlaskConical },
   { label: "Generations", href: "/world/generations", icon: Boxes },
   { label: "Episodes", href: "/episodes", icon: Activity },
@@ -77,6 +79,25 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const immersive = pathname === "/observatory";
+
+  if (immersive) {
+    return (
+      <div className="min-h-screen">
+        <a
+          href="#main-content"
+          className="fixed top-3 left-3 z-50 -translate-y-20 rounded-lg bg-emerald-200 px-4 py-2 text-sm font-semibold text-slate-950 focus:translate-y-0"
+        >
+          Skip to training world
+        </a>
+        <main id="main-content" className="min-h-screen">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <a
