@@ -10,6 +10,7 @@ import {
   episodeDetailSchema,
   episodeSchema,
   generationDetailSchema,
+  generationSnapshotSchema,
   generationSchema,
   healthSchema,
   killLogSchema,
@@ -80,6 +81,9 @@ export class CrucibleApi {
       if (init?.method && init.method !== "GET") {
         throw new ApiError("sample_read_only", "Sample data is read-only.", 405);
       }
+      if (/^\/world\/generations\/[^/]+\/snapshot$/.test(plainPath)) {
+        return getSample("world_generation_snapshot").body;
+      }
       if (plainPath.startsWith("/world/generations/") && plainPath !== "/world/generations") {
         return getSample("world_generation_detail").body;
       }
@@ -125,6 +129,10 @@ export class CrucibleApi {
   generation = async (id: string) =>
     generationDetailSchema.parse(
       await this.request(`/world/generations/${encodeURIComponent(id)}`),
+    );
+  snapshot = async (id: string) =>
+    generationSnapshotSchema.parse(
+      await this.request(`/world/generations/${encodeURIComponent(id)}/snapshot`),
     );
   episodes = async (query: EpisodeQuery = {}) =>
     pageSchema(episodeSchema).parse(await this.request(withQuery("/world/episodes", query)));

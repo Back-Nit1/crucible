@@ -10,6 +10,15 @@ describe("CrucibleApi", () => {
     expect(result.items[0]?.runner).toBe("local");
   });
 
+  it("parses the sample snapshot in sample mode", async () => {
+    const api = new CrucibleApi("http://unused.test", "sample");
+    const snap = await api.snapshot("any");
+    expect(snap.episodes.length).toBe(snap.limits.episodes_included);
+    expect(snap.episodes.length).toBeGreaterThan(0);
+    expect(snap.limits.sampled).toBe(false);
+    expect(snap.episodes[0]?.path[0]).toEqual([0, -1]);
+  });
+
   it("replays the sanitized buyer contract without issuing a request", async () => {
     const api = new CrucibleApi("http://unused.test", "sample");
     const run = await api.startBuyerRun("find a headset");
