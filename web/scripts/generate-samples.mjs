@@ -23,6 +23,7 @@ const files = [
   "world_episode_detail_killed.json",
   "world_episodes.json",
   "world_generation_detail.json",
+  "world_generation_snapshot.json",
   "world_generations.json",
   "world_kill_rules.json",
   "world_kills.json",
@@ -42,6 +43,6 @@ for (const file of files) {
 await mkdir(path.dirname(output), { recursive: true });
 await writeFile(
   output,
-  `${JSON.stringify({ source: "docs/api/samples", fixtures }, null, 2)}\n`,
+  `${JSON.stringify({ source: "docs/api/samples", fixtures })}\n`,
   "utf8",
 );
