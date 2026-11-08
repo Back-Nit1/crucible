@@ -41,6 +41,7 @@ class GenerationOut(BaseModel):
     catalog_hash: str | None = None
     runner: str | None = None
     error: str | None = None
+    published_at: str | None = None
 
 
 class GenerationDetail(GenerationOut):
@@ -241,7 +242,8 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_
         c = d.get("config") or {}
         return GenerationOut(generation_id=d["gen_id"], status=d["status"], population_size=d.get("population_size", 0),
                              survivors=d.get("survivors", 0), kills=d.get("kills", 0), seed=c.get("seed"), tasks=c.get("tasks"),
-                             catalog_hash=c.get("catalog_hash"), runner=d.get("runner"), error=d.get("error"))
+                             catalog_hash=c.get("catalog_hash"), runner=d.get("runner"), error=d.get("error"),
+                             published_at=d.get("published_at"))
 
     @r.post("/agent/run", response_model=AgentRunResult, tags=["agent"])
     def agent_run(req: AgentRunRequest, request: Request):
@@ -252,7 +254,7 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_
     @r.get("/world/generations", response_model=Page[GenerationOut], tags=["world"])
     def generations(offset: Offset = 0, limit: Limit = 50, status: str | None = None):
         rows = sorted((gen_out(d) for d in reader.generations() if status in (None, d["status"])),
-                      key=lambda g: g.generation_id, reverse=True)
+                      key=lambda g: (g.published_at or "", g.generation_id), reverse=True)  # newest publish first
         return _page(rows[offset:offset + limit], len(rows), offset, limit)
 
     @r.get("/world/generations/{generation_id}", response_model=GenerationDetail, tags=["world"])

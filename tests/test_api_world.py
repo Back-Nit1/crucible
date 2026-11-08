@@ -139,3 +139,13 @@ def test_access_log_is_structured_and_never_contains_query_or_body(client, caplo
     line = _json.loads(next(m for m in caplog.messages if '"event": "request"' in m))
     assert line["path"] == "/agent/run" and line["status"] == 200 and line["request_id"] == "rid-1" and line["latency_ms"] >= 0
     assert "SECRETQUERY" not in caplog.text and "private shopper text" not in caplog.text and "cost_usd" in line
+
+
+def test_generations_list_newest_publish_first_with_unpublished_last():
+    gens = [{**GEN, "gen_id": "zz-old", "published_at": "2026-11-01T00:00:00+00:00"},
+            {**GEN, "gen_id": "aa-new", "published_at": "2026-11-08T00:00:00+00:00"},
+            {**GEN, "gen_id": "mm-legacy"}]  # published before the field existed
+    c = TestClient(create_app(ProviderRouter({"elastic_snapshot": Snap()}, CFG), MockPayments(), reader=InMemoryReader(generations=gens)))
+    items = c.get("/world/generations").json()["items"]
+    assert [g["generation_id"] for g in items] == ["aa-new", "zz-old", "mm-legacy"]
+    assert items[0]["published_at"] == "2026-11-08T00:00:00+00:00"

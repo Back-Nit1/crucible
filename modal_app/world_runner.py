@@ -94,11 +94,12 @@ def _job(generation_id: str | None, seed: int, population: int, tasks: int, max_
         write_rollouts(f"{VOLUME_ROOT}/reports/{generation_id}/rollouts.jsonl", eps, tasks={t.id: t for t in task_set},
                        genomes={g.id: g for g in genomes}, catalog=catalog, policy_id=res.state.compat.policy_id)
         Path(f"{VOLUME_ROOT}/reports/{generation_id}/curation_report.json").write_text(json.dumps(cur.drop_report(), indent=1))
-        from world.publish import publish_generation, publish_kill_rules
-        publish_generation(es, res.state, s, runner="modal")
+        from world.publish import publish_kill_rules
         publish_kill_rules(es, s["kills"]["by_rule"])
         out |= {"episodes": s["episodes"], "kills": s["kills"]["by_rule"], "survivors": len(s["survivors"]), "safety": s["safety"],
                 "sft_records": len(cur.records)}
+    from world.publish import publish_generation
+    publish_generation(es, res.state, s if res.complete else None, runner="modal")  # unfinished runs are visible too
     out["cost"] = approx_cost_usd(time.monotonic() - t0)
     ledger = Path(f"{VOLUME_ROOT}/cost.jsonl")
     ledger.open("a").write(json.dumps({"generation_id": generation_id, **out["cost"]}) + "\n")
@@ -110,6 +111,24 @@ def _job(generation_id: str | None, seed: int, population: int, tasks: int, max_
 def run_remote(generation_id: str | None = None, seed: int = 20261101, population: int = 6, tasks: int = 4,
                max_episodes: int | None = None, resume_latest: bool = False) -> dict:
     return _job(generation_id, seed, population, tasks, max_episodes, resume_latest)
+
+
+@app.function(**FUNCTION)
+def publish_existing() -> dict:
+    """Backfill: publish every generation on the volume to Elastic, with its report summary when one was written.
+    Idempotent (docs are keyed by generation id). Reads the volume and writes Elastic only; runs no episodes."""
+    from catalog.providers.elastic import Elastic, endpoint_from_cloud_id
+    from world.publish import publish_generation
+    volume.reload()
+    es = Elastic(os.environ.get("ELASTIC_ENDPOINT") or endpoint_from_cloud_id(os.environ["ELASTIC_CLOUD_ID"]))
+    done = []
+    for gid, state in _store().generations():
+        if state is None:
+            continue  # corrupt checkpoint: never published
+        report = Path(f"{VOLUME_ROOT}/reports/{gid}/summary.json")
+        publish_generation(es, state, json.loads(report.read_text()) if report.exists() else None, runner="modal")
+        done.append({"generation_id": gid, "status": state.status.value, "summary": report.exists()})
+    return {"published": done}
 
 
 SCHEDULE = (modal.Cron(os.environ.get("CRUCIBLE_SCHEDULE_CRON", "0 * * * *"))
@@ -136,6 +155,8 @@ def main(action: str = "status", generation_id: str = "", seed: int = 20261101, 
          max_episodes: int = 0):
     if action == "status":
         print(json.dumps(status_remote.remote(), indent=1))
+    elif action == "publish":
+        print(json.dumps(publish_existing.remote(), indent=1))
     elif action == "run":
         if not generation_id:
             raise SystemExit("--generation-id is required for run")
@@ -145,4 +166,4 @@ def main(action: str = "status", generation_id: str = "", seed: int = 20261101, 
     elif action == "disable":
         print("uv run modal app stop crucible-world   # or redeploy without CRUCIBLE_ENABLE_SCHEDULE=1")
     else:
-        raise SystemExit("action must be one of: run, status, resume, disable")
+        raise SystemExit("action must be one of: run, status, publish, resume, disable")
