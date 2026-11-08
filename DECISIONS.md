@@ -150,3 +150,5 @@ Design: `docs/superpowers/specs/2026-11-08-observatory-at-scale-design.md`. Entr
 - **Snapshot sample ships in its own lazily loaded chunk** (`web/src/generated/snapshot-sample.json`): `samples.json` already rides in a shared client chunk, so a big fixture there would slow every page.
 - **World spacing scales with category count** (2·ring radius + 4) so 30+ categories after project 2 never overlap worlds.
 - **Running-generation snapshots are never cached**; only `completed` ones are.
+- **Review fixes (Phase A)**: backfills keep each run's own time (report mtime) so republishing never reorders the archive; a running run's scripted/model label comes from trace checkpoints and is `null` ("source not yet known") when nothing is recorded, never "Qwen" by default; `limits.episodes_expected/episodes_untraced` expose scripted skips that have no trace; review steps stay on the product being read.
+- **Deferred to project 2**: `ElasticReader.all_traces` caps at 20,000 traces, which would undercount and skew snapshots past 20k episodes (not reachable at 2,400).
