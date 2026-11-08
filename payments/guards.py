@@ -43,6 +43,9 @@ class PendingOrder(BaseModel):
     quote: Quote | None = None  # the full verified quote the order was created from (shipping/tax stay None if unknown)
 
 
+MAX_PENDING = 1000
+
+
 def idempotency_key(task_id: str, agent_id: str, product_id: str, variant: str) -> str:
     return hashlib.sha256("|".join((task_id, agent_id, product_id, variant)).encode()).hexdigest()[:32]
 
@@ -94,6 +97,8 @@ class GuardedPayments:
         backend_key = hashlib.sha256(f"{key}|{q.total}|{q.currency}".encode()).hexdigest()[:32]
         t = time.perf_counter()
         order_id = self._timed_create(task_id, q, backend_key, t)
+        while len(self._pending) >= MAX_PENDING:  # bound memory: the oldest unconfirmed order is forgotten (PayPal keeps it)
+            self._pending.pop(next(iter(self._pending)))
         self._pending[key] = PendingOrder(id=key, product_id=product_id, variant=variant, total=q.total,
                                           currency=q.currency, order_id=order_id, quote_id=q.quote_id,
                                           quote_basis=q.basis, quote=q, task_id=task_id, backend_key=backend_key)

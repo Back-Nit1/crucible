@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { BuyerEventOf, BuyerRun } from "@/lib/api/types";
 import { ApiError } from "@/lib/api/client";
-import { CheckoutFlow } from "./checkout-flow";
+import { CheckoutFlow, safePayPalUrl } from "./checkout-flow";
 
 const quote: BuyerEventOf<"quote"> = {
   type: "quote",
@@ -44,7 +44,7 @@ const approval: BuyerEventOf<"paypal_approval"> = {
   at: "2026-11-01T12:00:00Z",
   mode: "sandbox",
   status: "APPROVED",
-  approval_url: "https://sandbox.paypal.example/approve",
+  approval_url: "https://www.sandbox.paypal.com/checkoutnow?token=ORD1",
 };
 const receipt: BuyerEventOf<"receipt"> = {
   type: "receipt",
@@ -130,5 +130,24 @@ describe("CheckoutFlow", () => {
     await user.click(screen.getByRole("button", { name: /confirm sandbox purchase/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/payment backend rejected capture/i);
     expect(screen.queryByText(/capture completed/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("safePayPalUrl", () => {
+  it("links only https PayPal pages", () => {
+    expect(safePayPalUrl("https://www.sandbox.paypal.com/checkoutnow?token=1")).toContain(
+      "sandbox.paypal.com",
+    );
+    for (const bad of [
+      "javascript:alert(1)",
+      "http://www.paypal.com/x",
+      "https://paypal.com.evil.example/x",
+      "https://evilpaypal.com/x",
+      "https://mock.invalid/approve/1",
+      "",
+      null,
+    ]) {
+      expect(safePayPalUrl(bad)).toBeNull();
+    }
   });
 });

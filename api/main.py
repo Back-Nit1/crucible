@@ -3,8 +3,11 @@ Errors are structured `{"error": {"code", "message"}}`; internals, tokens and up
 import json
 import logging
 import os
+import re
+import threading
 import time
 import uuid
+from collections import deque
 from decimal import Decimal
 from pathlib import Path
 from typing import Annotated
@@ -45,12 +48,15 @@ def configure_logging() -> None:
 
 
 class ProposeRequest(BaseModel):
-    task_id: str = Field(min_length=1)
-    agent_id: str = Field(min_length=1)
-    product_id: str = Field(min_length=1)
-    variant: str = ""
+    task_id: str = Field(min_length=1, max_length=128)
+    agent_id: str = Field(min_length=1, max_length=128)
+    product_id: str = Field(min_length=1, max_length=128)
+    variant: str = Field(default="", max_length=64)
     expected_total: Decimal = Field(gt=0, decimal_places=2)
     budget_cap: Decimal = Field(gt=0, decimal_places=2)
+    # Client idempotency key: the same request_id + body replays the same order. Omitted = a fresh order per call.
+    # It is also the secret part of the order: two callers sending the same task/agent/product never share one.
+    request_id: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{16,64}$")
 
 
 class ProposeResponse(BaseModel):
@@ -65,7 +71,7 @@ class ProposeResponse(BaseModel):
 
 
 class ConfirmRequest(BaseModel):
-    pending_order_id: str = Field(min_length=1)
+    pending_order_id: str = Field(min_length=1, max_length=64)
     user_confirmed: bool  # must be explicitly true; capture never happens otherwise
 
 
@@ -100,6 +106,42 @@ class _RouterCatalog:
 
     def get_product(self, product_id):
         return self.router.get_product(product_id).product
+
+
+REQUEST_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+LIMITED_PREFIXES = ("/agent/run", "/purchase/")  # POSTs that spend model budget or create PayPal orders
+
+
+class RateLimit:
+    """Sliding 60 s window, per client and in total, for the POSTs that cost money or create PayPal orders.
+    ponytail: in-process (one Render instance). The client key is the left-most X-Forwarded-For entry, which a caller
+    can forge, so the total window is the hard backstop; move to the edge or a shared store if this ever scales out."""
+
+    def __init__(self, per_client: int, total: int, clock=time.monotonic):
+        self.per_client, self.total, self.clock = per_client, total, clock
+        self._hits: dict[str, deque] = {}
+        self._all: deque = deque()
+        self._lock = threading.Lock()
+
+    def allow(self, client: str) -> bool:
+        now = self.clock()
+        with self._lock:
+            for q in (self._all, self._hits.get(client)):
+                while q and now - q[0] >= 60:
+                    q.popleft()
+            if len(self._hits) > 10_000:  # bound memory under many forged keys
+                self._hits = {k: q for k, q in self._hits.items() if q}
+            mine = self._hits.setdefault(client, deque())
+            if len(self._all) >= self.total or len(mine) >= self.per_client:
+                return False
+            self._all.append(now)
+            mine.append(now)
+            return True
+
+
+def _client_key(request: Request) -> str:
+    fwd = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    return fwd[:64] or (request.client.host if request.client else "unknown")
 
 
 def _err(status: int, code: str, message: str) -> JSONResponse:
@@ -193,15 +235,24 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
         app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
                            allow_headers=["content-type", "x-request-id"], expose_headers=["x-request-id"])
 
+    limiter = RateLimit(int(os.environ.get("CRUCIBLE_RATE_LIMIT_PER_MINUTE", "10")),
+                        int(os.environ.get("CRUCIBLE_RATE_LIMIT_TOTAL_PER_MINUTE", "60")))
+
     @app.middleware("http")
     async def _access_log(request: Request, call_next):
         """Structured access log: path only (never query string / body, which can hold shopper text), latency, status.
         `cost_usd` is added by handlers that spend money (agent runs) via request.state."""
-        rid, t0 = request.headers.get("x-request-id") or uuid.uuid4().hex[:16], time.perf_counter()
+        rid = request.headers.get("x-request-id", "")
+        rid, t0 = rid if REQUEST_ID.match(rid) else uuid.uuid4().hex[:16], time.perf_counter()  # never echo arbitrary input
         request.state.cost_usd = None
         status = 500
         try:
-            response = await call_next(request)
+            if (request.method == "POST" and request.url.path.startswith(LIMITED_PREFIXES)
+                    and not limiter.allow(_client_key(request))):
+                response = _err(429, "rate_limited", "too many requests; retry in a minute")
+                response.headers["retry-after"] = "60"
+            else:
+                response = await call_next(request)
             status = response.status_code
             response.headers["x-request-id"] = rid
             return response
@@ -331,7 +382,10 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
     @app.post("/purchase/propose", response_model=ProposeResponse, responses={409: {"model": ErrorResponse}, **errs})
     def propose(req: ProposeRequest):
         g = get_payments()
-        p = g.propose_purchase(req.task_id, req.agent_id, req.product_id, req.variant, req.expected_total, req.budget_cap)
+        # The pending order id is derived from the task id, so the task is namespaced with an unguessable request id:
+        # otherwise anyone sending the same task/agent/product could read or confirm another caller's order.
+        task = f"api:{req.request_id or uuid.uuid4().hex}:{req.task_id}"
+        p = g.propose_purchase(task, req.agent_id, req.product_id, req.variant, req.expected_total, req.budget_cap)
         b = state["backend"]
         return ProposeResponse(pending_order_id=p.id, product_id=p.product_id, total=p.total, currency=p.currency,
                                quote_id=p.quote_id, quote_basis=p.quote_basis,

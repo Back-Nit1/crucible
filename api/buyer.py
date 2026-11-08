@@ -28,7 +28,7 @@ from catalog.providers.base import FrozenCatalogProvider, Product
 from payments.errors import OrderNotApproved, PaymentError
 from payments.guards import GuardedPayments, GuardViolation
 
-RUN_ID = re.compile(r"^[A-Za-z0-9_.-]{8,64}$")
+RUN_ID = re.compile(r"^[A-Za-z0-9_.-]{16,64}$")  # run ids are read capabilities: unguessable length
 MAX_RUNS = 500
 EXCERPT = 240
 

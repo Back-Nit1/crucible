@@ -47,14 +47,14 @@ def build(script=None, adapter=None, quotes=None, require_all_in=False, clock=No
     cat, clock = SyntheticFrozen(), clock or Clock()
     backend = backend or MockPayments(auto_approve=False)
     payments = GuardedPayments(backend, cat, quotes=quotes, require_all_in=require_all_in, clock=clock, ledger=ledger)
-    adapter = adapter or ScriptedModelAdapter({"run-00000001": script or steps()})
+    adapter = adapter or ScriptedModelAdapter({"run-000000000001": script or steps()})
     service = BuyerService(BuyerAgent(adapter, cat, payments, max_retries=0), cat, payments, backend, clock=clock)
     app = create_app(ProviderRouter({"elastic_snapshot": cat}, CFG), backend, buyer=service)
     return TestClient(app, raise_server_exceptions=False), backend, service, adapter, clock
 
 
 def start(c, **kw):
-    return c.post("/agent/runs", json={"message": MSG, "request_id": "run-00000001", **kw})
+    return c.post("/agent/runs", json={"message": MSG, "request_id": "run-000000000001", **kw})
 
 
 def types(run):
@@ -92,13 +92,13 @@ def test_happy_path_emits_typed_ordered_events_with_provenance_and_unknowns():
 def test_no_payment_without_explicit_confirmation_then_receipt_exactly_once():
     c, backend, *_ = build()
     pending = next(e for e in start(c).json()["events"] if e["type"] == "confirmation_request")["pending_order_id"]
-    url = "/agent/runs/run-00000001/confirm"
+    url = "/agent/runs/run-000000000001/confirm"
     r = c.post(url, json={"pending_order_id": pending, "user_confirmed": False})
     assert r.status_code == 428 and r.json()["error"]["code"] == "confirmation_required" and backend.ledger == []
-    assert c.get("/agent/runs/run-00000001").json()["status"] == "awaiting_confirmation"      # still confirmable
+    assert c.get("/agent/runs/run-000000000001").json()["status"] == "awaiting_confirmation"      # still confirmable
     r = c.post(url, json={"pending_order_id": pending, "user_confirmed": True})            # buyer has not approved in PayPal yet
     assert r.status_code == 402 and r.json()["error"]["message"] == "ORDER_NOT_APPROVED" and backend.ledger == []
-    run = c.get("/agent/runs/run-00000001").json()
+    run = c.get("/agent/runs/run-000000000001").json()
     assert run["status"] == "awaiting_confirmation" and run["events"][-1]["code"] == "payment_not_approved"
     backend.approve(next(iter(backend._orders)))
     ok = c.post(url, json={"pending_order_id": pending, "user_confirmed": True})
@@ -110,10 +110,10 @@ def test_confirm_is_idempotent_and_wrong_pending_order_is_rejected():
     pending = next(e for e in start(c).json()["events"] if e["type"] == "confirmation_request")["pending_order_id"]
     order = next(iter(backend._orders))
     backend.approve(order)                                          # sandbox buyer approval (mock stand-in)
-    bad = c.post("/agent/runs/run-00000001/confirm", json={"pending_order_id": "nope", "user_confirmed": True})
+    bad = c.post("/agent/runs/run-000000000001/confirm", json={"pending_order_id": "nope", "user_confirmed": True})
     assert bad.status_code == 404 and bad.json()["error"]["code"] == "pending_order_not_found"
-    first = c.post("/agent/runs/run-00000001/confirm", json={"pending_order_id": pending, "user_confirmed": True}).json()
-    again = c.post("/agent/runs/run-00000001/confirm", json={"pending_order_id": pending, "user_confirmed": True}).json()
+    first = c.post("/agent/runs/run-000000000001/confirm", json={"pending_order_id": pending, "user_confirmed": True}).json()
+    again = c.post("/agent/runs/run-000000000001/confirm", json={"pending_order_id": pending, "user_confirmed": True}).json()
     receipts = [e for e in again["events"] if e["type"] == "receipt"]
     assert first["status"] == again["status"] == "completed" and len(receipts) == 1 and len(backend.ledger) == 1
     assert receipts[0]["capture_id"] and Decimal(receipts[0]["amount"]) == Decimal("10") and receipts[0]["mode"] == "mock"
@@ -123,7 +123,7 @@ def test_post_is_idempotent_and_polling_returns_only_new_events():
     c, _, _, adapter, _ = build()
     a, b = start(c).json(), start(c).json()
     assert a == b and len([r for r in adapter.requests if r.sequence == 0]) == 1      # the agent ran once
-    page = c.get("/agent/runs/run-00000001", params={"after": 3}).json()
+    page = c.get("/agent/runs/run-000000000001", params={"after": 3}).json()
     assert [e["seq"] for e in page["events"]] == list(range(4, a["next_seq"])) and page["next_seq"] == a["next_seq"]
     assert c.get("/agent/runs/missing-run-id").status_code == 404
     assert start(c, request_id="bad id!").status_code in (404, 422) or True
@@ -190,9 +190,9 @@ def test_stale_quote_is_refused_with_an_actionable_error_and_no_capture():
     c, backend, _, _, clock = build()
     pending = next(e for e in start(c).json()["events"] if e["type"] == "confirmation_request")["pending_order_id"]
     clock.now = T0 + dt.timedelta(hours=1)
-    r = c.post("/agent/runs/run-00000001/confirm", json={"pending_order_id": pending, "user_confirmed": True})
+    r = c.post("/agent/runs/run-000000000001/confirm", json={"pending_order_id": pending, "user_confirmed": True})
     assert r.status_code == 409 and r.json()["error"]["code"] == "quote_stale" and backend.ledger == []
-    last = c.get("/agent/runs/run-00000001").json()["events"][-1]
+    last = c.get("/agent/runs/run-000000000001").json()["events"][-1]
     assert last["type"] == "error" and last["action"] == "requote"
 
 
@@ -234,7 +234,7 @@ def test_legacy_agent_run_is_served_by_the_same_runner_and_failures_are_typed():
     from api import buyer
     run = start(app_c).json()
     result = buyer.to_agent_run_result(buyer.BuyerRun(**run))
-    assert result.run_id == "run-00000001" and result.status == "awaiting_confirmation" and result.picks[0].product_id == "W000"
+    assert result.run_id == "run-000000000001" and result.status == "awaiting_confirmation" and result.picks[0].product_id == "W000"
     assert result.picks[0].review_evidence and result.picks[0].snapshot and "awaiting your confirmation" in result.final_answer
 
 
@@ -247,7 +247,7 @@ def test_openapi_publishes_the_buyer_contract():
 
 
 # ---- checkout stages: recommendation -> quote -> confirmation request -> confirmation -> approval -> capture -> receipt ----
-URL = "/agent/runs/run-00000001/confirm"
+URL = "/agent/runs/run-000000000001/confirm"
 
 
 def pending_id(run):
@@ -279,11 +279,11 @@ def test_each_stage_alone_never_captures_and_events_stay_ordered():
     assert appr["approval_required"] and appr["status"] == "PAYER_ACTION_REQUIRED" and appr["order_id"] == "ORD1" and appr["approval_url"]
     assert appr["pending_order_id"] == pending_id(run)
     fake.approve("ORD1")                                         # the buyer approves in PayPal: approval is not confirmation
-    poll = c.get("/agent/runs/run-00000001", params={"after": run["next_seq"] - 1}).json()
+    poll = c.get("/agent/runs/run-000000000001", params={"after": run["next_seq"] - 1}).json()
     new = poll["events"][-1]
     assert new["type"] == "paypal_approval" and new["status"] == "APPROVED" and not new["approval_required"] and new["approval_url"] is None
     assert poll["status"] == "awaiting_confirmation" and not captures(fake)
-    assert c.get("/agent/runs/run-00000001", params={"after": poll["next_seq"] - 1}).json()["events"] == []   # status unchanged: no event spam
+    assert c.get("/agent/runs/run-000000000001", params={"after": poll["next_seq"] - 1}).json()["events"] == []   # status unchanged: no event spam
     r = c.post(URL, json={"pending_order_id": pending_id(run), "user_confirmed": False})   # approved but not confirmed
     assert r.status_code == 428 and not captures(fake)
     ok = c.post(URL, json={"pending_order_id": pending_id(run), "user_confirmed": True}).json()
@@ -301,7 +301,7 @@ def test_confirmation_without_paypal_approval_cannot_capture_and_stays_recoverab
     pid = pending_id(start(c).json())
     r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
     assert r.status_code == 402 and r.json()["error"]["message"] == "ORDER_NOT_APPROVED"
-    run = c.get("/agent/runs/run-00000001").json()
+    run = c.get("/agent/runs/run-000000000001").json()
     assert run["status"] == "awaiting_confirmation" and run["events"][-1]["code"] == "payment_not_approved"
     fake.approve("ORD1")
     assert c.post(URL, json={"pending_order_id": pid, "user_confirmed": True}).json()["status"] == "completed"
@@ -340,7 +340,7 @@ def test_timeout_on_capture_is_typed_recoverable_and_does_not_double_charge():
     fake.faults = [httpx.ReadTimeout("secret-host")] * 3
     r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
     assert r.status_code == 503 and r.json()["error"]["code"] == "payment_unavailable" and "secret-host" not in r.text
-    run = c.get("/agent/runs/run-00000001").json()
+    run = c.get("/agent/runs/run-000000000001").json()
     last = next(e for e in reversed(run["events"]) if e["type"] == "error")
     assert run["status"] == "awaiting_confirmation" and (last["code"], last["action"], last["retryable"]) == ("payment_unavailable", "retry", True)
     ok = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True}).json()
@@ -354,7 +354,7 @@ def test_declined_capture_is_terminal_typed_and_leaks_nothing():
     fake.approve("ORD1")
     fake.decline = True
     r = c.post(URL, json={"pending_order_id": pid, "user_confirmed": True})
-    run = c.get("/agent/runs/run-00000001").json()
+    run = c.get("/agent/runs/run-000000000001").json()
     assert r.status_code == 402 and run["status"] == "failed" and run["events"][-1]["code"] == "payment_failed"
     assert "receipt" not in types(run) and "dbg" not in json.dumps(run)
 

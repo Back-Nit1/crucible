@@ -6,6 +6,16 @@ import type { BuyerEventOf, BuyerRun } from "@/lib/api/types";
 import { ApiError } from "@/lib/api/client";
 import { StatusBadge } from "@/components/ui/status-badge";
 
+/** Only an https PayPal page may become a link: a bad API response can never inject a javascript: or phishing URL. */
+export function safePayPalUrl(value: string | null | undefined): string | null {
+  try {
+    const url = new URL(value ?? "");
+    return url.protocol === "https:" && /(^|\.)paypal\.com$/.test(url.hostname) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 export function checkoutErrorMessage(cause: unknown): string {
   if (!(cause instanceof ApiError)) return "The payment request could not be completed.";
   const messages: Record<string, string> = {
@@ -209,9 +219,9 @@ export function CheckoutFlow({
                   </p>
                 ) : null}
               </div>
-              {approval?.mode === "sandbox" && approval.approval_url ? (
+              {approval?.mode === "sandbox" && safePayPalUrl(approval.approval_url) ? (
                 <a
-                  href={approval.approval_url}
+                  href={safePayPalUrl(approval.approval_url) ?? undefined}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 text-sm text-cyan-300 underline underline-offset-4"

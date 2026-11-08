@@ -132,8 +132,7 @@ class ModalQwenClient:
         except ValidationError as exc:
             raise InferenceError("invalid_request", f"{len(exc.errors())} validation error(s)") from None
         cache = self._cache_path(payload)
-        if cache is not None and cache.is_file():
-            parsed = QwenResult.model_validate_json(cache.read_text())
+        if cache is not None and (parsed := self._cached(cache)) is not None:
             with self._lock:
                 self.cache_hits += 1
             return self._response(parsed, Decimal(0))
@@ -148,13 +147,7 @@ class ModalQwenClient:
             parsed = QwenResult.model_validate(result)
         except ValidationError:
             raise InferenceError("invalid_response", "server response failed schema validation") from None
-        if (parsed.model, parsed.revision) != (MODEL_ID, MODEL_REVISION):
-            raise InferenceError("model_identity_mismatch", "server answered with a different model or revision")
-        served = (parsed.adapter_run_id, parsed.adapter_hash, parsed.training_manifest_hash)
-        wanted = ((self.adapter.run_id, self.adapter.adapter_hash, self.adapter.training_manifest_hash)
-                  if self.adapter else (None, None, None))
-        if served != wanted:  # base answered an adapter request, an adapter answered a base one, or a different adapter
-            raise InferenceError("model_identity_mismatch", "server answered with a different adapter than requested")
+        self._check_identity(parsed)
         # the GPU served `batch_size` requests in one generation call: each pays its share, not the whole wall time
         seconds = parsed.generation_seconds / parsed.batch_size + parsed.container_load_seconds + parsed.adapter_load_seconds
         cost = Decimal(str(estimate_modal_cost(seconds)["total_usd"]))  # list-rate estimate; Modal billing is the truth
@@ -166,6 +159,25 @@ class ModalQwenClient:
             tmp.write_text(parsed.model_dump_json())
             tmp.replace(cache)  # atomic: a reader sees a whole entry or none
         return self._response(parsed, cost)
+
+    def _check_identity(self, parsed: QwenResult) -> None:
+        if (parsed.model, parsed.revision) != (MODEL_ID, MODEL_REVISION):
+            raise InferenceError("model_identity_mismatch", "server answered with a different model or revision")
+        served = (parsed.adapter_run_id, parsed.adapter_hash, parsed.training_manifest_hash)
+        wanted = ((self.adapter.run_id, self.adapter.adapter_hash, self.adapter.training_manifest_hash)
+                  if self.adapter else (None, None, None))
+        if served != wanted:  # base answered an adapter request, an adapter answered a base one, or a different adapter
+            raise InferenceError("model_identity_mismatch", "server answered with a different adapter than requested")
+
+    def _cached(self, path: Path) -> QwenResult | None:
+        """A cache entry is replayed only if it parses and carries this client's model and adapter identity;
+        anything else (corrupt, truncated, written by another pin) is a miss and gets overwritten."""
+        try:
+            parsed = QwenResult.model_validate_json(path.read_text())
+            self._check_identity(parsed)
+            return parsed
+        except (OSError, ValueError, InferenceError):
+            return None
 
     def _cache_path(self, payload: dict) -> Path | None:
         if self.cache_dir is None:
