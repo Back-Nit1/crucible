@@ -117,17 +117,29 @@ def run_remote(generation_id: str | None = None, seed: int = 20261101, populatio
 def publish_existing() -> dict:
     """Backfill: publish every generation on the volume to Elastic, with its report summary when one was written.
     Idempotent (docs are keyed by generation id). Reads the volume and writes Elastic only; runs no episodes."""
-    from catalog.providers.elastic import Elastic, endpoint_from_cloud_id
-    from world.publish import publish_generation
+    from catalog.cache import FrozenCache
+    from catalog.providers.elastic import Elastic, ElasticCatalogProvider, endpoint_from_cloud_id, load_manifest_hashes
+    from world.publish import publish_generation, with_task_items
+    from world.taskgen import generate_tasks
     volume.reload()
     es = Elastic(os.environ.get("ELASTIC_ENDPOINT") or endpoint_from_cloud_id(os.environ["ELASTIC_CLOUD_ID"]))
+    catalog, manifests = FrozenCache(ElasticCatalogProvider(es)), load_manifest_hashes()
     done = []
     for gid, state in _store().generations():
         if state is None:
             continue  # corrupt checkpoint: never published
         report = Path(f"{VOLUME_ROOT}/reports/{gid}/summary.json")
-        publish_generation(es, state, json.loads(report.read_text()) if report.exists() else None, runner="modal")
-        done.append({"generation_id": gid, "status": state.status.value, "summary": report.exists()})
+        summary = json.loads(report.read_text()) if report.exists() else None
+        if summary is not None and "items" not in summary.get("tasks", {}):
+            cp = state.checkpoint  # older report: regenerate the deterministic task set, kept only if the ids match
+            try:
+                summary = with_task_items(summary, generate_tasks(catalog, manifests, seed=cp.seed, count=len(cp.task_ids)),
+                                          cp.task_ids)
+            except Exception as exc:
+                print(f"{gid}: task facts not regenerated ({type(exc).__name__})")
+        publish_generation(es, state, summary, runner="modal")
+        done.append({"generation_id": gid, "status": state.status.value, "summary": report.exists(),
+                     "task_items": bool(summary and "items" in summary.get("tasks", {}))})
     return {"published": done}
 
 

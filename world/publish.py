@@ -30,6 +30,19 @@ def publish_generation(es, state, summary: dict | None, runner: str = "local") -
     es.bulk("generations", [(state.checkpoint.generation_id, generation_doc(state, summary, runner, now))])
 
 
+def task_items(tasks) -> list[dict]:
+    """Real per-task facts the Observatory shows per world (the budget is the task's, never the policy's reading of it)."""
+    return [{"id": t.id, "category": t.hard_constraints.category, "max_total": str(t.hard_constraints.max_total),
+             "impossible": t.is_impossible, "review_trap": t.is_review_trap} for t in tasks]
+
+
+def with_task_items(summary: dict | None, tasks, task_ids) -> dict | None:
+    """Backfill `tasks.items` from a regenerated task set, only when it is provably the same set (same ids, same order)."""
+    if summary is None or "items" in summary.get("tasks", {}) or [t.id for t in tasks] != list(task_ids):
+        return summary
+    return {**summary, "tasks": {**summary.get("tasks", {}), "items": task_items(tasks)}}
+
+
 def kill_rule_docs(counts: dict[str, int]) -> list[tuple[str, dict]]:
     return [(f"{r.id}:v{r.version}", {"rule_id": r.id, "version": r.version, "description": r.description,
                                       "added_at": r.added_on.isoformat(), "enabled": r.enabled, "kills": counts.get(r.id, 0)})
