@@ -72,3 +72,35 @@ def test_concurrent_run_honours_max_episodes_and_resumes(world):  # noqa: F811
     assert not first.complete and len(first.executed) == 5
     rest = run(world, store, traces, ScriptedModelAdapter(world[3]), concurrency=4)
     assert rest.complete and len(rest.executed) == 27 and len({t.episode_id for t in traces.traces}) == 32
+
+
+def test_vllm_batch_runs_one_generate_per_adapter_never_a_list_with_none(monkeypatch):
+    import sys
+    import types
+
+    from modal_app.qwen_protocol import QwenRequest
+    from modal_app.qwen_service import VLLMEngine
+
+    monkeypatch.setitem(sys.modules, "vllm", types.SimpleNamespace(SamplingParams=lambda **kw: kw))
+
+    class Tok:
+        def apply_chat_template(self, messages, **kw): return messages[-1]["content"]
+        def __call__(self, text): return {"input_ids": [1] * (9000 if text == "huge" else 3)}
+
+    calls = []
+
+    class LLM:
+        def generate(self, prompts, params, *, use_tqdm, lora_request):
+            calls.append((len(prompts), lora_request))
+            out = types.SimpleNamespace(text="ok", token_ids=[1], finish_reason="stop")
+            return [types.SimpleNamespace(outputs=[out], prompt_token_ids=p["prompt_token_ids"]) for p in prompts]
+
+    engine = object.__new__(VLLMEngine)
+    engine.tokenizer, engine.llm, engine.loras = Tok(), LLM(), {"a1": "LORA-A1"}
+
+    def req(text):
+        return QwenRequest(**base_request(seed=1) | {"messages": [{"role": "user", "content": text}]})
+
+    out = engine.generate_batch([(req("x"), None), (req("y"), "a1"), (req("huge"), None), (req("z"), None)])
+    assert sorted(calls, key=str) == sorted([(2, None), (1, "LORA-A1")], key=str)  # base group and adapter group
+    assert isinstance(out[2], InputTooLong) and all(o.raw_output == "ok" for i, o in enumerate(out) if i != 2)

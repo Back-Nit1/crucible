@@ -38,8 +38,8 @@ ENABLED = bool(ALGORITHMS)
 TIMEOUT_SECONDS = 45 * 60  # hard backstop; the loop soft-stops at training.gates.MAX_LAUNCH_SECONDS (43 min)
 # Pins shared with modal_app.qwen_inference where they overlap; peft/bitsandbytes are the training additions.
 # peft 0.14.0 and bitsandbytes 0.45.3 predate transformers 4.49.0 / torch 2.6.0 and list no upper bounds on either.
-TRAIN_PINS = ("accelerate==1.4.0", "bitsandbytes==0.45.3", "huggingface-hub==0.29.3", "jsonschema==4.23.0", "peft==0.14.0",
-              "pydantic==2.14.2", "safetensors==0.5.3", "torch==2.6.0", "transformers==4.49.0")
+TRAIN_PINS = ("accelerate==1.15.0", "bitsandbytes==0.50.2", "huggingface-hub==2.2.0", "jsonschema==4.23.0", "peft==0.21.2",
+              "pydantic==2.14.2", "safetensors==0.8.0", "torch==2.13.0", "transformers==5.19.0")
 
 
 def _download_model() -> None:

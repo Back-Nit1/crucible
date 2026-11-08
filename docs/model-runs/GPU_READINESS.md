@@ -14,29 +14,36 @@ not been built or deployed yet: the first `modal deploy` is the build check.
 ```pins-inference
 jsonschema==4.23.0
 pydantic==2.14.2
-transformers==4.55.4
-vllm==0.10.1.1
+transformers==5.19.0
+vllm==0.32.0
 ```
 
 Training image (`modal_app/qwen_training.py` `TRAIN_PINS`):
 
 ```pins-training
-accelerate==1.4.0
-bitsandbytes==0.45.3
-huggingface-hub==0.29.3
+accelerate==1.15.0
+bitsandbytes==0.50.2
+huggingface-hub==2.2.0
 jsonschema==4.23.0
-peft==0.14.0
+peft==0.21.2
 pydantic==2.14.2
-safetensors==0.5.3
-torch==2.6.0
-transformers==4.49.0
+safetensors==0.8.0
+torch==2.13.0
+transformers==5.19.0
 ```
 
-Resolution check (2026-11-04, PyPI metadata only): both sets resolve for the Modal image platform with
-`uv pip compile <pins> --python-platform x86_64-manylinux_2_28 --python-version 3.12` (163 packages for training,
-159 for inference). `torch==2.6.0` pulls the CUDA 12.4 wheels (`nvidia-cuda-runtime-cu12==12.4.127`,
-`nvidia-cublas-cu12==12.4.5.8`, `nvidia-cudnn-cu12==9.1.0.70`) and `triton==3.2.0`. L4 is Ada (sm_89), which CUDA
-12.4 and the bitsandbytes 0.45.3 manylinux wheel support. Not verified: CUDA discovery inside the Modal container.
+Resolution check (2026-11-08, PyPI metadata only): both sets resolve for the Modal image platform with
+`uv pip compile <pins> --python-platform x86_64-manylinux_2_28 --python-version 3.12` (66 packages for training,
+198 for inference). Both use `torch==2.13.0` (CUDA 13.0 wheels: `nvidia-cuda-runtime==13.0.96`,
+`nvidia-cublas==13.1.1.3`, `nvidia-cudnn-cu13==9.20.0.48`, `triton==3.7.1`) and `transformers==5.19.0`, so training
+and serving share one tokenizer/chat-template implementation.
+
+Security bump (2026-11-08): the previous pins (`torch==2.6.0`, `transformers==4.49.0`/`4.55.4`, `vllm==0.10.1.1`) had
+over 90 published advisories in `pip-audit`; the current sets have none. The real-library CPU tests
+(`tests/test_training_torch_backend.py`, `tests/test_rl_e2e.py`: tiny Qwen2 + real Qwen2.5 tokenizer, LoRA train,
+resume, adapter load) pass on both the old and the new pins (6/6 each). Not verified: CUDA discovery inside the Modal
+container, that Modal's L4 driver supports CUDA 13, and bitsandbytes 0.50.2 NF4 on the GPU (CPU tests run without
+quantization). The 2026-11 base probe ran on the old inference image; rerun it once on the new one.
 
 ## QLoRA memory at seq 2048 on L4 (24 GB) — estimate
 

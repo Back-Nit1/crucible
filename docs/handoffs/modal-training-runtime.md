@@ -52,9 +52,9 @@ Pins: torch 2.6.0, transformers 4.49.0, accelerate 1.4.0, peft 0.14.0, bitsandby
 ```
 uv run pytest -q                                   # 411 passed, 1 skipped (real-backend test, torch absent), 5 deselected (live)
 # real PEFT/Transformers backend on a tiny random Qwen2 + the real pinned Qwen tokenizer (CPU, ~30 s, downloads ~11 MB of public tokenizer files once):
-uv run --no-project --with huggingface-hub==0.29.3 python -c "from huggingface_hub import snapshot_download as s; s('Qwen/Qwen2.5-7B-Instruct', revision='a09a35458c702b33eeacc393d103063234e8bc28', allow_patterns=['tokenizer.json','tokenizer_config.json','vocab.json','merges.txt','config.json'], local_dir='<TOKDIR>')"
-CRUCIBLE_TEST_QWEN_TOKENIZER_DIR=<TOKDIR> uv run --no-project --with torch==2.6.0 --with transformers==4.49.0 --with accelerate==1.4.0 --with peft==0.14.0 \
-  --with safetensors==0.5.3 --with huggingface-hub==0.29.3 --with numpy --with pytest --with pydantic --with jsonschema --with fastapi --with httpx --with pyyaml --with modal \
+uv run --no-project --with huggingface-hub==2.2.0 python -c "from huggingface_hub import snapshot_download as s; s('Qwen/Qwen2.5-7B-Instruct', revision='a09a35458c702b33eeacc393d103063234e8bc28', allow_patterns=['tokenizer.json','tokenizer_config.json','vocab.json','merges.txt','config.json'], local_dir='<TOKDIR>')"
+CRUCIBLE_TEST_QWEN_TOKENIZER_DIR=<TOKDIR> uv run --no-project --with torch==2.13.0 --with transformers==5.19.0 --with accelerate==1.15.0 --with peft==0.21.2 \
+  --with safetensors==0.8.0 --with huggingface-hub==2.2.0 --with numpy --with pytest --with pydantic --with jsonschema --with fastapi --with httpx --with pyyaml --with modal \
   python -m pytest -q tests/test_training_torch_backend.py     # 5 passed
 uv run python -m scripts.secret_scan --env-file "<real .env>"   # 0 findings
 ```

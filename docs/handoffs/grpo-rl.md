@@ -21,8 +21,8 @@ Knobs and usage: `docs/model-runs/GRPO.md`. Pipeline evidence: `docs/model-runs/
 ## Verified, and how
 ```
 uv run pytest -q                                    # default suite (torch tests skip)
-CRUCIBLE_TEST_QWEN_TOKENIZER_DIR=<TOKDIR> uv run --no-project --with torch==2.6.0 --with transformers==4.49.0 \
-  --with accelerate==1.4.0 --with peft==0.14.0 --with safetensors==0.5.3 --with huggingface-hub==0.29.3 --with numpy \
+CRUCIBLE_TEST_QWEN_TOKENIZER_DIR=<TOKDIR> uv run --no-project --with torch==2.13.0 --with transformers==5.19.0 \
+  --with accelerate==1.15.0 --with peft==0.21.2 --with safetensors==0.8.0 --with huggingface-hub==2.2.0 --with numpy \
   --with pytest --with pydantic --with jsonschema --with fastapi --with httpx --with pyyaml --with modal \
   python -m pytest -q tests/test_rl_torch.py tests/test_training_torch_backend.py tests/test_rl_e2e.py
 uv run python -m scripts.secret_scan --env-file "<real .env>"   # 0 findings

@@ -44,7 +44,7 @@ def _download_model() -> None:
 
 image = (modal.Image.debian_slim(python_version="3.12")
          # vllm pins torch but only floors transformers; 5.x drops all_special_tokens_extended and crashes vllm startup
-         .pip_install("vllm==0.10.1.1", "transformers==4.55.4", "pydantic==2.14.2", "jsonschema==4.23.0")
+         .pip_install("vllm==0.32.0", "transformers==5.19.0", "pydantic==2.14.2", "jsonschema==4.23.0")
          .env({"CRUCIBLE_QWEN_MODEL": QWEN_MODEL_KEY})
          .add_local_python_source("modal_app", copy=True)
          .run_function(_download_model, timeout=30 * 60))

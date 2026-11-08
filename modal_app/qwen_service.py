@@ -251,18 +251,30 @@ class VLLMEngine:
     def generate_batch(self, work: list[tuple[QwenRequest, str | None]]) -> list[EngineOutput | InputTooLong]:
         from vllm import SamplingParams
         out: list[EngineOutput | InputTooLong] = [InputTooLong()] * len(work)
-        live, prompts, params, loras = [], [], [], []
+        groups: dict[str | None, list[tuple[int, dict, SamplingParams]]] = {}
         for i, (request, adapter) in enumerate(work):
             ids = self.tokenizer(render_prompt(self.tokenizer, request))["input_ids"]
             if len(ids) > MAX_INPUT_TOKENS:
                 continue
-            live.append(i)
-            prompts.append({"prompt_token_ids": ids})
-            params.append(SamplingParams(temperature=request.temperature, seed=request.seed,
-                                         max_tokens=request.max_new_tokens, skip_special_tokens=False))
-            loras.append(self.loras[adapter] if adapter is not None else None)
-        if not prompts:
-            return out
+            groups.setdefault(adapter, []).append((i, {"prompt_token_ids": ids}, SamplingParams(
+                temperature=request.temperature, seed=request.seed, max_tokens=request.max_new_tokens,
+                skip_special_tokens=False)))
+        started = time.perf_counter()
+        done: list[tuple[int, object]] = []
+        # One generate call per adapter: `lora_request` is typed as one request or a list of real requests,
+        # so base-model prompts (no adapter) never ride in a list next to adapter prompts.
+        for adapter, items in groups.items():
+            results = self.llm.generate([p for _, p, _ in items], [sp for _, _, sp in items], use_tqdm=False,
+                                        lora_request=self.loras[adapter] if adapter is not None else None)
+            done += [(i, result) for (i, _, _), result in zip(items, results)]
+        seconds = time.perf_counter() - started  # every item waited for the whole batch: that is its true latency
+        for i, result in done:
+            choice = result.outputs[0]
+            out[i] = EngineOutput(raw_output=choice.text, input_tokens=len(result.prompt_token_ids),
+                                  output_tokens=len(choice.token_ids),
+                                  finish_reason="stop" if choice.finish_reason == "stop" else "length",
+                                  generation_seconds=seconds)
+        return out
         started = time.perf_counter()
         results = self.llm.generate(prompts, params, lora_request=loras, use_tqdm=False)
         seconds = time.perf_counter() - started
