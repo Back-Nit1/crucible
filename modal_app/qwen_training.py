@@ -23,7 +23,7 @@ from pathlib import Path
 
 import modal
 
-from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
+from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION, QWEN_MODEL_KEY
 from modal_app.train_protocol import TrainRequest, TrainResponse
 
 APP_NAME = "crucible-qwen-training"
@@ -50,6 +50,7 @@ def _download_model() -> None:
 
 image = (modal.Image.debian_slim(python_version="3.12")
          .pip_install(*TRAIN_PINS)
+         .env({"CRUCIBLE_QWEN_MODEL": QWEN_MODEL_KEY})  # train the same base the inference server serves
          .add_local_python_source("modal_app", "training", copy=True)
          .run_function(_download_model, timeout=30 * 60)
          .env({"CRUCIBLE_TRAIN_ALGORITHMS": ALGORITHMS}))  # last layer: flipping a flag never re-downloads the model

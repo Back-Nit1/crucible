@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import random
 import re
 import statistics
@@ -18,8 +19,17 @@ from typing import Any, Iterable
 from jsonschema import Draft202012Validator
 
 SEED = 20_261_031
-MODEL_ID = "Qwen/Qwen2.5-7B-Instruct"
-MODEL_REVISION = "a09a35458c702b33eeacc393d103063234e8bc28"
+# Pinned (model, revision) pairs. CRUCIBLE_QWEN_MODEL picks one for the whole loop (inference server, client, training,
+# gates): a client and server built with different picks fail closed on model_revision_mismatch. 7b stays the default
+# because committed evidence/eval manifests are pinned to it; 1.5b (Apache-2.0) is the cheap world-generation model.
+QWEN_MODELS = {
+    "7b": ("Qwen/Qwen2.5-7B-Instruct", "a09a35458c702b33eeacc393d103063234e8bc28"),
+    "1.5b": ("Qwen/Qwen2.5-1.5B-Instruct", "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"),
+}
+QWEN_MODEL_KEY = os.environ.get("CRUCIBLE_QWEN_MODEL", "7b")
+if QWEN_MODEL_KEY not in QWEN_MODELS:
+    raise RuntimeError(f"CRUCIBLE_QWEN_MODEL must be one of {sorted(QWEN_MODELS)}")
+MODEL_ID, MODEL_REVISION = QWEN_MODELS[QWEN_MODEL_KEY]
 GPU_TYPE = "L4"
 GPU_RATE_USD_PER_SECOND = 0.000222
 CPU_CORES = 2.0

@@ -31,8 +31,11 @@ def test_inference_and_training_share_overlapping_pins(monkeypatch):
     import modal_app.qwen_inference as inference
     source = inspect.getsource(inference)
     for pin in mod.TRAIN_PINS:
-        if pin.split("==")[0] in {"torch", "transformers", "accelerate", "safetensors", "huggingface-hub"}:
+        if pin.split("==")[0] in {"pydantic", "jsonschema"}:
             assert f'"{pin}"' in source, pin
+    # serving runs vLLM (its own torch/transformers); train/serve parity is the shared chat-template rendering instead
+    import modal_app.qwen_service as service
+    assert "VLLMEngine(" in source and "render_prompt(self.tokenizer, request)" in inspect.getsource(service.VLLMEngine)
 
 
 def test_timeout_is_under_the_approved_forty_five_minutes_and_above_the_soft_stop(monkeypatch):

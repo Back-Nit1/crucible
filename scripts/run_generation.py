@@ -65,6 +65,10 @@ def main(argv=None) -> int:
                     help="K independent samples per genome:task pair (distinct derived seeds, one rollout group)")
     ap.add_argument("--iteration-id", help="expert-iteration id recorded on every rollout (groups samples)")
     ap.add_argument("--interrupt-after", type=int)
+    ap.add_argument("--concurrency", type=int, default=1,
+                    help="episodes run at once; >1 lets the vLLM server batch agent calls (qwen only)")
+    ap.add_argument("--qwen-cache-dir", type=Path,
+                    help="replay identical Qwen requests from disk instead of paying for them again (qwen only)")
     ap.add_argument("--traces", default="elastic", choices=["elastic", "memory"])
     ap.add_argument("--checkpoint-dir", default="checkpoints/generations")
     ap.add_argument("--out-dir", default="runs")
@@ -132,12 +136,14 @@ def main(argv=None) -> int:
         from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
         from world.runtime import model_policy_factory, model_policy_id
         adapter_for = checkpoint_catalog.adapter_for(
-            lambda selection: ModalQwenClient.from_environment(adapter=selection), max_retries=1)
+            lambda selection: ModalQwenClient.from_environment(adapter=selection, cache_dir=a.qwen_cache_dir),
+            max_retries=1)
         policy = {"policy_factory": model_policy_factory(adapter_for, generation_id=gen),
                   "policy_id": model_policy_id(MODEL_ID, checkpoint)}
     store = GenerationStore(FileBlobStore(a.checkpoint_dir))
     res = run_generation(generation_id=gen, seed=a.seed, genomes=genomes, tasks=tasks, manifests=manifests, catalog=catalog,
-                         store=store, traces=traces, max_episodes=a.interrupt_after, samples_per_task=a.samples_per_task, log=lambda m: print(m, file=sys.stderr), **policy)
+                         store=store, traces=traces, max_episodes=a.interrupt_after, samples_per_task=a.samples_per_task, log=lambda m: print(m, file=sys.stderr),
+                         concurrency=a.concurrency if qwen else 1, **policy)
     if not res.complete:
         print(json.dumps({"generation_id": gen, "status": res.state.status.value, "executed": len(res.executed),
                           "remaining": len(res.state.remaining())}))

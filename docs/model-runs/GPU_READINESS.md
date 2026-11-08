@@ -8,17 +8,14 @@ measurements; the first smoke run replaces them. Nothing on this page has run on
 `tests/test_gpu_readiness.py` fails if the pins in `modal_app/qwen_inference.py` or `modal_app/qwen_training.py`
 drift from these blocks.
 
-Inference image (`modal_app/qwen_inference.py`):
+Inference image (`modal_app/qwen_inference.py`, vLLM engine; vLLM pins its own torch/transformers). This image has
+not been built or deployed yet: the first `modal deploy` is the build check.
 
 ```pins-inference
-accelerate==1.4.0
-huggingface-hub==0.29.3
 jsonschema==4.23.0
-peft==0.14.0
 pydantic==2.14.2
-safetensors==0.5.3
-torch==2.6.0
-transformers==4.49.0
+transformers==4.55.4
+vllm==0.10.1.1
 ```
 
 Training image (`modal_app/qwen_training.py` `TRAIN_PINS`):

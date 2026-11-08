@@ -9,9 +9,12 @@ cost ceiling. See docs/handoffs/release-convergence.md and docs/handoffs/modal-t
   uv run modal app stop crucible-qwen-inference                                  # always stop afterwards
 
 All request handling lives in modal_app.qwen_service (pure, tested offline); this file is only the Modal wiring.
-Capacity: one L4 (24 GB) holds the 15.2 GB bf16 weights, small LoRA adapters (<= MAX_LOADED_ADAPTERS) and the KV cache
-for MAX_INPUT_TOKENS + MAX_NEW_TOKENS_CEILING tokens. max_containers=1 and one input at a time: adapter switching is
-never concurrent. The container scales to zero after `scaledown_window` and frees CUDA memory on exit."""
+Engine: vLLM (modal_app.qwen_service.VLLMEngine). Concurrent calls are gathered by `@modal.batched` into one GPU batch;
+vLLM's prefix cache computes the shared system prompt + tool schemas once, and each request may use a different LoRA.
+Model: CRUCIBLE_QWEN_MODEL (7b default, 1.5b for cheap world generations) is read at deploy time and baked into the
+image, so the container serves exactly the pin the deploying client uses. Capacity: one L4 (24 GB); 7B bf16 is 15.2 GB,
+1.5B is ~3 GB, the rest is KV cache. max_containers=1, no min_containers: the GPU scales to zero after
+`scaledown_window` idle seconds and frees CUDA memory on exit."""
 from __future__ import annotations
 
 import os
@@ -20,13 +23,14 @@ from pathlib import Path
 
 import modal
 
-from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
+from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION, QWEN_MODEL_KEY
 
 APP_NAME = "crucible-qwen-inference"
 FUNCTION_NAME = "Qwen.generate"
 MODEL_PATH = f"/models/{MODEL_ID.rsplit('/', 1)[-1]}-{MODEL_REVISION[:7]}"
 ENABLED = os.environ.get("CRUCIBLE_ENABLE_L4_PROBE") == "1"
 REQUEST_TIMEOUT_SECONDS = 300
+MAX_BATCH_SIZE, BATCH_WAIT_MS = 32, 50  # up to 32 agent calls per GPU step; wait at most 50 ms to fill a batch
 ADAPTER_VOLUME = "crucible-qwen-adapters"  # written by modal_app.qwen_training; read-only here
 ADAPTER_MOUNT = "/vol"
 ADAPTER_RUNS_ROOT = f"{ADAPTER_MOUNT}/runs"
@@ -39,8 +43,9 @@ def _download_model() -> None:
 
 
 image = (modal.Image.debian_slim(python_version="3.12")
-         .pip_install("accelerate==1.4.0", "huggingface-hub==0.29.3", "pydantic==2.14.2", "jsonschema==4.23.0",
-                      "peft==0.14.0", "safetensors==0.5.3", "torch==2.6.0", "transformers==4.49.0")
+         # vllm pins torch but only floors transformers; 5.x drops all_special_tokens_extended and crashes vllm startup
+         .pip_install("vllm==0.10.1.1", "transformers==4.55.4", "pydantic==2.14.2", "jsonschema==4.23.0")
+         .env({"CRUCIBLE_QWEN_MODEL": QWEN_MODEL_KEY})
          .add_local_python_source("modal_app", copy=True)
          .run_function(_download_model, timeout=30 * 60))
 app = modal.App(APP_NAME)
@@ -52,21 +57,17 @@ adapters = modal.Volume.from_name(ADAPTER_VOLUME, create_if_missing=True, versio
 class Qwen:
     @modal.enter()
     def load(self) -> None:
-        from modal_app.qwen_service import AdapterResolver, QwenService, TransformersEngine
+        from modal_app.qwen_service import AdapterResolver, QwenService, VLLMEngine
         started = time.perf_counter()
-        engine = TransformersEngine(MODEL_PATH, device="cuda")  # raises without CUDA: no CPU deployment of a 7B model
-        engine.torch.cuda.synchronize()
+        engine = VLLMEngine(MODEL_PATH)  # vLLM refuses to start without a GPU: no CPU fallback
         self.engine = engine
         self.service = QwenService(engine, AdapterResolver(Path(ADAPTER_RUNS_ROOT), reload=adapters.reload),
                                    container_load_seconds=time.perf_counter() - started)
 
     @modal.exit()
     def release(self) -> None:
-        engine = getattr(self, "engine", None)
-        if engine is not None:
-            engine.model = engine.peft = None
-            engine.torch.cuda.empty_cache()
+        self.engine = self.service = None  # drop the vLLM engine so its GPU memory is released with the process
 
-    @modal.method()
-    def generate(self, payload: dict) -> dict:
-        return self.service.handle(payload)
+    @modal.batched(max_batch_size=MAX_BATCH_SIZE, wait_ms=BATCH_WAIT_MS)
+    def generate(self, payloads: list[dict]) -> list[dict]:
+        return self.service.handle_batch(payloads)  # callers still send one payload and get one result back

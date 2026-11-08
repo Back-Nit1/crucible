@@ -47,7 +47,8 @@ class QwenResult(BaseModel):
     model: str = Field(min_length=1)
     revision: str = Field(min_length=1)
     seed_applied: bool
-    generation_seconds: float = Field(ge=0)
+    generation_seconds: float = Field(ge=0)  # wall time of the engine call that produced this output (true latency)
+    batch_size: int = Field(default=1, ge=1)  # requests sharing that call: GPU cost is generation_seconds / batch_size each
     container_load_seconds: float = Field(default=0, ge=0)  # >0 only for the first request a container serves
     # Identity of the adapter that produced this output; all None for the base model (and omitted on the wire).
     adapter_run_id: str | None = Field(default=None, pattern=RUN_ID_PATTERN)

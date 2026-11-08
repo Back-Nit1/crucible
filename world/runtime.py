@@ -9,7 +9,9 @@ from __future__ import annotations
 import datetime as dt
 import socket
 import hashlib
+from collections import deque
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -126,9 +128,15 @@ def run_generation(*, generation_id: str, seed: int, genomes: tuple[Genome, ...]
                    traces: TraceRepository, max_episodes: int | None = None, owner: str | None = None,
                    log=lambda msg: None, policy_factory: PolicyFactory | None = None,
                    policy_id: str = SCRIPTED_POLICY_ID, max_consecutive_model_failures: int = 3,
-                   samples_per_task: int = 1) -> RunResult:
+                   samples_per_task: int = 1, concurrency: int = 1) -> RunResult:
+    """`concurrency` > 1 runs that many episodes at once (model policies: lets the inference server batch their calls).
+    Outcomes are still recorded one at a time in key order, so checkpoints and resume behave exactly as when serial.
+    ponytail: with memory-enabled genomes, which same-generation traces an episode can retrieve depends on completion
+    timing when concurrency > 1; keep concurrency=1 where byte-identical reruns matter."""
     if (policy_factory is None) != (policy_id == SCRIPTED_POLICY_ID):
         raise ValueError("policy_factory and a non-scripted policy_id must be given together")
+    if concurrency < 1:
+        raise ValueError("concurrency must be >= 1")
     fresh = GenerationState(compat=compat_for(tasks, genomes, manifests, policy_id), checkpoint=GenerationCheckpoint(
         generation_id=generation_id, seed=seed, genomes=genomes, task_ids=tuple(t.id for t in tasks),
         samples_per_task=samples_per_task))
@@ -141,41 +149,66 @@ def run_generation(*, generation_id: str, seed: int, genomes: tuple[Genome, ...]
             result.complete = True
             return result
         store.set_status(generation_id, GenerationStatus.RUNNING)
-        streak = 0
-        for key in state.remaining():
-            if max_episodes is not None and len(result.executed) + len(result.skipped) >= max_episodes:
-                result.state = store.set_status(generation_id, GenerationStatus.INTERRUPTED)
-                return result
+        def attempt(key: str):
+            """Run one pair (worker thread). Returns (episode, inert_fixture) or (None, skip reason)."""
             gid, tid = key.split("#")[0].split(":", 1)
             genome, task = by_genome[gid], by_task[tid]
             try:
                 try:
-                    episode = run_one(task, genome, catalog=catalog, generation_id=generation_id, seed=seed, memory=memory,
-                                      policy_factory=policy_factory, key=key)
+                    return run_one(task, genome, catalog=catalog, generation_id=generation_id, seed=seed, memory=memory,
+                                   policy_factory=policy_factory, key=key), False
                 except ScriptUnavailable:
                     if policy_factory is not None or genome.system_prompt_variant not in FIXTURES:
                         raise
                     # a fixture that cannot misbehave on this task behaves honestly instead (recorded, not hidden)
-                    episode = run_one(task, genome.model_copy(update={"system_prompt_variant": "grounded-shopper-v1"}),
-                                      catalog=catalog, generation_id=generation_id, seed=seed, memory=memory, key=key)
-                    result.inert_fixtures.append(key)
+                    return run_one(task, genome.model_copy(update={"system_prompt_variant": "grounded-shopper-v1"}),
+                                   catalog=catalog, generation_id=generation_id, seed=seed, memory=memory, key=key), True
             except ScriptUnavailable as e:
-                result.skipped[key] = str(e)
+                return None, str(e)
+
+        keys = state.remaining()
+        if max_episodes is not None:
+            keys = keys[:max(max_episodes, 0)]
+        streak = 0
+        pool = ThreadPoolExecutor(max_workers=concurrency)
+        pending: deque = deque()
+        try:
+            it = iter(keys)
+            for key in it:
+                pending.append((key, pool.submit(attempt, key)))
+                if len(pending) >= concurrency:
+                    break
+            while pending:
+                key, future = pending.popleft()
+                episode, extra = future.result()
+                nxt = next(it, None)
+                if nxt is not None:
+                    pending.append((nxt, pool.submit(attempt, nxt)))
+                if episode is None:
+                    result.skipped[key] = extra
+                    state = store.record_episode(generation_id, key, EpisodeOutcome(
+                        episode_id=f"{generation_id}:{key}", fitness=Decimal(0), killed=False, termination="script_unavailable"))
+                    log(f"skip {key}: {extra}")
+                    continue
+                if extra:
+                    result.inert_fixtures.append(key)
+                gid, tid = key.split("#")[0].split(":", 1)
+                memory.record(episode, by_task[tid], by_genome[gid], generation=0)  # durable trace first, then the checkpoint
+                streak = streak + 1 if episode.termination == "model_failure" else 0
+                sc = episode.score_components
                 state = store.record_episode(generation_id, key, EpisodeOutcome(
-                    episode_id=f"{generation_id}:{key}", fitness=Decimal(0), killed=False, termination="script_unavailable"))
-                log(f"skip {key}: {e}")
-                continue
-            memory.record(episode, task, genome, generation=0)  # durable trace first, then the checkpoint
-            streak = streak + 1 if episode.termination == "model_failure" else 0
-            sc = episode.score_components
-            state = store.record_episode(generation_id, key, EpisodeOutcome(
-                episode_id=episode.episode_id, fitness=Decimal(str(sc.get("fitness", "0"))), killed=episode.killed,
-                kill_rules=tuple(k["rule_id"] for k in episode.kill_information), termination=episode.termination))
-            result.executed.append(key)
-            if streak >= max_consecutive_model_failures:  # backend down: stop burning pairs; resume re-runs the rest
-                raise ModelUnavailable(f"{streak} consecutive model failures")
-            log(f"{len(state.checkpoint.completed_episode_keys)}/{len(state.checkpoint.episode_keys())} "
-                f"{key} {episode.termination} fitness={sc.get('fitness', '-')} kills={[k['rule_id'] for k in episode.kill_information]}")
+                    episode_id=episode.episode_id, fitness=Decimal(str(sc.get("fitness", "0"))), killed=episode.killed,
+                    kill_rules=tuple(k["rule_id"] for k in episode.kill_information), termination=episode.termination))
+                result.executed.append(key)
+                if streak >= max_consecutive_model_failures:  # backend down: stop burning pairs; resume re-runs the rest
+                    raise ModelUnavailable(f"{streak} consecutive model failures")
+                log(f"{len(state.checkpoint.completed_episode_keys)}/{len(state.checkpoint.episode_keys())} "
+                    f"{key} {episode.termination} fitness={sc.get('fitness', '-')} kills={[k['rule_id'] for k in episode.kill_information]}")
+        finally:
+            pool.shutdown(wait=False, cancel_futures=True)
+        if max_episodes is not None and state.remaining():
+            result.state = store.set_status(generation_id, GenerationStatus.INTERRUPTED)
+            return result
         result.state = store.finalize(generation_id)
         result.complete = True
         return result
