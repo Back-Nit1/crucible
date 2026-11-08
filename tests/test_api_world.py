@@ -149,3 +149,20 @@ def test_generations_list_newest_publish_first_with_unpublished_last():
     items = c.get("/world/generations").json()["items"]
     assert [g["generation_id"] for g in items] == ["aa-new", "zz-old", "mm-legacy"]
     assert items[0]["published_at"] == "2026-11-08T00:00:00+00:00"
+
+
+def test_snapshot_endpoint_returns_capped_shape(client):
+    s = client.get("/world/generations/g1/snapshot").json()
+    assert s["generation_id"] == "g1" and len(s["episodes"]) == 3 and s["limits"]["sampled"] is False
+
+
+def test_snapshot_for_unknown_generation_is_404(client):
+    r = client.get("/world/generations/nope/snapshot")
+    assert r.status_code == 404
+
+
+def test_snapshot_of_running_generation_with_no_traces_is_empty_not_error():
+    gen = {**GEN, "gen_id": "g-run", "status": "running", "summary": {}}
+    c = TestClient(create_app(ProviderRouter({"elastic_snapshot": Snap()}, CFG), MockPayments(), reader=InMemoryReader(generations=[gen])))
+    r = c.get("/world/generations/g-run/snapshot")
+    assert r.status_code == 200 and r.json()["episodes"] == [] and r.json()["worlds"] == []

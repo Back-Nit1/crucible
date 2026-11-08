@@ -264,6 +264,25 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_
             raise HTTPException(404, "generation_not_found")
         return GenerationDetail(**gen_out(d).model_dump(), summary=d.get("summary") or {})
 
+    snapshots: dict[tuple[str, str | None], dict] = {}  # completed generations never change: cache by publish time
+
+    @r.get("/world/generations/{generation_id}/snapshot", tags=["world"])
+    def generation_snapshot(generation_id: str):
+        d = next((d for d in reader.generations() if d["gen_id"] == generation_id), None)
+        if d is None:
+            raise HTTPException(404, "generation_not_found")
+        key = (generation_id, d.get("published_at"))
+        if key in snapshots:
+            return snapshots[key]
+        from api.snapshot import build_snapshot
+        from catalog.providers.elastic import load_manifest_hashes
+        out = build_snapshot(d, reader.all_traces(generation_id), sorted(load_manifest_hashes()))
+        if d["status"] == "completed":
+            snapshots[key] = out
+            while len(snapshots) > 8:
+                snapshots.pop(next(iter(snapshots)))
+        return out
+
     @r.get("/world/episodes", response_model=Page[EpisodeOut], tags=["world"])
     def episodes(offset: Offset = 0, limit: Limit = 50, generation_id: str | None = None, agent_id: str | None = None,
                  split: str | None = None, category: str | None = None, killed: bool | None = None,
