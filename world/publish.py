@@ -23,11 +23,12 @@ def generation_doc(state, summary: dict | None, runner: str = "local", published
         "published_at": published_at}
 
 
-def publish_generation(es, state, summary: dict | None, runner: str = "local") -> None:
-    """Also called for unfinished runs (summary=None), so a running or interrupted generation is visible too."""
+def publish_generation(es, state, summary: dict | None, runner: str = "local", published_at: str | None = None) -> None:
+    """Also called for unfinished runs (summary=None), so a running or interrupted generation is visible too.
+    `published_at` defaults to now; backfills pass the run's own time so republishing never reorders the archive."""
     es.call("PUT", f"/{es.ix('generations')}/_mapping", {"properties": GENERATIONS_EXTRA})
-    now = dt.datetime.now(dt.timezone.utc).isoformat()
-    es.bulk("generations", [(state.checkpoint.generation_id, generation_doc(state, summary, runner, now))])
+    at = published_at or dt.datetime.now(dt.timezone.utc).isoformat()
+    es.bulk("generations", [(state.checkpoint.generation_id, generation_doc(state, summary, runner, at))])
 
 
 def task_items(tasks) -> list[dict]:

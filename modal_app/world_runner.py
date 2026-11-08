@@ -117,6 +117,8 @@ def run_remote(generation_id: str | None = None, seed: int = 20261101, populatio
 def publish_existing() -> dict:
     """Backfill: publish every generation on the volume to Elastic, with its report summary when one was written.
     Idempotent (docs are keyed by generation id). Reads the volume and writes Elastic only; runs no episodes."""
+    import datetime as dt
+
     from catalog.cache import FrozenCache
     from catalog.providers.elastic import Elastic, ElasticCatalogProvider, endpoint_from_cloud_id, load_manifest_hashes
     from world.publish import publish_generation, with_task_items
@@ -137,7 +139,9 @@ def publish_existing() -> dict:
                                           cp.task_ids)
             except Exception as exc:
                 print(f"{gid}: task facts not regenerated ({type(exc).__name__})")
-        publish_generation(es, state, summary, runner="modal")
+        # Order by when the run last wrote its report (completion), not by when this backfill ran.
+        at = dt.datetime.fromtimestamp(report.stat().st_mtime, dt.timezone.utc).isoformat() if report.exists() else None
+        publish_generation(es, state, summary, runner="modal", published_at=at)
         done.append({"generation_id": gid, "status": state.status.value, "summary": report.exists(),
                      "task_items": bool(summary and "items" in summary.get("tasks", {}))})
     return {"published": done}

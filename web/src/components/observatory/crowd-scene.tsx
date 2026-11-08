@@ -5,7 +5,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { Color, type InstancedMesh, Object3D } from "three";
 import type { GenerationSnapshot } from "@/lib/api/types";
-import { BUDGET, buildLayout, selectRendered, writePositions } from "./motion";
+import { BUDGET, buildLayout, buildPaths, selectRendered, writePositions } from "./motion";
 
 const OUTCOME = {
   success: new Color("#62f6a4"),
@@ -32,6 +32,7 @@ function Crowd({
 }) {
   const layout = useMemo(() => buildLayout(snapshot), [snapshot]);
   const rendered = useMemo(() => selectRendered(snapshot.episodes), [snapshot]);
+  const paths = useMemo(() => buildPaths(snapshot, layout, rendered), [layout, rendered, snapshot]);
   const positions = useMemo(() => new Float32Array(rendered.length * 3), [rendered]);
   const shoppers = useRef<InstancedMesh>(null);
   const products = useRef<InstancedMesh>(null);
@@ -71,7 +72,7 @@ function Crowd({
 
   useFrame((_, delta) => {
     if (playing) clock.current += delta;
-    writePositions(snapshot, layout, rendered, clock.current, positions);
+    writePositions(paths, clock.current, positions);
     const mesh = shoppers.current;
     if (mesh) {
       for (let i = 0; i < rendered.length; i++) {

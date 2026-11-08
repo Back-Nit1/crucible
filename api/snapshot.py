@@ -10,6 +10,7 @@ from collections import Counter
 from collections.abc import Sequence
 
 from memory import TraceRecord
+from memory.episodes import privileged
 
 SPAWN, EXCHANGE, SHOP, PRODUCT, CHECKOUT, REFUSAL = range(6)
 
@@ -31,11 +32,23 @@ def path_for(calls: list[dict], product_index: dict[str, int], category_index: i
         elif "purchase" in tool or "pay" in tool:
             stop = [CHECKOUT, -1]
         else:
-            ref = next((product_index[r] for r in c.get("result_references", []) if r in product_index), None)
+            # The product a step acts on (reviews reference review ids, so arguments come first), else what it returned.
+            ids = [c.get("arguments", {}).get("product_id"), *c.get("result_references", [])]
+            ref = next((product_index[r] for r in ids if r in product_index), None)
             stop = [PRODUCT, ref] if ref is not None else [SHOP, category_index]
         if stop != path[-1]:
             path.append(stop)
     return path
+
+
+def _scripted(summary: dict, traces: Sequence[TraceRecord]) -> bool | None:
+    """True/False from the summary, else from the traces' checkpoints (running runs publish `summary: {}`).
+    None when nothing is recorded yet: the UI must never default an unknown run to "Qwen"."""
+    if (summary.get("params") or {}).get("model") == "scripted" or summary.get("policy") == "scripted-v1":
+        return True
+    if summary.get("policy") or (summary.get("params") or {}).get("model"):
+        return False
+    return any(privileged(t) for t in traces) if traces else None
 
 
 def build_snapshot(gen: dict, traces: Sequence[TraceRecord], categories: Sequence[str], *,
@@ -81,7 +94,7 @@ def build_snapshot(gen: dict, traces: Sequence[TraceRecord], categories: Sequenc
 
     return {
         "generation_id": gen["gen_id"], "published_at": gen.get("published_at"),
-        "scripted": (summary.get("params") or {}).get("model") == "scripted" or summary.get("policy") == "scripted-v1",
+        "scripted": _scripted(summary, kept),
         "policy": summary.get("policy"), "population_size": gen.get("population_size", 0),
         "survivors": gen.get("survivors", 0), "kills": gen.get("kills", 0),
         "categories": [{"id": c, "name": c.replace("_", " "),
@@ -89,6 +102,10 @@ def build_snapshot(gen: dict, traces: Sequence[TraceRecord], categories: Sequenc
         "worlds": worlds, "agents": agents,
         "products": [{"id": p, "category": product_cat[p], "mentions": mentions[p]} for p in top],
         "episodes": episodes,
-        "limits": {"episodes_total": total, "episodes_included": len(kept), "products_total": len(mentions),
+        "limits": {"episodes_total": total, "episodes_included": len(kept),
+                   # expected = every (agent, task) pair; untraced = episodes the scripted shopper skipped (no trace)
+                   "episodes_expected": (summary.get("episodes") or {}).get("expected"),
+                   "episodes_untraced": (summary.get("episodes") or {}).get("script_unavailable"),
+                   "products_total": len(mentions),
                    "products_included": len(top), "sampled": total > max_episodes},
     }

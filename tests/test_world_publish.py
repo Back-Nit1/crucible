@@ -37,3 +37,10 @@ def test_with_task_items_only_when_ids_match():
     assert with_task_items(None, tasks, ids) is None
     kept = {"tasks": {"items": ["already"]}}
     assert with_task_items(kept, tasks, ids)["tasks"]["items"] == ["already"]
+
+
+def test_explicit_published_at_is_kept_so_backfills_do_not_reorder_the_archive():
+    from tests.test_world_store import fresh
+    es, st = FakeEs(), fresh()
+    publish_generation(es, st, None, runner="modal", published_at="2026-11-01T00:00:00+00:00")
+    assert es.docs[("generations", st.checkpoint.generation_id)]["published_at"] == "2026-11-01T00:00:00+00:00"

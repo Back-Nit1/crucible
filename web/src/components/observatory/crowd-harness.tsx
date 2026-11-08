@@ -28,12 +28,19 @@ export function CrowdHarness({ snapshot }: { snapshot: GenerationSnapshot }) {
         <p data-testid="shown">
           showing {shown} of {snapshot.limits.episodes_total}
           {snapshot.limits.sampled ? " (sampled)" : ""}
+          {snapshot.limits.episodes_untraced ? ` · ${snapshot.limits.episodes_untraced} skipped, not drawn` : ""}
         </p>
         <p>
           {snapshot.worlds.length} worlds · {snapshot.categories.length} categories · {snapshot.agents.length} agents
         </p>
         <p data-testid="fps">fps {playing ? (fps ?? "…") : "paused"}</p>
-        <p>{snapshot.scripted ? "WORLD ENGINE REPLAY · NOT QWEN PERFORMANCE" : "QWEN MODEL ROLLOUT"}</p>
+        <p>
+          {snapshot.scripted === null
+            ? "SOURCE NOT YET KNOWN"
+            : snapshot.scripted
+              ? "WORLD ENGINE REPLAY · NOT QWEN PERFORMANCE"
+              : "QWEN MODEL ROLLOUT"}
+        </p>
         <button type="button" onClick={togglePlaying} className="mt-2 rounded border border-slate-500 px-3 py-1">
           {playing ? "Pause" : "Play"}
         </button>

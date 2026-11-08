@@ -132,36 +132,57 @@ export function stopPoint(
   out[o + 2] = cz + z;
 }
 
-const scratchA = new Float32Array(3);
-const scratchB = new Float32Array(3);
+export type Paths = {
+  stops: Float32Array; // xyz of every stop of every rendered episode, back to back
+  offsets: Uint32Array; // first stop index of rendered episode i
+  counts: Uint16Array; // stop count of rendered episode i
+  phase: Float32Array; // seconds of loop offset, so the crowd never moves in lockstep
+};
+
+/** Resolve every rendered stop to world space once, so the frame loop only interpolates (no strings, no hashing). */
+export function buildPaths(snapshot: Snapshot, layout: Layout, rendered: readonly number[]): Paths {
+  const offsets = new Uint32Array(rendered.length);
+  const counts = new Uint16Array(rendered.length);
+  const phase = new Float32Array(rendered.length);
+  let total = 0;
+  rendered.forEach((e, i) => {
+    const episode = snapshot.episodes[e]!;
+    offsets[i] = total;
+    counts[i] = episode.path.length;
+    phase[i] = ((fnv1a(episode.id) % 1000) / 1000) * episode.path.length * HOP_SECONDS;
+    total += episode.path.length;
+  });
+  const stops = new Float32Array(total * 3);
+  rendered.forEach((e, i) => {
+    const episode = snapshot.episodes[e]!;
+    episode.path.forEach((stop, k) =>
+      stopPoint(snapshot, layout, episode.world, stop as Stop, stops, (offsets[i]! + k) * 3),
+    );
+  });
+  return { stops, offsets, counts, phase };
+}
 
 /** Each rendered episode's position at `time` seconds: hops between its stops, phase-offset, looping. */
-export function writePositions(
-  snapshot: Snapshot,
-  layout: Layout,
-  rendered: readonly number[],
-  time: number,
-  out: Float32Array,
-): void {
-  for (let i = 0; i < rendered.length; i++) {
-    const episode = snapshot.episodes[rendered[i]!]!;
-    const stops = episode.path;
-    const hops = stops.length - 1;
+export function writePositions(paths: Paths, time: number, out: Float32Array): void {
+  const { stops, offsets, counts, phase } = paths;
+  for (let i = 0; i < counts.length; i++) {
+    const hops = counts[i]! - 1;
     const duration = (hops + 1) * HOP_SECONDS; // final hop + a dwell at the last stop
-    const phase = ((fnv1a(episode.id) % 1000) / 1000) * duration;
-    const local = (time + phase) % duration;
-    const seg = Math.floor(local / HOP_SECONDS);
+    const local = (time + phase[i]!) % duration;
+    const seg = Math.min(Math.floor(local / HOP_SECONDS), hops);
+    const a = (offsets[i]! + seg) * 3;
     const o = i * 3;
     if (seg >= hops) {
-      stopPoint(snapshot, layout, episode.world, stops[hops] as Stop, out, o);
+      out[o] = stops[a]!;
+      out[o + 1] = stops[a + 1]!;
+      out[o + 2] = stops[a + 2]!;
       continue;
     }
     const f = local / HOP_SECONDS - seg;
     const ease = f * f * (3 - 2 * f);
-    stopPoint(snapshot, layout, episode.world, stops[seg] as Stop, scratchA, 0);
-    stopPoint(snapshot, layout, episode.world, stops[seg + 1] as Stop, scratchB, 0);
-    out[o] = scratchA[0]! + (scratchB[0]! - scratchA[0]!) * ease;
-    out[o + 1] = 0.3 + Math.sin(f * Math.PI) * 0.35;
-    out[o + 2] = scratchA[2]! + (scratchB[2]! - scratchA[2]!) * ease;
+    const b = a + 3;
+    out[o] = stops[a]! + (stops[b]! - stops[a]!) * ease;
+    out[o + 1] = stops[a + 1]! + Math.sin(f * Math.PI) * 0.35;
+    out[o + 2] = stops[a + 2]! + (stops[b + 2]! - stops[a + 2]!) * ease;
   }
 }

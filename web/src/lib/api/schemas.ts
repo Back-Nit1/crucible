@@ -35,7 +35,7 @@ const stopSchema = z.tuple([z.number().int().min(0).max(5), z.number().int()]);
 export const generationSnapshotSchema = z.object({
   generation_id: z.string(),
   published_at: z.string().nullable(),
-  scripted: z.boolean(),
+  scripted: z.boolean().nullable(), // null: nothing recorded yet, never assume a model
   policy: z.string().nullable(),
   population_size: z.number().int().nonnegative(),
   survivors: z.number().int().nonnegative(),
@@ -79,6 +79,8 @@ export const generationSnapshotSchema = z.object({
   limits: z.object({
     episodes_total: z.number().int().nonnegative(),
     episodes_included: z.number().int().nonnegative(),
+    episodes_expected: z.number().int().nonnegative().nullable(),
+    episodes_untraced: z.number().int().nonnegative().nullable(),
     products_total: z.number().int().nonnegative(),
     products_included: z.number().int().nonnegative(),
     sampled: z.boolean(),

@@ -82,3 +82,23 @@ def test_agents_and_scripted_flag_come_from_the_summary():
     a = {x["id"]: x for x in s["agents"]}
     assert s["scripted"] is True and a["agent-1"]["fitness"] == 0.9 and a["agent-1"]["survivor"] is True
     assert a["agent-1"]["kill_rules"] == ["K003_BUDGET_VIOLATION"] and "agent-3" in a  # trace agents not in population still indexed
+
+
+def test_running_generation_label_comes_from_trace_checkpoints_never_defaults_to_model():
+    running = {**GEN, "status": "running", "summary": {}}
+    scripted = [t.model_copy(update={"genome": {**t.genome, "model_checkpoint": "scripted-v1"}}) for t in traces()]
+    assert build_snapshot(running, scripted, CATS)["scripted"] is True
+    assert build_snapshot(running, traces(), CATS)["scripted"] is False  # fixture traces: qwen-base checkpoint
+    assert build_snapshot(running, [], CATS)["scripted"] is None  # nothing recorded yet: unknown, not "Qwen"
+
+
+def test_limits_report_expected_episodes_so_untraced_skips_are_visible():
+    gen = {**GEN, "summary": {**GEN["summary"], "episodes": {"expected": 5, "script_unavailable": 2}}}
+    lim = build_snapshot(gen, traces(), CATS)["limits"]
+    assert lim["episodes_total"] == 3 and lim["episodes_expected"] == 5 and lim["episodes_untraced"] == 2
+    assert build_snapshot({**GEN, "summary": {}}, traces(), CATS)["limits"]["episodes_expected"] is None
+
+
+def test_review_steps_stay_on_the_product_they_read():
+    path = build_snapshot(GEN, traces(), CATS)["episodes"][0]["path"]
+    assert [2, 1] not in path  # get_reviews/summarize on shoe-a keep the shopper at shoe-a, not the shop centre
