@@ -25,6 +25,8 @@ SEED = 20_261_031
 QWEN_MODELS = {
     "7b": ("Qwen/Qwen2.5-7B-Instruct", "a09a35458c702b33eeacc393d103063234e8bc28"),
     "1.5b": ("Qwen/Qwen2.5-1.5B-Instruct", "989aa7980e4cf806f80c7fef2b1adb7bc71aa306"),
+    # 3b is under the Qwen Research License (non-commercial), unlike 7b/1.5b (Apache-2.0): fine for this research run, not for shipping.
+    "3b": ("Qwen/Qwen2.5-3B-Instruct", "aa8e72537993ba99e69dfaafa59ed015b17504d1"),
 }
 QWEN_MODEL_KEY = os.environ.get("CRUCIBLE_QWEN_MODEL", "7b")
 if QWEN_MODEL_KEY not in QWEN_MODELS:
