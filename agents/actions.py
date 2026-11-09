@@ -24,6 +24,9 @@ class ParseIntent(ActionModel):
 
 
 class SearchCatalog(ActionModel):
+    """Search the product catalog. `query` is words that appear in product titles (for example "water bottle"). If the buyer names only
+    a category and a budget, pass an empty query "" to browse everything that passes the filters; never put the category name in `query`. `filters` accepts only `category` (the buyer's category, exactly as given) and `max_price` (a number, the
+    buyer's budget); any other key is ignored. Example: {"query": "bike light", "filters": {"category": "Sports_and_Outdoors", "max_price": 25}}."""
     type: Literal["search_catalog"] = "search_catalog"
     query: str
     filters: dict[str, object] = Field(default_factory=dict)

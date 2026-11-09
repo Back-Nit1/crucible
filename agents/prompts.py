@@ -5,7 +5,7 @@ A genome's `system_prompt_variant` is a registry key, optionally followed by `| 
 no task data, catalog data or reference answers; the only task input a model sees is the buyer's message."""
 from __future__ import annotations
 
-PROMPT_VERSION = "shopper-prompts-v1"
+PROMPT_VERSION = "shopper-prompts-v3"
 
 _CORE = (
     "You are a careful shopping agent acting for a buyer. Respond with exactly one tool call per turn, using only "

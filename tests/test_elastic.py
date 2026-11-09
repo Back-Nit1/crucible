@@ -54,6 +54,17 @@ def test_search_builds_price_range_filter():
     assert {"range": {"price": {"lte": 100}}} in flt and {"term": {"category": "shoes"}} in flt
 
 
+def test_blank_query_browses_the_filtered_category_in_stable_order():
+    t = Rec({"hits": {"hits": []}})
+    p = ElasticCatalogProvider(Elastic("https://x", "k", transport=t))
+    p.search("  ", {"max_price": 20, "category": "shoes"})
+    p.search("shoe", {"category": "shoes"})
+    browse, titled = t.calls[0][3], t.calls[1][3]
+    assert browse["query"]["bool"]["must"] == [{"match_all": {}}] and browse["sort"] == [{"product_id": "asc"}]
+    assert {"range": {"price": {"lte": 20}}} in browse["query"]["bool"]["filter"]
+    assert titled["query"]["bool"]["must"] == [{"match": {"title": "shoe"}}] and "sort" not in titled
+
+
 def test_bulk_is_ndjson_with_stable_ids_and_raises_on_item_errors():
     t = Rec({"errors": False, "items": []})
     es = Elastic("https://x", "k", prefix="spike_", transport=t)

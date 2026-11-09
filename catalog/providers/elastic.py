@@ -184,8 +184,13 @@ class ElasticCatalogProvider:
         flt = [{"term": {"category": f["category"]}}] if f.get("category") else []
         if f.get("max_price") is not None or f.get("min_price") is not None:
             flt.append({"range": {"price": {op: f[k] for k, op in (("min_price", "gte"), ("max_price", "lte")) if f.get(k) is not None}}})
+        # A blank query browses: every product passing the filters, in stable product_id order (tasks name a category and a
+        # budget, not product words, so a title match alone would find nothing).
+        browse = not query.strip()
         body = {"size": size, "_source": {"excludes": ["embedding"]},
-                "query": {"bool": {"must": [{"match": {"title": query}}], "filter": flt}}}
+                "query": {"bool": {"must": [{"match_all": {}} if browse else {"match": {"title": query}}], "filter": flt}}}
+        if browse:
+            body["sort"] = [{"product_id": "asc"}]
         hits = self.es.call("POST", f"/{self.es.ix('products')}/_search", body)["hits"]["hits"]
         return [_product(h["_source"], self.manifests.get(h["_source"]["category"])) for h in hits]
 
