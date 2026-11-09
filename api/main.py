@@ -357,6 +357,13 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
                                "next_stage": next((s for s in STAGES if s not in done), None)})
         return {"iterations": iterations, "kill_switch": (root / "STOP").exists()}
 
+    @app.get("/models/live", tags=["models"])
+    def models_live():
+        """Model numbers as they land on disk, before anything is published: every recorded Qwen probe and the
+        progress of each held-out evaluation run (`scripts.run_evaluation run`). Whitelisted fields only; no paths
+        beyond repo-relative ids, no model text. Scores are not computed here: they come from the published report."""
+        return {"probes": _probes(), "evaluations": _evaluation_progress(Path(os.environ.get("CRUCIBLE_EVAL_ROOT", "checkpoints/evaluations")))}
+
     @app.get("/providers/status", response_model=ProviderStatus)
     def providers_status():
         return get_router().status()
@@ -405,6 +412,57 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
     app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer), ledger_source=lambda: (get_payments(), state["ledger"])[1]))
     app.include_router(buyer_router(_Lazy()))
     return app
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+PROBE_RATES = ("valid_structured_call", "schema_valid_arguments", "parse_intent_first", "first_attempt_valid", "malformed", "inference_errors")
+
+
+def _probes() -> list[dict]:
+    out = []
+    for path in sorted((REPO_ROOT / "docs").glob("**/*probe*.json")):
+        try:
+            d = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(d, dict) or d.get("experiment") != "qwen-bounded-probe":
+            continue
+        m, model = d.get("metrics") or {}, d.get("model") or {}
+        rates = {k: {f: m[k].get(f) for f in ("value", "numerator", "denominator")} for k in PROBE_RATES if isinstance(m.get(k), dict)}
+        cost, latency = m.get("cost_usd") or {}, m.get("latency_ms") or {}
+        out.append({"id": path.relative_to(REPO_ROOT).as_posix(), "status": d.get("status"), "finished_at": d.get("finished_at"),
+                    "checkpoint": model.get("checkpoint"), "model": model.get("id"), "adapter_hash": model.get("adapter_hash"),
+                    "rates": rates, "failed_thresholds": (d.get("result") or {}).get("failed_thresholds", []),
+                    "cost_usd": cost.get("total") if cost.get("known") else None,
+                    "latency_p50_ms": latency.get("p50"), "latency_p95_ms": latency.get("p95")})
+    return sorted(out, key=lambda p: p["finished_at"] or "", reverse=True)
+
+
+def _evaluation_progress(root: Path) -> list[dict]:
+    out = []
+    for manifest_path in sorted(root.glob("*/manifest.json")):
+        try:
+            manifest = json.loads(manifest_path.read_text())
+            expected = len(manifest["tasks"]) * len(manifest["seeds"])
+            contenders = manifest["contenders"]
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        rows = []
+        for c in contenders:
+            done = killed = 0
+            cost = Decimal(0)
+            for ep in (manifest_path.parent / "episodes" / str(c.get("id"))).glob("*.json"):
+                try:
+                    e = json.loads(ep.read_text())["episode"]
+                except (OSError, ValueError, KeyError, TypeError):
+                    continue
+                done, killed, cost = done + 1, killed + bool(e.get("killed")), cost + Decimal(str(e.get("cost", 0)))
+            rows.append({"contender": c.get("id"), "kind": c.get("kind"), "done": done, "expected": expected,
+                         "killed": killed, "cost_usd": str(cost)})
+        finished = (manifest_path.parent / "report.json").is_file()
+        out.append({"evaluation_id": manifest_path.parent.name, "contenders": rows,
+                    "status": "reported" if finished else "complete" if all(r["done"] >= expected for r in rows) else "running"})
+    return out
 
 
 def _launch_authorized() -> bool:

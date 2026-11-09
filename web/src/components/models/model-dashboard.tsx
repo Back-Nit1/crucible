@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { BrainCircuit, CheckCircle2, CircleDashed, Clock, Coins, Fingerprint } from "lucide-react";
 import type { ApiDocument, Page } from "@/lib/api/types";
 import { asRecord, at, numberAt, shortHash, stringAt } from "@/lib/records";
@@ -67,7 +68,7 @@ function EvaluationCard({ evaluation }: { evaluation: ApiDocument }) {
   );
 }
 
-export function ModelDashboard({ evaluations, checkpoints, sample }: { evaluations: Page<ApiDocument>; checkpoints: Page<ApiDocument>; sample: boolean }) {
+export function ModelDashboard({ evaluations, checkpoints, sample, children }: { evaluations: Page<ApiDocument>; checkpoints: Page<ApiDocument>; sample: boolean; children?: ReactNode }) {
   const taskHashes = new Set(evaluations.items.map((item) => stringAt(item.data, "task_set_hash")).filter(Boolean));
   const seedSets = new Set(evaluations.items.map((item) => JSON.stringify(at(item.data, "seeds") ?? null)));
   const comparable = evaluations.items.length > 1 && taskHashes.size === 1 && seedSets.size === 1 && !taskHashes.has(null);
@@ -77,6 +78,7 @@ export function ModelDashboard({ evaluations, checkpoints, sample }: { evaluatio
       <div className="mb-6 rounded-xl border border-white/9 bg-white/[0.02] p-4">
         <div className="flex items-start gap-3"><BrainCircuit className="mt-0.5 size-5 text-emerald-300" /><div><p className="text-sm font-semibold text-slate-200">Contender comparability</p><p className="mt-1 text-xs leading-5 text-slate-500">{evaluations.items.length < 2 ? "Not available — fewer than two evaluations were published." : comparable ? "Verified: contenders share the same task manifest and seed set." : "Not verified: task manifest or seed sets differ or are missing."}</p></div></div>
       </div>
+      {children}
 
       <section className="space-y-5">
         {evaluations.items.length ? evaluations.items.map((evaluation) => <EvaluationCard key={evaluation.id} evaluation={evaluation} />) : <Panel><EmptyState title="Evaluations not run" message="No held-out evaluation documents are published. Zeroes are not displayed because no denominators exist." /></Panel>}
