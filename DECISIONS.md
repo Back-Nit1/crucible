@@ -131,3 +131,44 @@ Evidence: `docs/spikes/platform-day1.md`. Config: `config/providers.yaml`.
   (3) *code*: the clipped-ratio + k3-KL objective is ~40 lines on top of `torch_backend` and reuses the trainer, resume, artifact
   and gates unchanged; TRL would add a dependency plus an adapter layer around its Trainer state that breaks our bit-identical resume.
   No new dependency. Reference policy = base via PEFT `disable_adapter()` on the same weights (no second model copy).
+
+## 2026-11-08 scaling plan (proposed, not implemented)
+Status: recommendations agreed in discussion; nothing built yet. Order of work = order below.
+- **Checkpoints: append-only, not rewrite-per-episode.** Today `GenerationStore.record_episode` reloads the Volume, rewrites the
+  whole state (all outcomes so far), fsyncs and `volume.commit()`s per episode: O(N²) bytes, N commits. Plan: write base state
+  once; one small `gen.<id>.ep.<key>` file per episode via `create_exclusive` (dedup for free); `finalize` compacts and deletes the
+  small files; `commit` every K episodes / T seconds (a crash loses <= K idempotent, re-runnable episodes). Retention: drop Volume
+  state for completed generations after N (already published to Elastic via `generation_doc`); keep LoRA adapters for survivors only.
+  Checkpoints stay: they are what saves paid GPU reruns.
+- **Trace endpoints aggregate in Elastic.** `api/world.py` pulls up to `MAX_SCAN` traces into memory via `all_traces()` and counts
+  in Python. Plan: `terms` aggregations for kill/payment counts; exports/replays stream (generator + NDJSON `StreamingResponse`).
+- **Latency, by lever size:** (1) fewer model steps: richer tool results (search returns top-k + review summary), since each step
+  is a full inference round-trip; (2) `POST /agent/runs` returns immediately and the agent emits events per step (polling `?after=seq`
+  already exists) instead of blocking until `agent.run` ends; (3) parallel fan-out of independent tool calls in one step, prefetch top
+  search results while the model generates; (4) short-TTL cache for the live catalog. Already in place: PayPal token cache, reused
+  `httpx.Client`, vLLM batching + response cache, `FrozenCache`.
+- **Shared state = one Redis (Render Key Value), only when a 2nd API instance is added.** In-process today: `BuyerService._runs`/
+  `_confirming`, `GuardedPayments._pending`, `RateLimit`. Mapping: run = hash + event list (`LRANGE` for `?after=seq`), confirm lock
+  = `SET NX EX`, pending orders = hash with TTL, rate limit = `INCR`+`EXPIRE`. PayPal `PayPal-Request-Id` remains the double-capture
+  backstop. Not done now: `render.yaml` runs one free instance (YAGNI).
+- **Queue: only for agent runs.** POST enqueues, any worker runs and appends events to Redis (Redis Streams/RQ: same dependency as
+  shared state). Not for generation episodes (Modal map/spawn already is the queue), not for catalog/payment calls inside a run
+  (request/response; a hop adds latency), and messages carry blob keys, never large payloads.
+
+## 2026-11-08 inference cost, observatory, security (`feat/batched-inference-observatory`)
+- **Serving**: vLLM with prefix caching and multi-LoRA, behind `@modal.batched`. A batch is grouped by adapter: one `llm.generate` per group with a single `LoRARequest` (or `None` for base), never a mixed list. Each result's GPU cost = `generation_seconds / batch_size`; latency stays the true wall time.
+- **Response cache**: on-disk, keyed on the full request. A hit costs $0. An entry that is corrupt, or that came from a different model/revision/adapter, is ignored, never replayed.
+- **1.5B option** added next to 7B for cheaper runs; 7B stays the default target. Concurrent episodes must record the same outcomes as serial (tested).
+- **Observatory** (`/observatory`): shows only what the replay holds. No base-model/algorithm claims, no "7B" badge. The agent is named by its real id plus checkpoint; stages that have not run say "Not run yet"; the kill list comes from the API's rules; the population count is "culled" (population − survivors). Honors `prefers-reduced-motion`. New deps are pinned exactly.
+- **Order ids** (supersedes the 2026-10-30 idempotency line for API callers): the API prefixes the task with `api:<request_id or random uuid>`, so pending ids are unguessable and two callers with the same body (e.g. the README "judge" example) no longer share an order. Clients that want safe retries send `request_id` (16–64 chars of `[A-Za-z0-9_-]`).
+- **Rate limit**: in-process 60 s sliding window on POST `/agent/run` and `/purchase/*`. 10/min per client (`CRUCIBLE_RATE_LIMIT_PER_MINUTE`) and 60/min in total (`CRUCIBLE_RATE_LIMIT_TOTAL_PER_MINUTE`), returning 429 `rate_limited`. Clients are identified by the left-most `X-Forwarded-For` entry, which is spoofable; the total cap is the real backstop. Render's proxy header behaviour has not been verified.
+- **Bounds**: pending orders are capped at 1,000 (oldest evicted). Buyer run ids need at least 16 chars. `x-request-id` is echoed only if it matches `^[A-Za-z0-9_-]{1,64}$`. Request id fields have length limits.
+- **Web**: a PayPal approval link renders only when it is https on `paypal.com` or one of its subdomains. Headers: `frame-ancestors 'none'` + `X-Frame-Options DENY` (clickjacking on confirm), nosniff, strict referrer, Permissions-Policy. A full script CSP is deferred because three.js and AG Grid need extra setup.
+- **GPU pins bumped** off ~90 published advisories: vllm 0.32.0, torch 2.13.0, transformers 5.19.0, peft 0.21.2 (full list in `GPU_READINESS.md`). The real-library CPU tests pass 6/6 on both the old and the new pins. Not verified: CUDA 13 on Modal L4, and the Qwen probe on the new image (it passed only on the old one). `modal_app/day1_probe.py` and `docs/model-runs/grpo-offline-e2e/STATUS.md` keep the old pins as historical records.
+- **Open, not fixed**: 18 unreachable git blobs (some hold old `.env.example` keys) need key rotation, then a user-approved `git gc --prune=now`. The sandbox ledger lives in memory. The API has no auth (judges by design). The reviews route does not brand-mask in demo mode.
+- **Local run**: the API runs with `DEMO_MODE=1 uv run --env-file .env uvicorn api.main:app --reload` (the API never loads `.env` itself). The web runs with `NEXT_PUBLIC_DATA_MODE=live` against `http://localhost:8000`.
+- **Live model results** (`GET /models/live`, the panel on `/models`): numbers show up as they land on disk, not only once a run is published to Elastic. The endpoint reads:
+  - every `docs/**/*probe*.json` with `experiment: qwen-bounded-probe`, returning only the rates (with numerator and denominator), cost, p50/p95 latency and status; never records or model text.
+  - every `CRUCIBLE_EVAL_ROOT/*/manifest.json` (default `checkpoints/evaluations`), returning per-contender episodes done vs expected, kills and cost. No success rate is computed there, so no unscored number appears; scores still come only from the published report.
+  - The page calls `router.refresh()` every 30 s while the tab is visible. On Render the eval store is not on disk, so there only probes committed to the repo and published evaluations appear.
+- **Local CORS**: the API must be started with `CORS_ALLOW_ORIGINS=http://localhost:3000`, or the browser's connection indicator shows "API disconnected".
