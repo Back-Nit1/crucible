@@ -41,3 +41,18 @@ def test_concurrent_misses_do_not_hold_lock_during_provider_calls():
     with ThreadPoolExecutor(max_workers=2) as pool:
         assert list(pool.map(cache.get_product, ["a", "b"])) == ["a", "b"]
     assert len(cache._c) == 1
+
+
+def test_search_accepts_nested_filters_and_keys_them_canonically():
+    class Provider:
+        calls = 0
+
+        def search(self, query, filters=None):
+            Provider.calls += 1
+            return ["p"]
+
+    cache = FrozenCache(Provider())
+    a = {"price": {"max": 50, "min": 5}, "brand": "x"}
+    b = {"brand": "x", "price": {"min": 5, "max": 50}}
+    assert cache.search("q", a) == cache.search("q", b) == ["p"]
+    assert Provider.calls == 1
