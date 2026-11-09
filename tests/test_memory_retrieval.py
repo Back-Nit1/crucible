@@ -33,6 +33,14 @@ def test_add_is_idempotent_per_episode():
     assert len(r.traces) == 1 and r.traces[0].fitness == 0.95
 
 
+def test_top_k_preserves_ties_empty_queries_and_slice_behavior():
+    r = InMemoryTraceRepository()
+    for i in range(12):
+        r.add(tr(str(i), text="same words"))
+    for k in (0, 1, 5, 20, -1):
+        assert r.similar("", k=k) == r.traces[:k]
+
+
 def test_elastic_query_carries_leakage_filter():
     f = similar_query([0.1], 3, 0.5)["knn"]["filter"]["bool"]
     assert {"terms": {"split": ["test", "held_out_category"]}} in f["must_not"]

@@ -9,6 +9,7 @@ import datetime as dt
 import os
 import tempfile
 import time
+from collections import deque
 from collections.abc import Callable
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
@@ -190,10 +191,10 @@ def run_evaluation(manifest: EvaluationManifest, tasks: dict[str, TaskSpec], *, 
     stop = False
     try:
         with ThreadPoolExecutor(max_workers=max(1, max_workers)) as pool:
-            queue, running = list(pending), {}
+            queue, running = deque(pending), {}
             while (queue or running) and not stop:
                 while queue and len(running) < max(1, max_workers):
-                    key = queue.pop(0)
+                    key = queue.popleft()
                     running[pool.submit(execute, key)] = key
                 finished, _ = wait(running, return_when=FIRST_COMPLETED)
                 for future in finished:

@@ -1,5 +1,6 @@
 """Trace store + memory retrieval (spec 8.8). Agents depend on `TraceRepository`, never on Elastic."""
 import re
+from heapq import nsmallest
 from typing import Protocol
 
 from pydantic import BaseModel
@@ -65,9 +66,14 @@ class InMemoryTraceRepository:
 
     def similar(self, task_text: str, k: int = 3, min_fitness: float = 0.0) -> list[TraceRecord]:
         q = _words(task_text)
-        jac = lambda t: len(q & _words(t.task_text)) / (len(q | _words(t.task_text)) or 1)
-        pool = [t for t in self.traces if eligible(t, min_fitness)]
-        return sorted(pool, key=lambda t: (-jac(t), -t.fitness))[:k]
+        def rank(t):
+            words = _words(t.task_text)
+            overlap = len(q & words)
+            return (-overlap / (len(q) + len(words) - overlap or 1), -t.fitness)
+
+        pool = (t for t in self.traces if eligible(t, min_fitness))
+        # Preserve Python slicing semantics for legacy callers passing a negative k.
+        return sorted(pool, key=rank)[:k] if k < 0 else nsmallest(k, pool, key=rank)
 
     def by_generation(self, generation_id: str) -> list[TraceRecord]:
         return sorted((t for t in self.traces if t.generation_id == generation_id), key=lambda t: t.episode_id)

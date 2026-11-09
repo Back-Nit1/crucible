@@ -1,6 +1,7 @@
 """WorldReader implementations: Elastic (production) and in-memory (tests, sample data)."""
 from __future__ import annotations
 
+from itertools import islice
 from pydantic import ValidationError
 
 from catalog.providers.elastic import Elastic
@@ -88,12 +89,7 @@ class ElasticReader:
 
     def all_traces(self, generation_id=None):
         q = {"term": {"generation_id": generation_id}} if generation_id else {"match_all": {}}
-        rows = []
-        for src, _ in self.es.scan("traces", q, "episode_id"):
-            rows.append(src)
-            if len(rows) >= MAX_SCAN:
-                break
-        return self._parse(rows)
+        return self._parse(src for src, _ in islice(self.es.scan("traces", q, "episode_id"), MAX_SCAN))
 
     def documents(self, kind, offset, limit):
         try:

@@ -1,5 +1,4 @@
 import type { DataMode } from "@/lib/env";
-import { getSample } from "./samples";
 import {
   agentRunResultSchema,
   apiErrorSchema,
@@ -67,6 +66,7 @@ export class CrucibleApi {
 
   private async request(path: string, init?: RequestInit): Promise<unknown> {
     if (this.mode === "sample") {
+      const { getSample } = await import("./samples");
       const plainPath = path.split("?")[0] ?? path;
       if (init?.method === "POST" && plainPath === "/agent/runs") {
         return getSample("agent_run_started").body;

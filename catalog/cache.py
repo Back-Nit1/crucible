@@ -1,20 +1,35 @@
 """Read-through memoisation for a FROZEN snapshot provider. Safe only because the snapshot never changes
 (results are keyed by the call arguments); never wrap a live provider with this."""
 from catalog.providers.base import FrozenCatalogProvider
+from collections import OrderedDict
+from threading import Lock
 
 
 class FrozenCache:
-    def __init__(self, inner: FrozenCatalogProvider):
-        self.inner, self._c = inner, {}
+    def __init__(self, inner: FrozenCatalogProvider, max_entries: int = 4096):
+        if max_entries < 0:
+            raise ValueError("max_entries must be nonnegative")
+        self.inner, self._c = inner, OrderedDict()
+        self.max_entries = max_entries
+        self._lock = Lock()
         self.hits = self.misses = 0
 
     def _memo(self, key, fn):
-        if key in self._c:
-            self.hits += 1
-        else:
+        with self._lock:
+            if key in self._c:
+                self.hits += 1
+                self._c.move_to_end(key)
+                return self._c[key]
             self.misses += 1
-            self._c[key] = fn()
-        return self._c[key]
+        # Do not serialize unrelated provider requests behind the cache lock.
+        value = fn()
+        with self._lock:
+            if self.max_entries:
+                self._c[key] = value
+                self._c.move_to_end(key)
+                while len(self._c) > self.max_entries:
+                    self._c.popitem(last=False)
+        return value
 
     def search(self, query, filters=None):
         return list(self._memo(("s", query, tuple(sorted((filters or {}).items()))), lambda: tuple(self.inner.search(query, filters))))

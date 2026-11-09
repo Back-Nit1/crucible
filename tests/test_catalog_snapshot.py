@@ -40,7 +40,14 @@ def test_stream_jsonl_drops_partial_last_line():
         def read(s, n): return s.d.pop(0) if s.d else b""
         def __enter__(s): return s
         def __exit__(s, *a): pass
-    assert list(stream_jsonl("http://x", 10, opener=lambda req, timeout: R())) == [{"a": 1}, {"a": 2}]
+    assert list(stream_jsonl("http://x", 100, opener=lambda req, timeout: R())) == [{"a": 1}, {"a": 2}]
+
+
+def test_stream_jsonl_enforces_budget_when_server_ignores_range():
+    import io
+    payload = b'{"a":1}\n{"a":2}\n{"a":3}\n'
+    assert list(stream_jsonl("http://x", 18, opener=lambda req, timeout: io.BytesIO(payload))) == [{"a": 1}, {"a": 2}]
+    assert list(stream_jsonl("http://x", 0, opener=lambda *a, **k: (_ for _ in ()).throw(AssertionError()))) == []
 
 
 def test_identical_source_reviews_get_distinct_canonical_ids_and_keep_the_original():

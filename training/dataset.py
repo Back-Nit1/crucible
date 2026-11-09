@@ -14,6 +14,7 @@ the model at inference, so it is deliberately not part of the shard."""
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
 from dataclasses import dataclass
@@ -22,7 +23,7 @@ from agents.model import Message, action_tools
 from agents.prompts import PROMPT_VERSION, system_prompt
 from agents.qwen_client import qwen_tools, to_qwen_messages
 from tasks.schemas import TaskSplit
-from training.curation import SFTRecord, TrainingManifest
+from training.curation import SFTRecord, TrainingManifest, curation_content_hash
 from training.shard import DATASET_FORMAT
 
 ALLOWED_SPLITS = frozenset({TaskSplit.TRAIN, TaskSplit.VALIDATION})
@@ -46,12 +47,6 @@ class TrainingDataset:
     dataset_hash: str
     record_count: int
     training_manifest_hash: str
-
-
-def curation_content_hash(records: tuple[SFTRecord, ...]) -> str:
-    """Exactly the digest training.curation.curate_survivors stores in TrainingManifest.content_hash."""
-    content = [record.model_dump(mode="json") for record in records]
-    return hashlib.sha256(json.dumps(content, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def validate_records(records: tuple[SFTRecord, ...], manifest: TrainingManifest) -> None:
@@ -110,8 +105,12 @@ def build_dataset(records: tuple[SFTRecord, ...], manifest: TrainingManifest, *,
     header = {"header": {"format": DATASET_FORMAT, "training_manifest_hash": manifest.content_hash,
                          "record_count": len(records), "source_model_version": manifest.model_version, "prompt_version": PROMPT_VERSION, "prompt_variant": prompt_variant,
                          "system": system, "tools": qwen_tools(action_tools())}}
-    lines = [header] + [{"source_episode_id": r.source_episode_id, "messages": render_example(r)} for r in records]
-    shard = ("\n".join(json.dumps(line, sort_keys=True, separators=(",", ":")) for line in lines) + "\n").encode()
-    _assert_no_pii(json.dumps([line for line in lines[1:]]))
+    buffer = io.BytesIO()
+    buffer.write(json.dumps(header, sort_keys=True, separators=(",", ":")).encode() + b"\n")
+    for record in records:
+        line = {"source_episode_id": record.source_episode_id, "messages": render_example(record)}
+        _assert_no_pii(json.dumps(line))
+        buffer.write(json.dumps(line, sort_keys=True, separators=(",", ":")).encode() + b"\n")
+    shard = buffer.getvalue()
     return TrainingDataset(shard=shard, dataset_hash=hashlib.sha256(shard).hexdigest(), record_count=len(records),
                            training_manifest_hash=manifest.content_hash)

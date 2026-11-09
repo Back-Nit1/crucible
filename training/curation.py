@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -27,6 +28,18 @@ class SFTRecord(TrainingModel):
     split: TaskSplit
     messages: tuple[dict[str, object], ...]
     normalized_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+def curation_content_hash(records: Iterable[SFTRecord]) -> str:
+    """Hash the canonical JSON array one record at a time, preserving existing manifests."""
+    digest = hashlib.sha256(b"[")
+    separator = b""
+    for record in records:
+        digest.update(separator)
+        digest.update(json.dumps(record.model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode())
+        separator = b","
+    digest.update(b"]")
+    return digest.hexdigest()
 
 
 class TrainingManifest(TrainingModel):
@@ -130,8 +143,7 @@ def curate_survivors(
             continue
         seen_hashes.add(item.normalized_hash)
         records.append(item)
-    content = [record.model_dump(mode="json") for record in records]
-    digest = hashlib.sha256(json.dumps(content, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    digest = curation_content_hash(records)
     deduplication_hash = hashlib.sha256(
         "|".join(sorted(record.normalized_hash for record in records)).encode()
     ).hexdigest()

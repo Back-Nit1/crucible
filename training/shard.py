@@ -4,6 +4,7 @@ manifest hash."""
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 from dataclasses import dataclass
 
@@ -36,14 +37,19 @@ def parse_shard(data: bytes, *, expected_dataset_hash: str, expected_manifest_ha
     if actual != expected_dataset_hash:
         raise ShardError("dataset_hash_mismatch", "shard bytes do not hash to the approved dataset_hash")
     try:
-        lines = [json.loads(line) for line in data.decode().splitlines() if line.strip()]
-        header = lines[0]["header"]
-        examples = [line["messages"] for line in lines[1:]]
-        ids = [line["source_episode_id"] for line in lines[1:]]
+        lines = (json.loads(line) for line in io.BytesIO(data) if line.strip())
+        header = next(lines)["header"]
+        examples, ids = [], []
         grpo = header.get("format") == GRPO_FORMAT
-        systems = [str(line["system"]) for line in lines[1:]] if grpo else None
-        advantages = [[float(a) for a in line["turn_advantages"]] for line in lines[1:]] if grpo else None
-    except (ValueError, KeyError, IndexError, TypeError):
+        systems = [] if grpo else None
+        advantages = [] if grpo else None
+        for line in lines:
+            examples.append(line["messages"])
+            ids.append(line["source_episode_id"])
+            if grpo:
+                systems.append(str(line["system"]))
+                advantages.append([float(a) for a in line["turn_advantages"]])
+    except (ValueError, KeyError, IndexError, TypeError, StopIteration):
         raise ShardError("malformed_shard", "shard is not valid crucible JSONL") from None
     if header.get("format") not in (DATASET_FORMAT, GRPO_FORMAT):
         raise ShardError("unsupported_format", "unknown dataset format")

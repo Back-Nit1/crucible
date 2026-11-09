@@ -7,6 +7,7 @@ import datetime as dt
 import hashlib
 import json
 import urllib.request
+from heapq import nsmallest
 
 from collections import Counter
 
@@ -18,10 +19,17 @@ DATASET_API = "https://huggingface.co/api/datasets/McAuley-Lab/Amazon-Reviews-20
 
 def stream_jsonl(url: str, max_bytes: int, opener=urllib.request.urlopen):
     """Yield records from the first `max_bytes` of a remote JSONL, streaming (no full-file read). Partial last line dropped."""
+    if max_bytes <= 0:
+        return
     req = urllib.request.Request(url, headers={"Range": f"bytes=0-{max_bytes - 1}"})
     with opener(req, timeout=300) as r:
         buf = b""
-        while chunk := r.read(1 << 20):
+        remaining = max_bytes
+        while remaining > 0:
+            chunk = r.read(min(1 << 20, remaining))[:remaining]
+            if not chunk:
+                break
+            remaining -= len(chunk)
             *lines, buf = (buf + chunk).split(b"\n")
             for line in lines:
                 if line:
@@ -47,7 +55,9 @@ def build(category: str, meta_stream, review_stream, top_n=300, per_product=30, 
     for m in meta_stream:
         if parse_price(m.get("price")) is not None and m.get("title") and m.get("rating_number"):
             cands[m["parent_asin"]] = m
-    cands = dict(sorted(cands.items(), key=lambda kv: (-kv[1]["rating_number"], kv[0]))[:top_n])
+    rank = lambda kv: (-kv[1]["rating_number"], kv[0])
+    cands = dict(sorted(cands.items(), key=rank)[:top_n] if top_n < 0
+                 else nsmallest(top_n, cands.items(), key=rank))
     held: dict[str, list[dict]] = {k: [] for k in cands}
     seen = 0
     for r in review_stream:

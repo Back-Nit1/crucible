@@ -34,6 +34,13 @@ def test_content_hash_helper_matches_what_curation_stores():
     validate_records(records, manifest)
 
 
+def test_incremental_content_hash_matches_legacy_array_bytes():
+    records, _ = curated()
+    for batch in ((), records, records * 20):
+        legacy = json.dumps([r.model_dump(mode="json") for r in batch], sort_keys=True, separators=(",", ":")).encode()
+        assert curation_content_hash(iter(batch)) == hashlib.sha256(legacy).hexdigest()
+
+
 def test_shard_is_deterministic_hash_addressed_and_binds_the_manifest():
     records, manifest = curated()
     a, b = build_dataset(records, manifest), build_dataset(records, manifest)
