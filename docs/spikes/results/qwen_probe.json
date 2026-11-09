@@ -1,14 +1,494 @@
 {
-  "blocker": "gpu_launch_not_authorized: missing confirmations: CRUCIBLE_MODAL_TOKEN_ROTATED, CRUCIBLE_MODAL_BILLING_CONFIRMED, CRUCIBLE_MODAL_APPROVED_CEILING_USD",
+  "authorization": {
+    "approved_ceiling_usd": "0.861948",
+    "billing_confirmed": true,
+    "token_rotated_confirmed": true
+  },
   "experiment": "qwen-bounded-probe",
-  "gpu_spend_usd": "0",
-  "metrics": null,
+  "finished_at": "2026-11-08T10:04:01.635344+00:00",
+  "metric_definitions": {
+    "parse_intent_first": "cases (of 20) whose first tool call is parse_intent with schema-valid arguments",
+    "schema_valid_arguments": "of those structured calls, how many passed the typed action schema",
+    "valid_structured_call": "cases (of 20) whose final output held exactly one closed tool call naming an offered tool with an argument object (schema-valid or not)"
+  },
+  "metrics": {
+    "cost_usd": {
+      "basis": "measured generation seconds x Modal list rates (estimate; Modal billing is the truth)",
+      "ceiling": "0.861948",
+      "ceiling_exceeded": false,
+      "known": true,
+      "per_prompt": "0.00169515",
+      "total": "0.033903"
+    },
+    "first_attempt_valid": {
+      "denominator": 20,
+      "numerator": 19,
+      "value": 0.95
+    },
+    "inference_errors": {
+      "denominator": 20,
+      "numerator": 0,
+      "value": 0.0
+    },
+    "latency_ms": {
+      "max": 7409.0,
+      "mean": 5141.7,
+      "measured_over": 19,
+      "p50": 5108.0,
+      "p95": 7409.0
+    },
+    "malformed": {
+      "denominator": 20,
+      "numerator": 1,
+      "value": 0.05
+    },
+    "parse_intent_first": {
+      "denominator": 20,
+      "numerator": 19,
+      "value": 0.95
+    },
+    "retries": 1,
+    "schema_valid_arguments": {
+      "denominator": 20,
+      "numerator": 19,
+      "value": 0.95
+    },
+    "tokens": {
+      "completion": 1605,
+      "measured_over": 19,
+      "prompt": 32016
+    },
+    "valid_structured_call": {
+      "denominator": 20,
+      "numerator": 20,
+      "value": 1.0
+    }
+  },
   "model": {
+    "adapter_hash": null,
+    "checkpoint": "qwen-base",
     "id": "Qwen/Qwen2.5-7B-Instruct",
-    "revision": "a09a35458c702b33eeacc393d103063234e8bc28"
+    "revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+    "training_manifest_hash": null
+  },
+  "note": "First-turn tool calling only. No-match behavior and grounding are measured in the generation step.",
+  "pass_bar": {
+    "note": "proposed by the implementer; not yet confirmed by the product owner; the probe is first-turn only",
+    "prompt_count": 20,
+    "status": "proposed",
+    "thresholds": {
+      "parse_intent_first": 0.9,
+      "schema_valid_arguments": 0.9,
+      "valid_structured_call": 0.9
+    },
+    "version": "proposed-2026-11-01"
   },
   "prompt_manifest_sha256": "b7445bb3195e10959504dc2e4262940eb69cac9d8a96b6c600b90566c9973f38",
-  "records": [],
-  "schema_version": 1,
-  "status": "blocked_not_run"
+  "records": [
+    {
+      "completion_tokens": 85,
+      "cost": "0.001659",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 5198,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1688,
+      "raw_output_hash": "ca5eb3d389d542c35c3b176e6aa07948c62e00a54928514da58b388c25f0a791",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "office-chair",
+      "tool": "parse_intent",
+      "traits": [
+        "review_sensitive"
+      ]
+    },
+    {
+      "completion_tokens": 80,
+      "cost": "0.001558",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 4879,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1677,
+      "raw_output_hash": "a9f6fae78e9dcf15def34afb2dd94a48019663f8fc7441c282f74b2b3845b559",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "keyboard-quiet",
+      "tool": "parse_intent",
+      "traits": [
+        "ambiguous",
+        "review_sensitive"
+      ]
+    },
+    {
+      "completion_tokens": 99,
+      "cost": "0.001924",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 6027,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1693,
+      "raw_output_hash": "6949d5da4d89f419ff098fe8188c1552c034fb57228faf42f54af7b969db5810",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "gpu-1440p",
+      "tool": "parse_intent",
+      "traits": [
+        "ambiguous"
+      ]
+    },
+    {
+      "completion_tokens": 94,
+      "cost": "0.001826",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 5719,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1683,
+      "raw_output_hash": "2f00c3546aa695fa30d2b61405f762f1169db2741c96b61abd0400e4a4e582e6",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "bottle-commute",
+      "tool": "parse_intent",
+      "traits": []
+    },
+    {
+      "completion_tokens": 84,
+      "cost": "0.001631",
+      "cost_known": true,
+      "expected_feasibility": "impossible",
+      "finish_reason": "stop",
+      "latency_ms": 5108,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1680,
+      "raw_output_hash": "e1c969118fa84712dea4e96979a0d7b687cafef273d74f7f827d91bfff6ad3b1",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "impossible-gpu",
+      "tool": "parse_intent",
+      "traits": [
+        "impossible"
+      ]
+    },
+    {
+      "completion_tokens": 80,
+      "cost": "0.001555",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 4872,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1685,
+      "raw_output_hash": "3ac54122d40e05e20589e4edf0eb82f33b3fcfbc99dab17253fb9ce201697466",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "desk-small",
+      "tool": "parse_intent",
+      "traits": [
+        "ambiguous"
+      ]
+    },
+    {
+      "attempts": 2,
+      "error_types": [
+        "ValidationError",
+        "ValidationError"
+      ],
+      "expected_feasibility": "impossible",
+      "outcome": "malformed",
+      "parse_intent_first": false,
+      "raw_output_hashes": [
+        "ec0a1efa41605198d4b48d8afd6142216db832b4b15ea03c9d56c840ffd45adf",
+        "ec0a1efa41605198d4b48d8afd6142216db832b4b15ea03c9d56c840ffd45adf"
+      ],
+      "retry_count": 1,
+      "schema_valid": false,
+      "structured_call": true,
+      "task_id": "impossible-book",
+      "traits": [
+        "impossible"
+      ]
+    },
+    {
+      "completion_tokens": 122,
+      "cost": "0.002365",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 7409,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1704,
+      "raw_output_hash": "e84cb00a9eef62ac5f6c66ccc6fa660f6fceaa3463e8cf0eb5da035ad5233d18",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "shoe-heavy-10k",
+      "tool": "parse_intent",
+      "traits": [
+        "ambiguous",
+        "review_sensitive"
+      ]
+    },
+    {
+      "completion_tokens": 86,
+      "cost": "0.001662",
+      "cost_known": true,
+      "expected_feasibility": "impossible",
+      "finish_reason": "stop",
+      "latency_ms": 5207,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1687,
+      "raw_output_hash": "5b8b3789c15080d9ed819960c0836be1304f234f062c913192760a5460bf945f",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "impossible-free-shoe",
+      "tool": "parse_intent",
+      "traits": [
+        "impossible"
+      ]
+    },
+    {
+      "completion_tokens": 82,
+      "cost": "0.001591",
+      "cost_known": true,
+      "expected_feasibility": "impossible",
+      "finish_reason": "stop",
+      "latency_ms": 4985,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1687,
+      "raw_output_hash": "dc40f4524be9bacccc41640c5028843384ac5ea542106a45bd66ad0c8e0eaf57",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "impossible-contradiction",
+      "tool": "parse_intent",
+      "traits": [
+        "impossible",
+        "ambiguous"
+      ]
+    },
+    {
+      "completion_tokens": 81,
+      "cost": "0.001576",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 4938,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1684,
+      "raw_output_hash": "1774b78ef4bd983c40d8e224c0626e2bba1f84428c3f5c42e8421acb947484e2",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "switch-coop",
+      "tool": "parse_intent",
+      "traits": []
+    },
+    {
+      "completion_tokens": 75,
+      "cost": "0.001456",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 4560,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1681,
+      "raw_output_hash": "f523d24e81117973de6693ab55bcfca2dcddc1df4efff49b84044e207fc0d60c",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "monitor-photo",
+      "tool": "parse_intent",
+      "traits": []
+    },
+    {
+      "completion_tokens": 72,
+      "cost": "0.001401",
+      "cost_known": true,
+      "expected_feasibility": "impossible",
+      "finish_reason": "stop",
+      "latency_ms": 4387,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1684,
+      "raw_output_hash": "c9034cfa2658f8859c8d2394fccc9630e5a29f2794f7a9ad9281bf6fed1a2a83",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "impossible-chair",
+      "tool": "parse_intent",
+      "traits": [
+        "impossible"
+      ]
+    },
+    {
+      "completion_tokens": 70,
+      "cost": "0.001359",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 4258,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1679,
+      "raw_output_hash": "b5f9ffb5fdeb67b1057cbf79f4b5b6e0dafb2b6c82db827a1a063135baa7808c",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "lamp-study",
+      "tool": "parse_intent",
+      "traits": []
+    },
+    {
+      "completion_tokens": 86,
+      "cost": "0.001673",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 5241,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1690,
+      "raw_output_hash": "5e0b2c540343717179d3fe8aac06e68669dd78680c8bd16fabe3776409797a6a",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "student-laptop",
+      "tool": "parse_intent",
+      "traits": [
+        "review_sensitive"
+      ]
+    },
+    {
+      "completion_tokens": 89,
+      "cost": "0.001733",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 5428,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1685,
+      "raw_output_hash": "87d9f5768391e518ca7f8e62800a84dab39f1bd8834460ebba317bc5596b9e0f",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "hike-wide-rain",
+      "tool": "parse_intent",
+      "traits": [
+        "review_sensitive"
+      ]
+    },
+    {
+      "completion_tokens": 85,
+      "cost": "0.001653",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 5179,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1683,
+      "raw_output_hash": "d9571ed2aa3be36729b5c610134845e2f215d655d80187c4e5a55e5943463713",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "anc-flight",
+      "tool": "parse_intent",
+      "traits": [
+        "review_sensitive"
+      ]
+    },
+    {
+      "completion_tokens": 85,
+      "cost": "0.001648",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 5161,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1683,
+      "raw_output_hash": "591b461385ed87a853b5ad2575d2afa1c8c235e24f73f492f9c096ba2d97fdc3",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "ssd-upgrade",
+      "tool": "parse_intent",
+      "traits": [
+        "review_sensitive"
+      ]
+    },
+    {
+      "completion_tokens": 74,
+      "cost": "0.001437",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 4501,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1684,
+      "raw_output_hash": "0d227c181947e313ec66fc64ee2da31c22692a67071d24a1e846ad8cf1de57ba",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "textbook-used",
+      "tool": "parse_intent",
+      "traits": [
+        "ambiguous"
+      ]
+    },
+    {
+      "completion_tokens": 76,
+      "cost": "0.00148",
+      "cost_known": true,
+      "expected_feasibility": "feasible",
+      "finish_reason": "stop",
+      "latency_ms": 4636,
+      "outcome": "valid",
+      "parse_intent_first": true,
+      "prompt_tokens": 1679,
+      "raw_output_hash": "5fbeeaacc54ff5e4aae01ebd03468b1f20ab426cd6f1bbf781a8b3f0cb78be68",
+      "retry_count": 0,
+      "schema_valid": true,
+      "structured_call": true,
+      "task_id": "jacket-packable",
+      "tool": "parse_intent",
+      "traits": [
+        "review_sensitive"
+      ]
+    }
+  ],
+  "result": {
+    "failed_thresholds": [],
+    "status": "passed"
+  },
+  "schema_version": 2,
+  "seed": 20261031,
+  "started_at": "2026-11-08T10:02:10.999377+00:00",
+  "status": "passed",
+  "tool_schema_sha256": "6e7b5ef0d9e2e1afe6417d3ea8eb447704a0e22456585c6d1120afed16e02b9d"
 }
