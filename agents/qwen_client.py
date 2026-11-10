@@ -62,12 +62,10 @@ def modal_transport(app_name: str = "crucible-qwen-inference", cls_name: str = "
     method = modal.Cls.from_name(app_name, cls_name)().generate
 
     def transport(payload: dict, timeout: float) -> dict:
-        call = method.spawn(payload)  # local, not shared: concurrent episodes each cancel only their own call
-        try:
-            return call.get(timeout=timeout)
-        except BaseException:
-            call.cancel()
-            raise
+        call = method.spawn(payload)
+        # No call.cancel(): cancelling a running input restarts the whole Modal container and drops every other
+        # in-flight request (DECISIONS.md, container replacement). An abandoned call finishes server-side and is discarded.
+        return call.get(timeout=timeout)
     return transport
 
 

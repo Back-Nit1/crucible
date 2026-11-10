@@ -101,7 +101,7 @@ def _client(adapter=None):
     from agents.model import InferenceError
     from agents.qwen_client import ModalQwenClient
     try:
-        return ModalQwenClient.from_environment(adapter=adapter)
+        return ModalQwenClient.from_environment(adapter=adapter, timeout_seconds=600.0)
     except InferenceError as exc:
         print(f"BLOCKED: {exc}\nNo model call was made and no result was produced.", file=sys.stderr)
         raise SystemExit(BLOCKED)

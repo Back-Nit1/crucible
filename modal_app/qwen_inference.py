@@ -29,7 +29,7 @@ APP_NAME = "crucible-qwen-inference"
 FUNCTION_NAME = "Qwen.generate"
 MODEL_PATH = f"/models/{MODEL_ID.rsplit('/', 1)[-1]}-{MODEL_REVISION[:7]}"
 ENABLED = os.environ.get("CRUCIBLE_ENABLE_L4_PROBE") == "1"
-REQUEST_TIMEOUT_SECONDS = 300
+REQUEST_TIMEOUT_SECONDS = 900  # a server-side input timeout also restarts the container, so keep it above any client wait
 MAX_BATCH_SIZE, BATCH_WAIT_MS = 32, 50  # up to 32 agent calls per GPU step; wait at most 50 ms to fill a batch
 ADAPTER_VOLUME = "crucible-qwen-adapters"  # written by modal_app.qwen_training; read-only here
 ADAPTER_MOUNT = "/vol"
