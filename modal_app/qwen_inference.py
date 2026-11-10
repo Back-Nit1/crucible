@@ -54,7 +54,8 @@ adapters = modal.Volume.from_name(ADAPTER_VOLUME, create_if_missing=True, versio
 
 
 @app.cls(image=image, gpu="L4" if ENABLED else None, cpu=2.0, memory=32_768, timeout=REQUEST_TIMEOUT_SECONDS,
-         max_containers=1, scaledown_window=int(os.environ.get("CRUCIBLE_QWEN_SCALEDOWN_SECONDS", "60")), volumes={ADAPTER_MOUNT: adapters})
+         max_containers=1, scaledown_window=int(os.environ.get("CRUCIBLE_QWEN_SCALEDOWN_SECONDS", "60")),
+         min_containers=int(os.environ.get("CRUCIBLE_QWEN_MIN_CONTAINERS", "0")), volumes={ADAPTER_MOUNT: adapters})
 class Qwen:
     @modal.enter()
     def load(self) -> None:
@@ -71,4 +72,7 @@ class Qwen:
 
     @modal.batched(max_batch_size=MAX_BATCH_SIZE, wait_ms=BATCH_WAIT_MS)
     def generate(self, payloads: list[dict]) -> list[dict]:
-        return self.service.handle_batch(payloads)  # callers still send one payload and get one result back
+        started = time.perf_counter()
+        out = self.service.handle_batch(payloads)  # callers still send one payload and get one result back
+        print(f"[batch] n={len(payloads)} seconds={time.perf_counter() - started:.2f}", flush=True)  # evidence for scale-down/replacement questions
+        return out
