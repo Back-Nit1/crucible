@@ -16,6 +16,27 @@ from agents.actions import (
 from agents.state import EpisodeState, InvalidActionOrder
 
 
+TITLE_CHARS, REVIEW_CHARS = 100, 300  # bound what each call adds to the prompt
+
+
+def _brief(product) -> dict[str, object]:
+    return {"id": product.id, "title": product.title[:TITLE_CHARS], "price": str(product.price), "brand": product.brand}
+
+
+def _stock(product) -> dict[str, object]:
+    return {**_brief(product), "variants_in_stock": product.variants}
+
+
+def _detail(product) -> dict[str, object]:
+    features = [str(f)[:120] for f in (product.attributes.get("features") or ())[:3]]
+    return {**_stock(product), "category": product.category, "currency": product.currency, "features": features}
+
+
+def _review(review) -> dict[str, object]:
+    return {"id": review.id, "rating": review.rating, "verified": review.verified, "helpful_votes": review.helpful_votes,
+            "text": review.text[:REVIEW_CHARS]}
+
+
 class InMemoryToolExecutor:
     def __init__(
         self, catalog: FrozenCatalogProvider, payments: GuardedPayments, *, task_id: str,
@@ -45,22 +66,24 @@ class InMemoryToolExecutor:
             raise
         references: tuple[str, ...] = ()
         summary = "action accepted"
+        content: dict[str, object] | None = None
         if isinstance(action, ParseIntent):
             summary = f"parsed category {action.category} with cap {action.max_total}"
         elif isinstance(action, SearchCatalog):
             products = self.catalog.search(action.query, action.filters)
             references = tuple(product.id for product in products)
             summary = f"returned {len(products)} catalog products"
+            content = {"products": [_brief(product) for product in products]}
         elif isinstance(action, GetProduct):
             product = self.catalog.get_product(action.product_id)
             references = (product.id,) if product else ()
             summary = "product detail found" if product else "product not found"
+            content = {"product": _detail(product)} if product else None
         elif isinstance(action, Compare):
-            references = tuple(
-                product_id for product_id in action.product_ids
-                if self.catalog.get_product(product_id) is not None
-            )
+            found = [p for p in (self.catalog.get_product(i) for i in action.product_ids) if p is not None]
+            references = tuple(p.id for p in found)
             summary = f"compared {len(references)} products"
+            content = {"products": [_stock(p) for p in found]}
         elif isinstance(action, GetReviews):
             reviews = self.catalog.get_reviews(action.product_id, action.focus, action.limit)
             if action.sort.value == "critical":
@@ -69,6 +92,7 @@ class InMemoryToolExecutor:
                 reviews = sorted(reviews, key=lambda review: (review.date is None, review.date, review.id), reverse=True)
             references = tuple(review.id for review in reviews)
             summary = f"returned {len(reviews)} reviews"
+            content = {"reviews": [_review(review) for review in reviews]}
         elif isinstance(action, SummarizeReviewEvidence):
             references = tuple(dict.fromkeys(
                 review_id for claim in action.claims for review_id in claim.review_ids
@@ -97,7 +121,7 @@ class InMemoryToolExecutor:
         record = RecordedToolCall(
             sequence=len(self.records), action=action,
             arguments=action.model_dump(mode="json", exclude={"type"}),
-            result_references=references, result_summary=summary, timestamp=self.clock(),
+            result_references=references, result_summary=summary, result_content=content, timestamp=self.clock(),
         )
         self.records.append(record)
         self.state.applied(action, references[:1] if isinstance(action, ProposePurchase) else references)

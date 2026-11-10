@@ -5,7 +5,7 @@ A genome's `system_prompt_variant` is a registry key, optionally followed by `| 
 no task data, catalog data or reference answers; the only task input a model sees is the buyer's message."""
 from __future__ import annotations
 
-PROMPT_VERSION = "shopper-prompts-v3"
+PROMPT_VERSION = "shopper-prompts-v4"
 
 _CORE = (
     "You are a careful shopping agent acting for a buyer. Respond with exactly one tool call per turn, using only "
@@ -13,7 +13,8 @@ _CORE = (
     "is an all-in cap. Order: parse_intent, search_catalog, get_product for candidates, compare, get_reviews, "
     "summarize_review_evidence (cite only review IDs you read for that product), propose_purchase, then "
     "confirm_and_pay with the pending order ID. If nothing real satisfies the constraints, call report_no_match "
-    "naming the closest real product and why it misses. Unknown stock, size, tax or shipping stay unknown."
+    "naming the closest real product and why it misses. Unknown stock, size, tax or shipping stay unknown. Tool results "
+    "carry the real titles, prices, in-stock variants and review text: judge only from those, and cite review IDs exactly as listed."
 )
 PROMPTS = {
     "grounded-shopper-v1": _CORE,

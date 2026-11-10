@@ -33,11 +33,13 @@ class SearchCatalog(ActionModel):
 
 
 class GetProduct(ActionModel):
+    """Look up one product by id: title, price, in-stock variants and top features."""
     type: Literal["get_product"] = "get_product"
     product_id: str = Field(min_length=1)
 
 
 class Compare(ActionModel):
+    """Compare two or more candidate products side by side: titles, prices and in-stock variants."""
     type: Literal["compare"] = "compare"
     product_ids: tuple[str, ...] = Field(min_length=2)
 
@@ -49,6 +51,7 @@ class Compare(ActionModel):
 
 
 class GetReviews(ActionModel):
+    """Read real customer reviews of one product. Each review has an `id` you must cite exactly in summarize_review_evidence."""
     type: Literal["get_reviews"] = "get_reviews"
     product_id: str = Field(min_length=1)
     focus: str | None = Field(default=None, min_length=1)
@@ -57,6 +60,7 @@ class GetReviews(ActionModel):
 
 
 class SummarizeReviewEvidence(ActionModel):
+    """Record what the reviews you read say. Each claim must cite review ids exactly as listed by get_reviews for this product."""
     type: Literal["summarize_review_evidence"] = "summarize_review_evidence"
     product_id: str = Field(min_length=1)
     user_context: str = Field(min_length=1)
@@ -64,6 +68,7 @@ class SummarizeReviewEvidence(ActionModel):
 
 
 class ProposePurchase(ActionModel):
+    """Propose buying one product. `variant` is a key of its variants_in_stock, or 'default' when none are listed; `expected_total` is the price you were shown."""
     type: Literal["propose_purchase"] = "propose_purchase"
     product_id: str = Field(min_length=1)
     variant: str = Field(min_length=1)
@@ -98,6 +103,7 @@ class RecordedToolCall(ActionModel):
     arguments: dict[str, object]
     result_references: tuple[str, ...] = ()
     result_summary: str = Field(min_length=1)
+    result_content: dict[str, object] | None = None  # what the model is shown beyond ids: titles, prices, review text
     error_code: str | None = None
     timestamp: dt.datetime
 

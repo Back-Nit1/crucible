@@ -294,6 +294,7 @@ def render_messages(task: TaskSpec, history: tuple, memory_examples: tuple = ())
                     "references": record.result_references,
                     "summary": record.result_summary,
                     "error_code": record.error_code,
+                    **({"content": record.result_content} if record.result_content else {}),
                 },
             )
         )

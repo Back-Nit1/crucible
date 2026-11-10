@@ -62,7 +62,8 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
                  record_count: int, total_budget_seconds: float, gpu: str, rates: ResourceRates | None = None,
                  stop_after_steps: int | None = None, monotonic: Callable[[], float] = time.monotonic,
                  clock: Callable[[], dt.datetime] | None = None, keep_checkpoints: int = 2,
-                 on_durable: Callable[[], None] = lambda: None, max_launch_seconds: float | None = None) -> RunOutcome:
+                 on_durable: Callable[[], None] = lambda: None, max_launch_seconds: float | None = None,
+                 on_step: Callable[..., None] = lambda **_: None) -> RunOutcome:
     """Run or resume `identity.run_id` until the final step, the per-launch budget, or `stop_after_steps`.
 
     * total_budget_seconds is the whole-run wall-clock ceiling (derived from the approved cost ceiling); earlier
@@ -108,6 +109,7 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
     while step < total_steps:
         losses.append(float(backend.train_step(batch_indices(step, hp, record_count))))
         step += 1
+        on_step(step=step, total_steps=total_steps, loss=losses[-1])  # live progress (training.live); best-effort
         if step == total_steps or step % hp.checkpoint_every_steps == 0:
             save()
         if step < total_steps and ((stop_after_steps is not None and step - resumed_from >= stop_after_steps)
@@ -119,6 +121,7 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
             save()
         store.record_progress(launch, end_step=step, duration_seconds=monotonic() - started, close=True, status="paused")
         on_durable()
+        on_step(step=step, total_steps=total_steps, status="paused")
         return RunOutcome("paused", step, total_steps, None, resumed_from, tuple(losses))
 
     duration = monotonic() - started
@@ -127,4 +130,5 @@ def run_training(*, store: CheckpointStore, identity: RunIdentity, backend: Trai
                                  record_count=record_count, total_steps=total_steps, gpu=gpu, rates=rates, clock=clock)
     store.record_progress(launch, end_step=step, duration_seconds=duration, close=True, status="final")
     on_durable()
+    on_step(step=step, total_steps=total_steps, status="final")
     return RunOutcome("final", step, total_steps, manifest, resumed_from, tuple(losses))

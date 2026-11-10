@@ -95,7 +95,8 @@ def rollout_from_episode(episode: EpisodeRecord, task: TaskSpec, genome: Genome,
     turns = tuple(RolloutTurn(
         index=i, messages=render_messages(task, calls[:i]),
         tool_call=StructuredToolCall(name=c.action.type, arguments=c.arguments),
-        tool_result={"references": list(c.result_references), "summary": c.result_summary, "error_code": c.error_code},
+        tool_result={"references": list(c.result_references), "summary": c.result_summary, "error_code": c.error_code,
+                     **({"content": c.result_content} if c.result_content else {})},
         schema_valid=c.error_code is None, grounded=_grounded(c.action, catalog),
         kill_rules=kills if i == len(calls) - 1 else ()) for i, c in enumerate(calls))
     sc = episode.score_components

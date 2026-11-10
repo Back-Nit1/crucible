@@ -80,3 +80,27 @@ def test_confirmation_needs_pending_order_and_explicit_confirmation():
     e.execute(parse())
     with pytest.raises(InvalidActionOrder, match="pending"):
         e.execute(ConfirmAndPay(pending_order_id="missing", user_confirmed=True))
+
+
+
+def test_model_sees_titles_prices_variants_and_review_text_not_just_ids():
+    from agents.model import render_messages
+    from tests.fixtures.scoring import feasible_task
+    e = executor()
+    researched(e)
+    by_tool = {r.action.type: r for r in e.records}
+    assert by_tool["search_catalog"].result_content["products"][0].keys() >= {"id", "title", "price"}
+    assert "variants_in_stock" in by_tool["get_product"].result_content["product"]
+    reviews = by_tool["get_reviews"].result_content["reviews"]
+    assert reviews and all(r["text"] and r["id"] in by_tool["get_reviews"].result_references for r in reviews)
+    tool_messages = [m for m in render_messages(feasible_task(), tuple(e.records)) if m.role == "tool"]
+    assert all("content" in m.tool_result for m in tool_messages if m.tool_name in
+               {"search_catalog", "get_product", "compare", "get_reviews"})
+    assert "content" not in next(m for m in tool_messages if m.tool_name == "parse_intent").tool_result
+
+
+def test_review_text_and_titles_are_truncated():
+    from agents.executor import REVIEW_CHARS, TITLE_CHARS, _brief, _review
+    class P: id, title, price, brand = "p", "t" * 500, "1", None
+    class R: id, rating, verified, helpful_votes, text = "r", 5.0, True, 0, "x" * 5000
+    assert len(_brief(P)["title"]) == TITLE_CHARS and len(_review(R)["text"]) == REVIEW_CHARS

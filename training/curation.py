@@ -103,7 +103,8 @@ def _reviews_valid(episode: EpisodeRecord, catalog: FrozenCatalogProvider) -> bo
 def _record(episode: EpisodeRecord, task: TaskSpec) -> SFTRecord:
     tool_messages = tuple({
         "role": "assistant", "tool_call": call.action.model_dump(mode="json"),
-        "tool_result": {"references": call.result_references, "summary": call.result_summary},
+        "tool_result": {"references": call.result_references, "summary": call.result_summary,
+                        **({"content": call.result_content} if call.result_content else {})},
     } for call in episode.tool_calls)
     messages = ({"role": "user", "content": task.raw_message}, *tool_messages,
                 {"role": "assistant", "content": episode.final_answer})

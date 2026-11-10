@@ -16,6 +16,7 @@ from modal_app.adapter_artifact import MANIFEST_FILENAME, load_manifest, verify_
 from modal_app.qwen_toolcalls import GPU_TYPE, MODEL_ID, MODEL_REVISION
 from modal_app.train_protocol import TrainRequest, TrainResponse
 from training.gates import MAX_LAUNCH_SECONDS, GateError, cost_per_second
+from training.live import publisher
 from training.planning import LoRAPlan, plan_hash
 from training.resume import CheckpointStore, RunIdentity, atomic_write_bytes
 from training.shard import Shard, parse_shard
@@ -58,7 +59,8 @@ def policy_adapter_dir(runs_root: Path, plan: LoRAPlan) -> Path | None:
 
 def execute(request: TrainRequest, *, runs_root: Path, backend_factory: BackendFactory, signature: str,
             volume_commit: Callable[[], None] = lambda: None, monotonic: Callable[[], float] = time.monotonic,
-            clock: Callable[[], dt.datetime] | None = None, algorithms: frozenset[str] = frozenset({"sft"})) -> TrainResponse:
+            clock: Callable[[], dt.datetime] | None = None, algorithms: frozenset[str] = frozenset({"sft"}),
+            live_store=None) -> TrainResponse:
     check_request(request, algorithms)
     plan = request.plan
     policy_adapter_dir(runs_root, plan)  # fail before creating the run; the backend factory resolves it again
@@ -86,7 +88,9 @@ def execute(request: TrainRequest, *, runs_root: Path, backend_factory: BackendF
         store=store, identity=identity, backend=backend, hp=hp, record_count=len(shard.examples),
         total_budget_seconds=request.approval.budget_seconds, gpu=plan.gpu, rates=request.approval.rates,
         stop_after_steps=request.stop_after_steps, monotonic=monotonic, clock=clock, on_durable=volume_commit,
-        max_launch_seconds=MAX_LAUNCH_SECONDS)
+        max_launch_seconds=MAX_LAUNCH_SECONDS,
+        on_step=publisher(live_store, run_id=request.run_id,
+                          static={"algorithm": hp.algorithm, "base_model": plan.base_model, "gpu": plan.gpu}))
     volume_commit()
     manifest = outcome.manifest
     return TrainResponse(status=outcome.status, run_id=request.run_id, step=outcome.step, total_steps=outcome.total_steps,
