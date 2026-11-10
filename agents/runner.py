@@ -159,7 +159,8 @@ def run_episode(
                 step = policy.next_step(task, tuple(executor.records), retry)
                 break
             except Exception as exc:  # model boundary: bounded and recorded; only transient errors are retried
-                failure = f"model failure: {type(exc).__name__}"
+                code = getattr(exc, "code", None)
+                failure = f"model failure: {type(exc).__name__}" + (f"[{code}]" if code else "")
                 if not getattr(exc, "retryable", False):
                     break
                 retry += 1

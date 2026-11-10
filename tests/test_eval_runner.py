@@ -310,3 +310,12 @@ def test_fitness_counts_killed_unscored_episodes_as_zero_and_excludes_other_unsc
     f = _fitness([E(score_components={"fitness": "0.8"}, killed=False), E(score_components={}, killed=True),
                   E(score_components={}, killed=False)])
     assert (f["numerator"], f["denominator"], f["excluded"], f["value"]) == ("0.8", "2", 1, "0.400000")
+
+
+def test_an_episode_that_outgrew_the_context_is_a_result_not_a_backend_failure():
+    from types import SimpleNamespace
+    from eval.runner import is_backend_failure
+    episode = lambda answer: SimpleNamespace(termination="model_failure", final_answer=answer)
+    assert is_backend_failure(episode("model failure: InferenceError[timeout]"))
+    assert not is_backend_failure(episode("model failure: InferenceError[input_too_long]"))
+    assert not is_backend_failure(episode("model failure: MalformedModelOutput"))

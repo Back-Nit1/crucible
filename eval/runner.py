@@ -129,7 +129,8 @@ def contender_genome(c: ContenderConfig) -> Genome:
 def is_backend_failure(episode: EpisodeRecord) -> bool:
     """Model call failed at the transport/backend boundary (not a malformed-but-delivered answer)."""
     return (episode.termination == "model_failure" and episode.final_answer.startswith("model failure:")
-            and "MalformedModelOutput" not in episode.final_answer)
+            and "MalformedModelOutput" not in episode.final_answer
+            and "[input_too_long]" not in episode.final_answer)  # the agent outgrew the context: a result, and a rerun repeats it
 
 
 def _now() -> dt.datetime:
