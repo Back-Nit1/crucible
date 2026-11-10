@@ -51,7 +51,7 @@ class Compare(ActionModel):
 
 
 class GetReviews(ActionModel):
-    """Read real customer reviews of one product. Each review has an `id` you must cite exactly in summarize_review_evidence."""
+    """Read real customer reviews of one product. Call get_product on that product first. Each review has an `id` you must cite exactly in summarize_review_evidence."""
     type: Literal["get_reviews"] = "get_reviews"
     product_id: str = Field(min_length=1)
     focus: str | None = Field(default=None, min_length=1)
@@ -68,7 +68,7 @@ class SummarizeReviewEvidence(ActionModel):
 
 
 class ProposePurchase(ActionModel):
-    """Propose buying one product. `variant` is a key of its variants_in_stock, or 'default' when none are listed; `expected_total` is the price you were shown."""
+    """Propose buying one product. `variant` is a key of its variants_in_stock, or 'default' when none are listed; `expected_total` is the price you were shown. Before proposing: open the product with get_product, compare at least two candidates, read its reviews, and summarize them."""
     type: Literal["propose_purchase"] = "propose_purchase"
     product_id: str = Field(min_length=1)
     variant: str = Field(min_length=1)
@@ -83,6 +83,7 @@ class ConfirmAndPay(ActionModel):
 
 
 class ReportNoMatch(ActionModel):
+    """Report that nothing satisfies the buyer's category and budget. `closest_product_id` must be a real product id returned by a search: if your budget-filtered search found nothing, search again without max_price and name the nearest product, then say in why_it_misses how it misses."""
     type: Literal["report_no_match"] = "report_no_match"
     reason: str = Field(min_length=1)
     closest_product_id: str | None = None
