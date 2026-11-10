@@ -58,7 +58,7 @@ class ScriptedPolicy:
 class RunnerConfig:
     max_tool_calls: int = 20
     max_retries: int = 1
-    max_tokens: int = 10_000
+    max_tokens: int = 120_000  # counts prompt tokens summed over steps (each carries ~1.6k of tool schema); 10k allowed ~4 model steps
     max_cost: Decimal = Decimal("1.00")
     max_episode_seconds: float | None = 900  # real wall clock (not the episode clock); None = uncapped
 
