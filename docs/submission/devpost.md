@@ -1,5 +1,7 @@
 # Crucible: Devpost text
 
+> **ARCHIVED 2026-11-12.** Hackathon draft, never submitted. The project continues as a research project; for current state read `README.md` and `DECISIONS.md`. The `<<...>>` placeholders below are intentionally left unfilled.
+
 Plain statement of what exists. Every number links to the file it comes from. Placeholders in `<<...>>` are filled by the owner at submission.
 
 **Tagline.** An evolutionary RL world that trains an open model to shop on PayPal, and a checkout that never charges without an explicit confirmation.

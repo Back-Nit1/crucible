@@ -6,6 +6,8 @@ against a frozen Amazon product and review snapshot in Elastic. Eight determinis
 ends in a **PayPal sandbox** Orders v2 flow: create, buyer approval, capture, with the PayPal sandbox record as the source of truth.
 A Next.js app offers a confirm-gated shopping chat and AG Grid dashboards over the world, models and payments.
 
+**Status (2026-11-12):** an ongoing research project, not a contest submission. A demo is hosted on Render's free plan (web and API below). The hackathon submission drafts were not submitted and are kept in [`docs/submission/`](docs/submission) as an archive.
+
 ![World dashboard, live mode](docs/screenshots/world.png)
 
 > **Read this first (verifiable status).**
@@ -13,14 +15,14 @@ A Next.js app offers a confirm-gated shopping chat and AG Grid dashboards over t
 > - **Works and is evidenced:** the evolutionary world on the real Elastic snapshot (96 episodes, [summary](docs/runs/rc-real-20261102/summary.md)); the PayPal sandbox flow end to end ([evidence](docs/payments/paypal_live_check.json)); the REST API, the web app in live mode, the Postman collection.
 > - **Model, first contact only:** the base Qwen2.5-7B tool-call probe ran once on Modal (2026-11-08): 20/20 structured calls, 19/20 schema-valid, about **$0.034** ([probe](docs/spikes/results/qwen_probe.md)).
 > - **Not run / failed:** no LoRA adapter exists and no before/after evaluation exists. A partial base-model evaluation stopped at 86 of 141 records with 0 successes, so it is not a result ([`STATUS.md`](docs/evaluations/eval-20261110-base/STATUS.md)). Three real 7B QLoRA smoke runs on an L4 all failed ([`docs/model-runs/smoke-20261111`](docs/model-runs/smoke-20261111), `smoke2-`, `smoke3-`). The training loop is otherwise tested offline.
-> - **Consequence:** the shopping chat answers `model_unavailable` until a model endpoint is enabled; nothing is simulated. The checkout itself can be exercised without a model through the purchase API ([Judge testing](#judge-testing)).
+> - **Consequence:** the shopping chat answers `model_unavailable` until a model endpoint is enabled; nothing is simulated. The checkout itself can be exercised without a model through the purchase API ([Try the hosted demo](#try-the-hosted-demo)).
 > - Scripted shoppers read each task's reference answer. Every number under [Results](#results) is **pipeline evidence, not model performance**.
 
 ## Contents
 
 [Why PayPal is central](#why-paypal-is-central) · [Infrastructure](#infrastructure) · [Architecture](#architecture) · [Judge testing](#judge-testing) ·
 [Web app](#web-app) · [Results](#results) · [Setup](#setup) · [Reproducible commands](#reproducible-commands) · [Verification](#verification) ·
-[Tools used](#tools-used) · [Submission-period work](#how-this-was-significantly-updated-during-the-submission-period) · [Known limits](#known-limits) · [License](#license)
+[Tools used](#tools-used) · [History](#history) · [Known limits](#known-limits) · [License](#license)
 
 | Document                                  |                                                                                            |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -30,7 +32,7 @@ A Next.js app offers a confirm-gated shopping chat and AG Grid dashboards over t
 | Deployment, env inventory, Render runbook | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)                                                 |
 | API contract                              | [`docs/api/openapi.json`](docs/api/openapi.json), [`docs/api/samples/`](docs/api/samples)  |
 | PayPal spike and live results             | [`docs/spikes/paypal-kernel.md`](docs/spikes/paypal-kernel.md)                             |
-| Devpost text, video script, checklist     | [`docs/submission/`](docs/submission)                                                      |
+| Archived hackathon drafts (not submitted) | [`docs/submission/`](docs/submission)                                                      |
 | Handoffs                                  | [`docs/handoffs/`](docs/handoffs)                                                          |
 
 ## Why PayPal is central
@@ -111,17 +113,14 @@ The SVGs are exported from the Mermaid blocks in [`docs/ARCHITECTURE.md`](docs/A
 
 K005 to K007 are implemented and tested; they did not fire in the recorded run ([`scoring/`](scoring), [`summary`](docs/runs/rc-real-20261102/summary.md)). The Loophole Hunter only _proposes_ new rules; none is auto-enabled.
 
-## Judge testing
+## Try the hosted demo
 
-Everything here is the PayPal **sandbox** (no real money). Credentials are supplied only in the Devpost "testing instructions" field and replaced below by placeholders until the owner publishes them.
+Everything here is the PayPal **sandbox** (no real money). No shared buyer login is published: create your own sandbox personal (buyer) account in the PayPal developer dashboard (Testing tools, Sandbox accounts) and use it to approve payments.
 
 |                        |                                                                             |
 | ---------------------- | --------------------------------------------------------------------------- |
 | Web app                | `https://crucible-2rcx.onrender.com`                                                              |
 | API                    | `https://crucible-api-t6pn.onrender.com` (`/docs` for Swagger, `/ready` shows what is configured) |
-| Sandbox buyer email    | `<<JUDGE_BUYER_EMAIL>>`                                                     |
-| Sandbox buyer password | `<<JUDGE_BUYER_PASSWORD>>`                                                  |
-| Demo video             | `<<YOUTUBE_URL>>`                                                           |
 
 The free host sleeps when idle: the first request can take 30 to 60 seconds. `GET https://crucible-api-t6pn.onrender.com/ready` returns `model_configured`; it decides which path below applies.
 
@@ -129,7 +128,7 @@ The free host sleeps when idle: the first request can take 30 to 60 seconds. `GE
 
 1. Find a product: `curl "https://crucible-api-t6pn.onrender.com/catalog/search?q=running%20shoes&max_price=100"`. Copy a product `id` and its `price`. (Demo mode hides brand names as `[brand hidden]`.)
 2. Propose: `curl -X POST https://crucible-api-t6pn.onrender.com/purchase/propose -H 'content-type: application/json' -d '{"task_id":"judge","agent_id":"judge","product_id":"<id>","variant":"","expected_total":"<price>","budget_cap":"100.00"}'`. The response has `pending_order_id`, the verified `total`, `quote_basis` and an `approval_url`. Nothing is charged yet. Each call gets its own order; add `"request_id"` (16 to 64 chars of letters, digits, `_` or `-`) to make retries reuse it.
-3. Open `approval_url` in a browser, log in with the sandbox buyer above and approve the payment on PayPal's page. PayPal returns you to the web app.
+3. Open `approval_url` in a browser, log in with your sandbox buyer account and approve the payment on PayPal's page. PayPal returns you to the web app.
 4. Confirm: `curl -X POST https://crucible-api-t6pn.onrender.com/purchase/confirm -H 'content-type: application/json' -d '{"pending_order_id":"<pending_order_id>","user_confirmed":true}'`. The response is the receipt (`order_id`, `capture_id`, `amount`, `status: COMPLETED`). Repeat step 4 with `"user_confirmed":false` first to see the refusal (HTTP 428), and before approving to see HTTP 402.
 5. Look at `https://crucible-2rcx.onrender.com/payments` and, if you wish, the same order in the PayPal sandbox dashboard. The Postman collection ([`postman/`](postman)) runs this flow with tests.
 
@@ -252,14 +251,14 @@ uv run python -m scripts.train_lora --help                    # --algorithm sft|
 CRUCIBLE_KERNEL_BUYER_APPROVAL_AUTHORIZED=1 uv run python -m scripts.paypal_live_check --env-file .env --confirm-sandbox-run
 
 # Checks
-uv run pytest -q                                              # 640 passed, 3 skipped at the last full run
-(cd web && npm run lint && npm run typecheck && npm test)     # 29 vitest tests
+uv run pytest -q                                              # 670 passed, 3 skipped at the last full run (2026-11-12)
+(cd web && npm run lint && npm run typecheck && npm test)     # 37 vitest tests
 (cd web && npm run test:e2e)                                  # Playwright, sample mode
 npx newman@6.2.1 run postman/crucible.postman_collection.json -e postman/crucible.postman_environment.json \
     --env-var api_base_url=http://127.0.0.1:8000 --env-var generation_id=rc-real-20261102 --folder "Crucible API" --folder "World, models, ledger"
 uv run python -m scripts.secret_scan --env-file .env
 uv run python -m scripts.verify_deploy <web_url> <api_url>    # after deploying
-uv run python -m scripts.check_submission                     # fails until the placeholders are filled
+uv run python -m scripts.check_submission                     # archived: hackathon checklist (needs placeholders and tags that will not be created)
 
 # Data, evaluation and publishing (the model-dependent ones exit 3 until the human sets the Modal gates)
 uv run python -m scripts.build_snapshot --category Sports_and_Outdoors --index --env-file .env
@@ -273,21 +272,21 @@ uv run python -m scripts.export_diagrams                      # Mermaid to docs/
 
 | Check                         | Result                                                 | Command                      |
 | ----------------------------- | ------------------------------------------------------ | ---------------------------- |
-| Python tests                  | 640 passed, 3 skipped, 6 deselected (live), 2026-11-09 | `uv run pytest -q`           |
-| Web unit tests                | 29 passed (13 files)                                   | `cd web && npm test`         |
+| Python tests                  | 670 passed, 3 skipped, 6 deselected (live), 2026-11-12 | `uv run pytest -q`           |
+| Web unit tests                | 37 passed (15 files), 2026-11-12                       | `cd web && npm test`         |
 | Web e2e (sample mode)         | 6 passed, 2 skipped (viewport-specific)                | `cd web && npm run test:e2e` |
 | Postman via newman, no PayPal | 21 requests, 39 assertions, 0 failed                   | see above                    |
 | Secret scan                   | 0 findings over tracked files, with real env values    | `scripts.secret_scan`        |
 
-Live-mode deploy check (`scripts.verify_deploy`) passed 11 of 11 against a local web and API on the real Elastic index; it has not been run against a hosted URL because nothing is deployed yet.
+Live-mode deploy check (`scripts.verify_deploy`) passed 11 of 11 against the hosted Render web and API on 2026-11-12 (and earlier against a local stack on the real Elastic index).
 
 ## Tools used
 
 Python 3.12, FastAPI, Pydantic, httpx, uvicorn, `uv`; Next.js 16, React 19, Tailwind CSS 4, TypeScript, Zod, AG Grid Community, Vitest, Playwright; **PayPal sandbox (Orders v2)**; **Elastic Serverless** (hybrid search, `.jina-embeddings-v5-text-nano` 768d embeddings); **Kernel** (cloud browsers); **Modal** (CPU world runs; GPU: base probe passed, 3B/7B inference served a partial evaluation, 7B QLoRA smoke failed 3x); **Render** (blueprint prepared); **Postman / newman**; Channel3 (opt-in); the Amazon Reviews 2023 dataset (McAuley Lab); Qwen2.5 7B / 3B / 1.5B as target open models (7B probe, 3B and 7B partial evaluation; the 3B licence is non-commercial), vLLM; Three.js with React Three Fiber; Mermaid CLI 11.4.2; Claude Code with the Superpowers, Ponytail and Graphify skills for development. Exact versions: [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock), [`web/package.json`](web/package.json).
 
-## How this was significantly updated during the submission period
+## History
 
-The submission period began 2026-10-01. This repository's first commit is **2026-10-30** (`098f1d3`), so all of the code, data pipeline, payments layer, world, API, web app and docs were written during the period; nothing here pre-dates it. The history was not rewritten. Verify it yourself:
+This repository's first commit is **2026-10-30** (`098f1d3`); the code, data pipeline, payments layer, world, API, web app and docs were all written after that. The history was not rewritten. Verify it yourself:
 
 ```bash
 git log --format='%h %ad %s' --date=short | tail -5      # first commits
@@ -299,8 +298,8 @@ Milestone tags mark: Day-1 spikes and checks (`m1`), frozen catalog plus task en
 
 ## Known limits
 
-- **Only a probe has run.** No adapter or before/after result exists; the chat returns `model_unavailable` without a model endpoint (see [Results](#results)).
-- **The API has no auth** (judges use it directly). POSTs that create orders or spend model budget are rate limited in process (10/min per client, 60/min total); the client key is the left-most `X-Forwarded-For`, which is spoofable.
+- **No trained model yet.** No adapter or before/after result exists: the base-model evaluation is partial (0 successes), and the first real 7B QLoRA smoke runs failed (see [Results](#results) and `DECISIONS.md`). The hosted chat returns `model_unavailable` because the hosted API is deliberately not connected to the Modal GPU apps.
+- **The API has no auth** (the public demo uses it directly). POSTs that create orders or spend model budget are rate limited in process (10/min per client, 60/min total); the client key is the left-most `X-Forwarded-For`, which is spoofable.
 - **Amazon Reviews 2023 has no stock or per-size availability.** Those constraints cannot be generated or verified; stock, size, shipping, tax and discounts are `unknown`, never zero. Frozen training uses `ItemPriceQuotes` labelled `item_price_only`; `REQUIRE_ALL_IN_QUOTE=1` refuses it.
 - **Channel3 is display-only** and opt-in: no review text, snapshot and training use barred by its terms.
 - **Scripted shoppers** read the reference answer and are privileged; their traces are excluded from model memory ([`memory/`](memory)).

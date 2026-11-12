@@ -1,5 +1,7 @@
 # Demo video script (target 2:40, hard limit under 3:00)
 
+> **ARCHIVED 2026-11-12.** Hackathon demo-video script, never recorded or submitted. Kept for reference only.
+
 **Requirements:** under 3 minutes; public on YouTube; English; **demo mode on** (`DEMO_MODE=1`, brand names show as `[brand hidden]`); no third-party trademarks or copyrighted music (no music at all, or music you composed or licensed). Show only our UI, PayPal's own sandbox pages (required to show the approval) and the terminal. Do not show the dataset's vendor logo or any product photo. Say "a public product-review dataset", not a brand name. Never show `.env`, tokens or the buyer password (type it off-screen or blur it; use the sandbox buyer only).
 
 **Honesty rule for the narration:** no model has run. Do not say the model was trained, evaluated or improved. Say exactly what was built and measured (numbers from the files cited). If the model endpoint gets enabled before recording, use shot block B2 instead of B1 and record the real result.

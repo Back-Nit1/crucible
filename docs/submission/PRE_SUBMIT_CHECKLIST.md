@@ -1,5 +1,7 @@
 # Pre-submit checklist
 
+> **ARCHIVED 2026-11-12.** This was the hackathon pre-submit checklist; the project was not submitted. Its last state (deployed, `verify_deploy` 11/11, no trained model, tags `m4`/`m5`/`m8` not created) matches the repository; see `README.md` and `DECISIONS.md` for what is current.
+
 State as of 2026-11-12 (deadline 2026-11-12 12:00 PM PT). Items are `prompt.md` section 17 first, then the official-rules items from section 2 and the milestone items from section 16. **PASS** = verified now with the evidence shown. **FAIL** = not met. **OWNER** = only the repository owner can do it. Re-check with `uv run python -m scripts.check_submission` (it fails while any `placeholder` remains).
 
 ## Definition of done (prompt.md section 17)

@@ -3,6 +3,9 @@
 Nothing here spends money by itself: the Render blueprint is `plan: free`, Modal world runs are CPU-only at about
 $0.002 per 24-episode generation, and **no recurring Modal schedule exists unless `CRUCIBLE_ENABLE_SCHEDULE=1` is set at deploy time**.
 
+## Current deployment (2026-11-12)
+Web `https://crucible-2rcx.onrender.com`, API `https://crucible-api-t6pn.onrender.com`, both Render free plan, created as two manual web services from the repo (the Blueprint was not used, so they follow the settings in the table below rather than `render.yaml` automatically). `scripts.verify_deploy` 11/11. The API has `CORS_ALLOW_ORIGINS`, `PAYPAL_RETURN_URL` and `PAYPAL_CANCEL_URL` set to the web origin; it deliberately has no `CRUCIBLE_MODEL_BACKEND`, `CRUCIBLE_MODAL_*` or Modal tokens, so it can never reach or bill the Modal GPU apps. No uptime monitor is set up yet. The URLs below that read `crucible-web` / `crucible-api` are the Blueprint defaults, not these hosts.
+
 ## Services
 | Service | Where | Start | Health |
 |---|---|---|---|
@@ -10,7 +13,7 @@ $0.002 per 24-episode generation, and **no recurring Modal schedule exists unles
 | world runner | Modal app `crucible-world` | `modal run modal_app/world_runner.py --action run ...` | `--action status` |
 | `crucible-web` (Next.js) | Render (free) via `render.yaml`, `rootDir: web` | `npm start -- --hostname 0.0.0.0 --port $PORT` | `GET /` |
 
-Free Render services sleep when idle (cold start ~30-60 s). For the judging window keep it warm with an external ping to `/health`
+Free Render services sleep when idle (cold start ~30-60 s). To keep the demo warm with an external ping to `/health`
 every 10 minutes (any free uptime monitor); this is a documented, deliberate choice, not a hidden cost.
 
 ## Environment-variable inventory
@@ -67,6 +70,6 @@ Nothing below creates a paid resource. Both services are `plan: free` in `render
    uv run python -m scripts.verify_deploy https://crucible-web.onrender.com https://crucible-api.onrender.com
    ```
    Exit 0 and `11/11 checks passed` is the bar. It checks health/ready/config, web routes, a real generation and episode detail, the CORS preflight, the typed `model_unavailable` path (skipped, not called, if a model is configured so it cannot spend) and scans the web bundle for secret-shaped strings.
-5. Sandbox checkout: judges approve in PayPal's own page using the sandbox buyer login; PayPal then returns them to `<web>/payments`. The ledger behind `/payments/ledger` lives in API memory and resets when the free service restarts or sleeps; PayPal keeps the real sandbox records.
-6. Keep-alive (documented, free): create a free HTTP monitor (for example UptimeRobot, 10-minute interval, GET) on `https://crucible-api.onrender.com/health` and one on `https://crucible-web.onrender.com/`. Render free web services sleep after idle; the pings keep them warm for the judging window. Remove the monitors afterwards. The API `/health` touches no dependency.
+5. Sandbox checkout: the buyer approves in PayPal's own page with a sandbox personal account; PayPal then returns them to `<web>/payments`. The ledger behind `/payments/ledger` lives in API memory and resets when the free service restarts or sleeps; PayPal keeps the real sandbox records.
+6. Keep-alive (documented, free): create a free HTTP monitor (for example UptimeRobot, 10-minute interval, GET) on `https://crucible-api.onrender.com/health` and one on `https://crucible-web.onrender.com/`. Render free web services sleep after idle; the pings keep them warm. Remove the monitors when the demo is no longer needed. The API `/health` touches no dependency.
 7. Known gap: the API must run from the repository checkout (it reads `config/providers.yaml` and `data/manifests/`, which are not in the installed package). `render.yaml` does this (`uv sync` + `uv run uvicorn` from the repo root); do not switch to `pip install .` + a console script.
