@@ -10,15 +10,22 @@ export function FitnessDistribution({ value }: { value: unknown }) {
   return (
     <div className="space-y-3" aria-label="Fitness by genome">
       {rows.map(([agent, fitness]) => (
-        <div key={agent} className="grid grid-cols-[minmax(7rem,0.85fr)_minmax(8rem,2fr)_3rem] items-center gap-3">
-          <span className="truncate font-mono text-[0.65rem] text-slate-500" title={agent}>{agent}</span>
+        <div
+          key={agent}
+          className="grid grid-cols-[minmax(7rem,0.85fr)_minmax(8rem,2fr)_3rem] items-center gap-3"
+        >
+          <span className="truncate font-mono text-[0.65rem] text-slate-500" title={agent}>
+            {agent}
+          </span>
           <span className="h-2 overflow-hidden rounded-full bg-white/6">
             <span
               className="block h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-200"
               style={{ width: `${Math.max(0, Math.min(1, fitness)) * 100}%` }}
             />
           </span>
-          <span className="text-right font-mono text-[0.66rem] text-slate-300 tabular-nums">{fitness.toFixed(2)}</span>
+          <span className="text-right font-mono text-[0.66rem] text-slate-300 tabular-nums">
+            {fitness.toFixed(2)}
+          </span>
         </div>
       ))}
     </div>

@@ -37,6 +37,8 @@ describe("WorldDashboard", () => {
       />,
     );
 
-    expect(screen.getByText("Review grounding").closest("article")).toHaveTextContent("Not measured");
+    expect(screen.getByText("Review grounding").closest("article")).toHaveTextContent(
+      "Not measured",
+    );
   });
 });

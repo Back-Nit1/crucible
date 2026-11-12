@@ -23,7 +23,9 @@ export function MetricCard({
         {icon}
       </div>
       <div className="mt-3 flex items-end justify-between gap-3">
-        <p className="text-2xl font-semibold tracking-[-0.04em] text-slate-50 tabular-nums">{value}</p>
+        <p className="text-2xl font-semibold tracking-[-0.04em] text-slate-50 tabular-nums">
+          {value}
+        </p>
         {trend ? <TrendIcon className="mb-1 size-4 text-slate-500" aria-hidden="true" /> : null}
       </div>
       {detail ? <div className="mt-2 text-xs leading-5 text-slate-500">{detail}</div> : null}

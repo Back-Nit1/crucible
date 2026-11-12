@@ -20,6 +20,10 @@ import type {
   loopStatusSchema,
   readySchema,
   replayStepSchema,
+  crowdEpisodeSchema,
+  learningRoundSchema,
+  generationChoiceSchema,
+  trainingRunSchema,
 } from "./schemas";
 
 export type Page<T> = { items: T[]; total: number; offset: number; limit: number };
@@ -86,3 +90,7 @@ export type ApiErrorCode =
   | "invalid_request"
   | "internal_error"
   | string;
+export type CrowdEpisode = z.infer<typeof crowdEpisodeSchema>;
+export type GenerationChoice = z.infer<typeof generationChoiceSchema>;
+export type TrainingRun = z.infer<typeof trainingRunSchema>;
+export type LearningRound = z.infer<typeof learningRoundSchema>;

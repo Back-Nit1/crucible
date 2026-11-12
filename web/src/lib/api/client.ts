@@ -19,6 +19,10 @@ import {
   proposeResultSchema,
   loopStatusSchema,
   readySchema,
+  generationChoiceSchema,
+  learningRoundSchema,
+  observatoryBundleSchema,
+  trainingRunSchema,
 } from "./schemas";
 import type { EpisodeQuery } from "./types";
 
@@ -141,6 +145,18 @@ export class CrucibleApi {
       ),
     );
   killRules = async () => killRuleSchema.array().parse(await this.request("/world/kill-rules"));
+  observatoryGenerations = async () =>
+    generationChoiceSchema.array().parse(await this.request("/observatory/generations"));
+  observatoryBundle = async (generationId: string, agents = 30) =>
+    observatoryBundleSchema.parse(
+      await this.request(withQuery(`/observatory/${encodeURIComponent(generationId)}`, { agents })),
+    );
+  observatoryRounds = async () =>
+    learningRoundSchema.array().parse(await this.request("/observatory/rounds"));
+  observatoryTraining = async () =>
+    trainingRunSchema
+      .array()
+      .parse(((await this.request("/observatory/training")) as { runs?: unknown }).runs ?? []);
   evaluations = async () =>
     pageSchema(documentSchema).parse(await this.request("/models/evaluations"));
   checkpoints = async () =>

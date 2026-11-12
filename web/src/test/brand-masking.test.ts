@@ -12,10 +12,18 @@ function files(dir: string): string[] {
 }
 
 describe("web brand surfaces", () => {
-  const src = files("src").filter((f) => /\.(tsx?|css)$/.test(f) && !f.endsWith(".test.ts") && !f.endsWith(".test.tsx") && !f.includes("/generated/"));
+  const src = files("src").filter(
+    (f) =>
+      /\.(tsx?|css)$/.test(f) &&
+      !f.endsWith(".test.ts") &&
+      !f.endsWith(".test.tsx") &&
+      !f.includes("/generated/"),
+  );
 
   it("renders no product images or third-party logos", () => {
-    const offenders = src.filter((f) => /<img\b|next\/image|<Image\b|url\([^)]*logo/i.test(readFileSync(f, "utf8")));
+    const offenders = src.filter((f) =>
+      /<img\b|next\/image|<Image\b|url\([^)]*logo/i.test(readFileSync(f, "utf8")),
+    );
     expect(offenders).toEqual([]);
   });
 

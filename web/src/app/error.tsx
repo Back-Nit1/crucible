@@ -2,7 +2,12 @@
 
 import { ErrorState } from "@/components/ui/data-state";
 
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <ErrorState
       title="This view could not be rendered"

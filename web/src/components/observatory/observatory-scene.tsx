@@ -5,6 +5,7 @@ import { Canvas, type ThreeEvent, useFrame } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { useMemo, useRef } from "react";
 import { Group, MathUtils, Mesh, Vector3 } from "three";
+import type { CrowdEpisode } from "@/lib/api/types";
 import type {
   ObservatoryAgent,
   ObservatoryModel,
@@ -242,13 +243,16 @@ function PopulationDock({ agents }: { agents: ObservatoryAgent[] }) {
         CANDIDATE POLICIES
       </Text>
       {agents.map((agent, index) => {
-        const column = index % 4;
-        const row = Math.floor(index / 4);
+        // A flat grid on the floor: 8 agents make 3 columns, 200 make 15, never a tower.
+        const columns = Math.max(4, Math.ceil(Math.sqrt(agents.length)));
+        const spacing = agents.length > 40 ? 0.26 : 0.38;
+        const column = index % columns;
+        const row = Math.floor(index / columns);
         const selected = selectedAgentId === agent.id;
         return (
           <group
             key={agent.id}
-            position={[(column - 1.5) * 0.38, 0.15 + row * 0.38, 0]}
+            position={[(column - (columns - 1) / 2) * spacing, 0.15, row * spacing]}
             onClick={(event) => {
               event.stopPropagation();
               selectAgent(selected ? null : agent.id);
@@ -271,7 +275,7 @@ function PopulationDock({ agents }: { agents: ObservatoryAgent[] }) {
 }
 
 function targetForStep(
-  step: ObservatoryStep | undefined,
+  step: Pick<ObservatoryStep, "tool" | "references"> | undefined,
   products: ProductPoint[],
   shops: ShopPoint[],
   missionCategory: string,
@@ -359,7 +363,60 @@ function ActiveShopper({
   );
 }
 
-function World({ model }: { model: ObservatoryModel }) {
+const CROWD_STEP_SECONDS = 1.7;
+
+// One of up to 30 concurrent shoppers, each replaying its own episode on its own clock (offset so they spread out).
+function CrowdShopper({
+  episode,
+  index,
+  products,
+  shops,
+}: {
+  episode: CrowdEpisode;
+  index: number;
+  products: ProductPoint[];
+  shops: ShopPoint[];
+}) {
+  const group = useRef<Group>(null);
+  const clock = useRef(index * 0.37);
+  const targets = useMemo(() => {
+    const angle = index * 2.399; // golden angle: neighbours never stand on the same spot
+    const jitter = 0.25 + (index % 5) * 0.09;
+    return (episode.steps.length ? episode.steps : [undefined]).map((step) => {
+      const [x, y, z] = targetForStep(step, products, shops, episode.category);
+      return new Vector3(x + Math.cos(angle) * jitter, y, z + Math.sin(angle) * jitter);
+    });
+  }, [episode, index, products, shops]);
+  const color = episode.killed
+    ? "#ff5b79"
+    : episode.checkpoint && !episode.checkpoint.startsWith("scripted")
+      ? "#55d6ff"
+      : "#9dffd0";
+
+  useFrame((_, delta) => {
+    if (!group.current) return;
+    clock.current += delta;
+    const target = targets[Math.floor(clock.current / CROWD_STEP_SECONDS) % targets.length];
+    if (target)
+      group.current.position.lerp(target, REDUCED_MOTION ? 1 : 1 - Math.exp(-delta * 2.5));
+  });
+
+  return (
+    <group ref={group} position={SPAWN}>
+      <mesh position={[0, 0.14, 0]}>
+        <capsuleGeometry args={[0.07, 0.12, 3, 8]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={1.4}
+          toneMapped={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function World({ model, crowd }: { model: ObservatoryModel; crowd: CrowdEpisode[] }) {
   const stepIndex = useObservatoryStore((state) => state.stepIndex);
   const playing = useObservatoryStore((state) => state.playing);
   const shops = useMemo(() => shopLayout(model.shops), [model.shops]);
@@ -381,6 +438,17 @@ function World({ model }: { model: ObservatoryModel }) {
       ))}
       <Products products={products} activeReferences={activeStep?.references ?? []} shops={shops} />
       <PopulationDock agents={model.agents} />
+      {crowd
+        .filter((item) => item.episode_id !== model.episode.id)
+        .map((item, index) => (
+          <CrowdShopper
+            key={item.episode_id}
+            episode={item}
+            index={index}
+            products={products}
+            shops={shops}
+          />
+        ))}
       <ActiveShopper
         name={`SHOPPER ${model.episode.agentId.replace("genome-", "").slice(0, 8).toUpperCase()}`}
         step={activeStep}
@@ -407,7 +475,13 @@ function World({ model }: { model: ObservatoryModel }) {
   );
 }
 
-export default function ObservatoryScene({ model }: { model: ObservatoryModel }) {
+export default function ObservatoryScene({
+  model,
+  crowd = [],
+}: {
+  model: ObservatoryModel;
+  crowd?: CrowdEpisode[];
+}) {
   return (
     <Canvas
       camera={{ position: [0, 11, 14], fov: 47, near: 0.1, far: 60 }}
@@ -419,7 +493,7 @@ export default function ObservatoryScene({ model }: { model: ObservatoryModel })
         useObservatoryStore.getState().selectShop(null);
       }}
     >
-      <World model={model} />
+      <World model={model} crowd={crowd} />
     </Canvas>
   );
 }

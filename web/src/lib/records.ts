@@ -13,7 +13,8 @@ export function at(record: UnknownRecord, ...path: string[]): unknown {
 export function numberAt(record: UnknownRecord, ...path: string[]): number | null {
   const value = at(record, ...path);
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value)))
+    return Number(value);
   return null;
 }
 
@@ -24,7 +25,9 @@ export function stringAt(record: UnknownRecord, ...path: string[]): string | nul
 
 export function stringArrayAt(record: UnknownRecord, ...path: string[]): string[] {
   const value = at(record, ...path);
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
 }
 
 export function formatRate(numerator: number | null, denominator: number | null): string {

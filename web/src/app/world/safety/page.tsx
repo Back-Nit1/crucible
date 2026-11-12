@@ -13,7 +13,11 @@ export default async function SafetyPage() {
     const generations = await api.generations();
     const generationId = generations.items[0]?.generation_id;
     if (generationId) {
-      const [rules, kills, generation] = await Promise.all([api.killRules(), api.kills(generationId), api.generation(generationId)]);
+      const [rules, kills, generation] = await Promise.all([
+        api.killRules(),
+        api.kills(generationId),
+        api.generation(generationId),
+      ]);
       data = { rules, kills, generation };
     } else message = "No generation exists for the safety registry.";
   } catch (error) {

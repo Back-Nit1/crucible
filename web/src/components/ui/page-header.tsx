@@ -20,7 +20,9 @@ export function PageHeader({
         <h1 className="text-3xl leading-tight font-semibold tracking-[-0.045em] text-white sm:text-4xl">
           {title}
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">{description}</p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
+          {description}
+        </p>
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-3">{actions}</div> : null}
     </header>

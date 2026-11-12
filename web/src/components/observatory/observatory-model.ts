@@ -1,5 +1,8 @@
 import type {
+  CrowdEpisode,
   Episode,
+  GenerationChoice,
+  LearningRound,
   EpisodeDetail,
   GenerationDetail,
   KillRule,
@@ -48,6 +51,10 @@ export type ObservatoryStep = {
 
 export type ObservatoryModel = {
   generationId: string;
+  generationStatus: string;
+  choices: GenerationChoice[];
+  crowd: CrowdEpisode[];
+  rounds: LearningRound[];
   seed: number | null;
   catalogHash: string | null;
   populationSize: number;
@@ -101,6 +108,9 @@ export function buildObservatoryModel(
   leaderboard: Page<LeaderboardRow>,
   episode: EpisodeDetail,
   killRules: KillRule[] = [],
+  crowd: CrowdEpisode[] = [],
+  choices: GenerationChoice[] = [],
+  rounds: LearningRound[] = [],
 ): ObservatoryModel {
   const summary = generation.summary;
   const params = asRecord(at(summary, "params"));
@@ -149,6 +159,12 @@ export function buildObservatoryModel(
       });
     }
   }
+  // Crowd shoppers walk to the products their steps reference, so those need a place in the world too.
+  for (const item of crowd) {
+    for (const id of item.products) {
+      if (!productMap.has(id)) productMap.set(id, { id, category: item.category, mentions: 1 });
+    }
+  }
   for (const id of episode.products_considered) {
     const current = productMap.get(id);
     productMap.set(id, {
@@ -194,6 +210,10 @@ export function buildObservatoryModel(
 
   return {
     generationId: generation.generation_id,
+    generationStatus: generation.status,
+    choices,
+    crowd,
+    rounds,
     seed: generation.seed ?? null,
     catalogHash: generation.catalog_hash ?? null,
     populationSize: generation.population_size,

@@ -14,9 +14,13 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import type { ObservatoryModel, ObservatoryStep } from "./observatory-model";
 import { useObservatoryStore } from "./observatory-store";
+import { RoundsPanel } from "./rounds-panel";
+import { TrainingCard } from "./training-card";
+import { useLiveWorld } from "./use-live-world";
 import styles from "./observatory.module.css";
 
 const ObservatoryScene = dynamic(() => import("./observatory-scene"), {
@@ -90,7 +94,33 @@ function shortId(value: string) {
   return value.replace("genome-", "").slice(0, 8);
 }
 
-export function ObservatoryClient({ model, sample }: { model: ObservatoryModel; sample: boolean }) {
+export function ObservatoryClient({
+  model,
+  sample,
+  apiBaseUrl,
+}: {
+  model: ObservatoryModel;
+  sample: boolean;
+  apiBaseUrl: string;
+}) {
+  const router = useRouter();
+  const live = useLiveWorld(apiBaseUrl, model.generationId, model.crowd, model.rounds, !sample);
+  const playable = useMemo(
+    () => new Set(model.choices.map((choice) => choice.generation_id)),
+    [model.choices],
+  );
+  const recentlyLive =
+    live.lastEpisodeAt !== null || live.training.some((run) => run.status === "running");
+  const badge =
+    live.connection === "off"
+      ? "Recorded mission"
+      : live.connection === "connecting"
+        ? "Connecting…"
+        : live.connection === "retrying"
+          ? "Reconnecting…"
+          : recentlyLive
+            ? `Live · ${live.arrived} new episodes`
+            : "Watching for new episodes";
   const stepIndex = useObservatoryStore((state) => state.stepIndex);
   const playing = useObservatoryStore((state) => state.playing);
   const speed = useObservatoryStore((state) => state.speed);
@@ -135,7 +165,7 @@ export function ObservatoryClient({ model, sample }: { model: ObservatoryModel; 
   return (
     <section className={styles.shell} aria-label="Crucible commerce training world">
       <div className={styles.canvas} aria-hidden="true">
-        <ObservatoryScene model={model} />
+        <ObservatoryScene model={model} crowd={live.crowd} />
       </div>
       <div className={styles.scanlines} />
 
@@ -157,8 +187,26 @@ export function ObservatoryClient({ model, sample }: { model: ObservatoryModel; 
           <p>Every action is scored. Cheating, overspending or inventing evidence ends the run.</p>
         </div>
         <div className={styles.topActions}>
-          <span className={styles.liveBadge}>
-            <span /> Recorded mission
+          {model.choices.length > 0 ? (
+            <label className={styles.generationPicker}>
+              <span>Generation</span>
+              <select
+                value={model.generationId}
+                onChange={(event) =>
+                  router.push(`/observatory?generation=${encodeURIComponent(event.target.value)}`)
+                }
+              >
+                {model.choices.map((choice) => (
+                  <option key={choice.generation_id} value={choice.generation_id}>
+                    {choice.generation_id} · {choice.episodes} ep ·{" "}
+                    {choice.published ? choice.status : "in progress / unpublished"}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <span className={styles.liveBadge} data-live={recentlyLive}>
+            <span /> {badge}
           </span>
           <Link href="/world" className={styles.dashboardLink}>
             Evidence dashboard <ChevronRight size={13} />
@@ -239,7 +287,7 @@ export function ObservatoryClient({ model, sample }: { model: ObservatoryModel; 
       <aside className={`${styles.panel} ${styles.learningPanel}`} aria-label="Learning loop">
         <div className={styles.panelHeading}>
           <span>
-            <Cpu size={14} /> How the model learns
+            <Cpu size={14} /> {live.rounds.length > 0 ? "Learning rounds" : "How the model learns"}
           </span>
         </div>
         {selectedShop ? (
@@ -271,6 +319,19 @@ export function ObservatoryClient({ model, sample }: { model: ObservatoryModel; 
               {selectedAgent.fitness?.toFixed(2) ?? "—"}
             </span>
           </div>
+        ) : live.training.length > 0 || live.rounds.length > 0 ? (
+          <div className={styles.trainingList} aria-live="polite">
+            {live.training.slice(0, 2).map((run) => (
+              <TrainingCard key={run.run_id} run={run} />
+            ))}
+            {live.rounds.length > 0 ? (
+              <RoundsPanel
+                rounds={live.rounds}
+                currentGeneration={model.generationId}
+                playable={playable}
+              />
+            ) : null}
+          </div>
         ) : (
           <>
             <ol className={styles.learningLoop}>
@@ -301,24 +362,50 @@ export function ObservatoryClient({ model, sample }: { model: ObservatoryModel; 
       </aside>
 
       <div className={styles.populationSummary} aria-label="Generation outcome">
-        <span>
-          <Bot size={13} />
-          <strong>{model.populationSize}</strong> shoppers entered
-        </span>
-        <ChevronRight size={12} />
-        <span>
-          <Trophy size={13} />
-          <strong>{model.survivors}</strong> survived
-        </span>
-        <ChevronRight size={12} />
-        <span>
-          <ShieldX size={13} />
-          <strong>{model.culled}</strong> culled
-        </span>
-        <ChevronRight size={12} />
-        <span>
-          <Cpu size={13} /> {model.survivors > 0 ? "survivor traces" : "no training data"}
-        </span>
+        {model.generationStatus === "unpublished" ? (
+          // Still running: survivors and culls are decided only when every episode is in.
+          <>
+            <span>
+              <Bot size={13} />
+              <strong>{live.episodes ?? model.totalEpisodes}</strong> episodes so far
+            </span>
+            <ChevronRight size={12} />
+            <span>
+              <Target size={13} />
+              <strong>{live.crowd.length}</strong> researching now
+            </span>
+            <ChevronRight size={12} />
+            <span>
+              <Trophy size={13} /> survivors chosen when the run ends
+            </span>
+          </>
+        ) : (
+          <>
+            <span>
+              <Bot size={13} />
+              <strong>{model.populationSize}</strong> shoppers entered
+            </span>
+            <ChevronRight size={12} />
+            <span>
+              <Target size={13} />
+              <strong>{live.crowd.length}</strong> researching now
+            </span>
+            <ChevronRight size={12} />
+            <span>
+              <Trophy size={13} />
+              <strong>{model.survivors}</strong> survived
+            </span>
+            <ChevronRight size={12} />
+            <span>
+              <ShieldX size={13} />
+              <strong>{model.culled}</strong> culled
+            </span>
+            <ChevronRight size={12} />
+            <span>
+              <Cpu size={13} /> {model.survivors > 0 ? "survivor traces" : "no training data"}
+            </span>
+          </>
+        )}
       </div>
 
       <div className={styles.timeline}>

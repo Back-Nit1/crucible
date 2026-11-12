@@ -48,4 +48,49 @@ describe("buildObservatoryModel", () => {
       killRules: expect.arrayContaining(["K001_HALLUCINATED_PRODUCT"]),
     });
   });
+
+  it("places crowd shoppers' products in the world and keeps the generation choices", () => {
+    const generation = generationDetailSchema.parse(getSample("world_generation_detail").body);
+    const episodes = pageSchema(episodeSchema).parse(getSample("world_episodes").body);
+    const leaderboard = pageSchema(leaderboardSchema).parse(getSample("world_leaderboard").body);
+    const episode = episodeDetailSchema.parse(getSample("world_episode_detail").body);
+    const crowd = [
+      {
+        episode_id: "e-crowd",
+        agent_id: "genome-x",
+        task_id: "t",
+        category: "Office_Products",
+        checkpoint: "qwen-3b-lora",
+        killed: false,
+        fitness: 0.5,
+        termination: "success",
+        products: ["crowd-only-product"],
+        steps: [{ tool: "search_catalog", references: [], error_code: null }],
+      },
+    ];
+    const choices = [
+      {
+        generation_id: "live-gen",
+        status: "unpublished",
+        published: false,
+        episodes: 3,
+        population_size: 0,
+        survivors: 0,
+      },
+    ];
+    const model = buildObservatoryModel(
+      generation,
+      episodes,
+      leaderboard,
+      episode,
+      [],
+      crowd,
+      choices,
+    );
+    expect(model.crowd).toHaveLength(1);
+    expect(model.choices).toEqual(choices);
+    expect(model.products.find((p) => p.id === "crowd-only-product")).toMatchObject({
+      category: "Office_Products",
+    });
+  });
 });

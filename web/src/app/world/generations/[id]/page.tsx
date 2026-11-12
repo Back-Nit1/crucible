@@ -15,5 +15,10 @@ export default async function GenerationPage({ params }: { params: Promise<{ id:
     message = error instanceof Error ? error.message : message;
   }
   if (!generation) return <ErrorState title="Generation unavailable" message={message} />;
-  return <GenerationDetailView generation={generation} sample={publicEnv.NEXT_PUBLIC_DATA_MODE === "sample"} />;
+  return (
+    <GenerationDetailView
+      generation={generation}
+      sample={publicEnv.NEXT_PUBLIC_DATA_MODE === "sample"}
+    />
+  );
 }

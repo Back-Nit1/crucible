@@ -359,3 +359,70 @@ export const buyerRunSchema = z.object({
   cost_usd: moneySchema.nullable(),
   cost_known: z.boolean(),
 });
+
+export const crowdEpisodeSchema = z.object({
+  episode_id: z.string(),
+  agent_id: z.string(),
+  task_id: z.string(),
+  category: z.string(),
+  checkpoint: z.string().nullable(),
+  killed: z.boolean(),
+  fitness: z.number().nullable(),
+  termination: z.string(),
+  products: z.array(z.string()),
+  steps: z.array(
+    z.object({
+      tool: z.string(),
+      references: z.array(z.string()),
+      error_code: z.string().nullable(),
+    }),
+  ),
+});
+
+export const generationChoiceSchema = z.object({
+  generation_id: z.string(),
+  status: z.string(),
+  published: z.boolean(),
+  episodes: z.number().int().nonnegative(),
+  population_size: z.number().int().nonnegative(),
+  survivors: z.number().int().nonnegative(),
+});
+
+export const observatoryBundleSchema = z.object({
+  generation: generationDetailSchema,
+  episodes: z.array(episodeSchema),
+  leaderboard: z.array(leaderboardSchema),
+  kill_rules: z.array(killRuleSchema),
+  focus: episodeDetailSchema,
+  crowd: z.array(crowdEpisodeSchema),
+});
+
+export const trainingRunSchema = z.object({
+  run_id: z.string(),
+  algorithm: z.string().nullable(),
+  base_model: z.string().nullable(),
+  gpu: z.string().nullable(),
+  status: z.string().nullable(),
+  step: z.number().nullable(),
+  total_steps: z.number().nullable(),
+  resumed_from_step: z.number().nullable().optional(),
+  loss: z.number().nullable(),
+  losses: z.array(z.number()).nullable(),
+  started_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+});
+
+export const learningRoundSchema = z.object({
+  iteration_id: z.string(),
+  generation_id: z.string(),
+  evidence: z.string().nullable(),
+  policy: z.string().nullable(),
+  stages: z.record(z.string(), z.string()),
+  next_stage: z.string().nullable(),
+  produced_checkpoint: z.string().nullable(),
+  episodes: z.number().int().nonnegative(),
+  mean_fitness: z.number().nullable(),
+  kill_rate: z.number().nullable(),
+  success_rate: z.number().nullable(),
+  metrics_source: z.string(),
+});

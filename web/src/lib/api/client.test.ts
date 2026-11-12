@@ -38,12 +38,14 @@ describe("CrucibleApi", () => {
   });
 
   it("preserves structured live API errors", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(
-        JSON.stringify({ error: { code: "model_unavailable", message: "not configured" } }),
-        { status: 503, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ error: { code: "model_unavailable", message: "not configured" } }),
+          { status: 503, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     const api = new CrucibleApi("https://api.example.test", "live", fetcher);
 
     await expect(api.startBuyerRun("find a headset")).rejects.toEqual(

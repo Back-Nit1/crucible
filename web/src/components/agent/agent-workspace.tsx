@@ -92,6 +92,7 @@ export function AgentWorkspace({
   const approval = first(events, "paypal_approval");
   const receipt = first(events, "receipt");
   const runError = all(events, "error").at(-1);
+  const noModel = error?.code === "model_unavailable" || error?.code === "transport_error";
 
   return (
     <>
@@ -185,12 +186,10 @@ export function AgentWorkspace({
 
           {error ? (
             <ErrorState
-              title={
-                error.code === "model_unavailable" ? "Model runner unavailable" : "Agent run failed"
-              }
+              title={noModel ? "Shopping model is not running" : "Agent run failed"}
               message={
-                error.code === "model_unavailable"
-                  ? "The operational API is healthy, but no model endpoint or checkpoint is configured. No output was simulated."
+                noModel
+                  ? "This deployment has no live model, so the chat cannot answer and nothing was simulated. Buy without a model instead: GET /catalog/search, POST /purchase/propose, approve in PayPal sandbox, POST /purchase/confirm (README, Path A). The result appears on the Payments page."
                   : error.message
               }
             />

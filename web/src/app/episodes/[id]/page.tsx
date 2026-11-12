@@ -13,5 +13,7 @@ export default async function EpisodePage({ params }: { params: Promise<{ id: st
     message = error instanceof Error ? error.message : message;
   }
   if (!episode) return <ErrorState title="Episode unavailable" message={message} />;
-  return <EpisodeDetailView episode={episode} sample={publicEnv.NEXT_PUBLIC_DATA_MODE === "sample"} />;
+  return (
+    <EpisodeDetailView episode={episode} sample={publicEnv.NEXT_PUBLIC_DATA_MODE === "sample"} />
+  );
 }
