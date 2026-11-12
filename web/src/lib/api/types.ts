@@ -9,6 +9,7 @@ import type {
   episodeDetailSchema,
   episodeSchema,
   generationDetailSchema,
+  generationSnapshotSchema,
   generationSchema,
   healthSchema,
   killLogSchema,
@@ -29,6 +30,7 @@ import type {
 export type Page<T> = { items: T[]; total: number; offset: number; limit: number };
 export type Generation = z.infer<typeof generationSchema>;
 export type GenerationDetail = z.infer<typeof generationDetailSchema>;
+export type GenerationSnapshot = z.infer<typeof generationSnapshotSchema>;
 export type Episode = z.infer<typeof episodeSchema>;
 export type EpisodeDetail = z.infer<typeof episodeDetailSchema>;
 export type ReplayStep = z.infer<typeof replayStepSchema>;

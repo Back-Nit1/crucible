@@ -41,6 +41,7 @@ class GenerationOut(BaseModel):
     catalog_hash: str | None = None
     runner: str | None = None
     error: str | None = None
+    published_at: str | None = None
 
 
 class GenerationDetail(GenerationOut):
@@ -234,7 +235,8 @@ def gen_out(d: dict) -> GenerationOut:
     c = d.get("config") or {}
     return GenerationOut(generation_id=d["gen_id"], status=d["status"], population_size=d.get("population_size", 0),
                          survivors=d.get("survivors", 0), kills=d.get("kills", 0), seed=c.get("seed"), tasks=c.get("tasks"),
-                         catalog_hash=c.get("catalog_hash"), runner=d.get("runner"), error=d.get("error"))
+                         catalog_hash=c.get("catalog_hash"), runner=d.get("runner"), error=d.get("error"),
+                         published_at=d.get("published_at"))
 
 
 def leaderboard_rows(generations: list[dict], traces: list[TraceRecord]) -> list[LeaderboardRow]:
@@ -276,7 +278,7 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_
     @r.get("/world/generations", response_model=Page[GenerationOut], tags=["world"])
     def generations(offset: Offset = 0, limit: Limit = 50, status: str | None = None):
         rows = sorted((gen_out(d) for d in reader.generations() if status in (None, d["status"])),
-                      key=lambda g: g.generation_id, reverse=True)
+                      key=lambda g: (g.published_at or "", g.generation_id), reverse=True)  # newest publish first
         return _page(rows[offset:offset + limit], len(rows), offset, limit)
 
     @r.get("/world/generations/{generation_id}", response_model=GenerationDetail, tags=["world"])
@@ -285,6 +287,25 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_
         if d is None:
             raise HTTPException(404, "generation_not_found")
         return GenerationDetail(**gen_out(d).model_dump(), summary=d.get("summary") or {})
+
+    snapshots: dict[tuple[str, str | None], dict] = {}  # completed generations never change: cache by publish time
+
+    @r.get("/world/generations/{generation_id}/snapshot", tags=["world"])
+    def generation_snapshot(generation_id: str):
+        d = next((d for d in reader.generations() if d["gen_id"] == generation_id), None)
+        if d is None:
+            raise HTTPException(404, "generation_not_found")
+        key = (generation_id, d.get("published_at"))
+        if key in snapshots:
+            return snapshots[key]
+        from api.snapshot import build_snapshot
+        from catalog.providers.elastic import load_manifest_hashes
+        out = build_snapshot(d, reader.all_traces(generation_id), sorted(load_manifest_hashes()))
+        if d["status"] == "completed":
+            snapshots[key] = out
+            while len(snapshots) > 8:
+                snapshots.pop(next(iter(snapshots)))
+        return out
 
     @r.get("/world/episodes", response_model=Page[EpisodeOut], tags=["world"])
     def episodes(offset: Offset = 0, limit: Limit = 50, generation_id: str | None = None, agent_id: str | None = None,

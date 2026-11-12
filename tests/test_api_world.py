@@ -139,3 +139,30 @@ def test_access_log_is_structured_and_never_contains_query_or_body(client, caplo
     line = _json.loads(next(m for m in caplog.messages if '"event": "request"' in m))
     assert line["path"] == "/agent/run" and line["status"] == 200 and line["request_id"] == "rid-1" and line["latency_ms"] >= 0
     assert "SECRETQUERY" not in caplog.text and "private shopper text" not in caplog.text and "cost_usd" in line
+
+
+def test_generations_list_newest_publish_first_with_unpublished_last():
+    gens = [{**GEN, "gen_id": "zz-old", "published_at": "2026-11-01T00:00:00+00:00"},
+            {**GEN, "gen_id": "aa-new", "published_at": "2026-11-08T00:00:00+00:00"},
+            {**GEN, "gen_id": "mm-legacy"}]  # published before the field existed
+    c = TestClient(create_app(ProviderRouter({"elastic_snapshot": Snap()}, CFG), MockPayments(), reader=InMemoryReader(generations=gens)))
+    items = c.get("/world/generations").json()["items"]
+    assert [g["generation_id"] for g in items] == ["aa-new", "zz-old", "mm-legacy"]
+    assert items[0]["published_at"] == "2026-11-08T00:00:00+00:00"
+
+
+def test_snapshot_endpoint_returns_capped_shape(client):
+    s = client.get("/world/generations/g1/snapshot").json()
+    assert s["generation_id"] == "g1" and len(s["episodes"]) == 3 and s["limits"]["sampled"] is False
+
+
+def test_snapshot_for_unknown_generation_is_404(client):
+    r = client.get("/world/generations/nope/snapshot")
+    assert r.status_code == 404
+
+
+def test_snapshot_of_running_generation_with_no_traces_is_empty_not_error():
+    gen = {**GEN, "gen_id": "g-run", "status": "running", "summary": {}}
+    c = TestClient(create_app(ProviderRouter({"elastic_snapshot": Snap()}, CFG), MockPayments(), reader=InMemoryReader(generations=[gen])))
+    r = c.get("/world/generations/g-run/snapshot")
+    assert r.status_code == 200 and r.json()["episodes"] == [] and r.json()["worlds"] == []

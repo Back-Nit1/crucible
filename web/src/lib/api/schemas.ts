@@ -23,10 +23,68 @@ export const generationSchema = z.object({
   catalog_hash: z.string().nullable().optional(),
   runner: z.string().nullable().optional(),
   error: z.string().nullable().optional(),
+  published_at: z.string().nullable().optional(),
 });
 
 export const generationDetailSchema = generationSchema.extend({
   summary: z.record(z.string(), z.unknown()),
+});
+
+const stopSchema = z.tuple([z.number().int().min(0).max(5), z.number().int()]);
+
+export const generationSnapshotSchema = z.object({
+  generation_id: z.string(),
+  published_at: z.string().nullable(),
+  scripted: z.boolean().nullable(), // null: nothing recorded yet, never assume a model
+  policy: z.string().nullable(),
+  population_size: z.number().int().nonnegative(),
+  survivors: z.number().int().nonnegative(),
+  kills: z.number().int().nonnegative(),
+  categories: z.array(
+    z.object({ id: z.string(), name: z.string(), product_count: z.number().int().nonnegative() }),
+  ),
+  worlds: z.array(
+    z.object({
+      task_id: z.string(),
+      category: z.string(),
+      request: z.string(),
+      budget: z.string().nullable(),
+      impossible: z.boolean().nullable(),
+      review_trap: z.boolean().nullable(),
+    }),
+  ),
+  agents: z.array(
+    z.object({
+      id: z.string(),
+      variant: z.string().nullable(),
+      fitness: z.number().nullable(),
+      survivor: z.boolean(),
+      kill_rules: z.array(z.string()),
+    }),
+  ),
+  products: z.array(
+    z.object({ id: z.string(), category: z.string(), mentions: z.number().int().nonnegative() }),
+  ),
+  episodes: z.array(
+    z.object({
+      id: z.string(),
+      agent: z.number().int().nonnegative(),
+      world: z.number().int().nonnegative(),
+      path: z.array(stopSchema).min(1),
+      termination: z.string(),
+      killed: z.boolean(),
+      fitness: z.number().nullable(),
+    }),
+  ),
+  limits: z.object({
+    episodes_total: z.number().int().nonnegative(),
+    episodes_included: z.number().int().nonnegative(),
+    episodes_expected: z.number().int().nonnegative().nullable(),
+    episodes_untraced: z.number().int().nonnegative().nullable(),
+    products_total: z.number().int().nonnegative(),
+    products_included: z.number().int().nonnegative(),
+    sampled: z.boolean(),
+  }),
 });
 
 export const episodeSchema = z.object({

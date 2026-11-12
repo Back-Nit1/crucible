@@ -80,7 +80,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const immersive = pathname === "/observatory";
+  const immersive = pathname.startsWith("/observatory");
 
   if (immersive) {
     return (

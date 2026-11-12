@@ -6,6 +6,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(here, "..");
 const sourceRoot = path.resolve(webRoot, "../docs/api/samples");
 const output = path.resolve(webRoot, "src/generated/samples.json");
+// Large: kept out of samples.json so it never rides in the shared client bundle; loaded on demand.
+const snapshotFile = "world_generation_snapshot.json";
+const snapshotOutput = path.resolve(webRoot, "src/generated/snapshot-sample.json");
 const files = [
   "agent_confirm_not_approved.json",
   "agent_confirm_refused_no_confirmation.json",
@@ -42,6 +45,10 @@ for (const file of files) {
 await mkdir(path.dirname(output), { recursive: true });
 await writeFile(
   output,
-  `${JSON.stringify({ source: "docs/api/samples", fixtures }, null, 2)}\n`,
+  `${JSON.stringify({ source: "docs/api/samples", fixtures })}\n`,
   "utf8",
 );
+
+const snapshot = JSON.parse(await readFile(path.join(sourceRoot, snapshotFile), "utf8"));
+if (snapshot.body === undefined) throw new Error(`${snapshotFile} is not an API sample envelope`);
+await writeFile(snapshotOutput, `${JSON.stringify(snapshot)}\n`, "utf8");

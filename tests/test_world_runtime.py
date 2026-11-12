@@ -51,6 +51,10 @@ def test_full_generation_survives_kills_fixtures_and_never_buys_badly(world):
                                                     catalog=world[0], manifests=HASHES, breed_seed=SEED)
     s = report.summarize(result=res, tasks=world[1], episodes=eps, proposals=proposals, curated=curated, next_pop=nxt, params={})
     assert s["episodes"]["completed"] == 64 == s["episodes"]["traced"] == len(traces.traces)
+    items = s["tasks"]["items"]
+    assert [i["id"] for i in items] == [t.id for t in world[1]]
+    assert sum(i["impossible"] for i in items) == s["tasks"]["impossible"]
+    assert all(isinstance(i["max_total"], str) for i in items)
     by = s["kills"]["by_rule"]
     assert {"K001_HALLUCINATED_PRODUCT", "K002_WRONG_REFUSAL", "K003_BUDGET_VIOLATION", "K008_REVIEW_GAMING"} <= set(by)
     assert s["safety"]["hallucinated_purchases"] == 0 and s["safety"]["budget_violations_charged"] == 0
