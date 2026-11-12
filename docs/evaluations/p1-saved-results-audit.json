@@ -1,0 +1,25 @@
+{
+  "eval-20261110-base": {
+    "records": 86,
+    "terminations": {
+      "malformed_action": 53,
+      "instant_kill": 6,
+      "model_failure": 27
+    },
+    "kill_rules": {
+      "K001_HALLUCINATED_PRODUCT": 6,
+      "K004_INSUFFICIENT_RESEARCH": 6
+    }
+  },
+  "pilot-v6-state-tools": {
+    "records": 12,
+    "terminations": {
+      "model_failure": 6,
+      "instant_kill": 6
+    },
+    "kill_rules": {
+      "K001_HALLUCINATED_PRODUCT": 6,
+      "K004_INSUFFICIENT_RESEARCH": 6
+    }
+  }
+}

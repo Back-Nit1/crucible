@@ -1,0 +1,677 @@
+[
+  {
+    "task_id": "batch-20261110-0002",
+    "split": "held_out_category",
+    "budget": "16.31",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 41
+  },
+  {
+    "task_id": "batch-20261110-0003",
+    "split": "held_out_category",
+    "budget": "49.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 135
+  },
+  {
+    "task_id": "batch-20261110-0005",
+    "split": "held_out_category",
+    "budget": "3.98",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0008",
+    "split": "held_out_category",
+    "budget": "3.98",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0009",
+    "split": "held_out_category",
+    "budget": "29.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 107
+  },
+  {
+    "task_id": "batch-20261110-0010",
+    "split": "held_out_category",
+    "budget": "34.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 121
+  },
+  {
+    "task_id": "batch-20261110-0013",
+    "split": "test",
+    "budget": "81.95",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 41
+  },
+  {
+    "task_id": "batch-20261110-0014",
+    "split": "test",
+    "budget": "129.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 46
+  },
+  {
+    "task_id": "batch-20261110-0016",
+    "split": "test",
+    "budget": "29.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 38
+  },
+  {
+    "task_id": "batch-20261110-0019",
+    "split": "test",
+    "budget": "599.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 51
+  },
+  {
+    "task_id": "batch-20261110-0020",
+    "split": "test",
+    "budget": "5.99",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 5
+  },
+  {
+    "task_id": "batch-20261110-0023",
+    "split": "test",
+    "budget": "8.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0024",
+    "split": "test",
+    "budget": "9.59",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 7
+  },
+  {
+    "task_id": "batch-20261110-0025",
+    "split": "test",
+    "budget": "45.89",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 52
+  },
+  {
+    "task_id": "batch-20261110-0026",
+    "split": "test",
+    "budget": "3.74",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0027",
+    "split": "test",
+    "budget": "8.95",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 5
+  },
+  {
+    "task_id": "batch-20261110-0028",
+    "split": "test",
+    "budget": "30.32",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 45
+  },
+  {
+    "task_id": "batch-20261110-0029",
+    "split": "test",
+    "budget": "77.03",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 40
+  },
+  {
+    "task_id": "batch-20261110-0032",
+    "split": "test",
+    "budget": "12.6",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 8
+  },
+  {
+    "task_id": "batch-20261110-0033",
+    "split": "test",
+    "budget": "18.4",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 26
+  },
+  {
+    "task_id": "batch-20261110-0034",
+    "split": "test",
+    "budget": "3.74",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0035",
+    "split": "held_out_category",
+    "budget": "22.97",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 77
+  },
+  {
+    "task_id": "batch-20261110-0038",
+    "split": "held_out_category",
+    "budget": "4.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 3
+  },
+  {
+    "task_id": "batch-20261110-0039",
+    "split": "test",
+    "budget": "8.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0040",
+    "split": "test",
+    "budget": "24.0",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 27
+  },
+  {
+    "task_id": "batch-20261110-0041",
+    "split": "test",
+    "budget": "149.95",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 47
+  },
+  {
+    "task_id": "batch-20261110-0044",
+    "split": "test",
+    "budget": "11.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 6
+  },
+  {
+    "task_id": "batch-20261110-0045",
+    "split": "held_out_category",
+    "budget": "6.96",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 4
+  },
+  {
+    "task_id": "batch-20261110-0046",
+    "split": "test",
+    "budget": "47.99",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 53
+  },
+  {
+    "task_id": "batch-20261110-0051",
+    "split": "held_out_category",
+    "budget": "29.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 107
+  },
+  {
+    "task_id": "batch-20261110-0052",
+    "split": "held_out_category",
+    "budget": "39.94",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 125
+  },
+  {
+    "task_id": "batch-20261110-0054",
+    "split": "test",
+    "budget": "18.32",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 17
+  },
+  {
+    "task_id": "batch-20261110-0057",
+    "split": "held_out_category",
+    "budget": "4.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 3
+  },
+  {
+    "task_id": "batch-20261110-0058",
+    "split": "held_out_category",
+    "budget": "16.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 47
+  },
+  {
+    "task_id": "batch-20261110-0059",
+    "split": "test",
+    "budget": "54.4",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 55
+  },
+  {
+    "task_id": "batch-20261110-0062",
+    "split": "test",
+    "budget": "11.19",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 14
+  },
+  {
+    "task_id": "batch-20261110-0063",
+    "split": "test",
+    "budget": "3.74",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0064",
+    "split": "held_out_category",
+    "budget": "9.95",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 9
+  },
+  {
+    "task_id": "batch-20261110-0065",
+    "split": "held_out_category",
+    "budget": "12.75",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 28
+  },
+  {
+    "task_id": "batch-20261110-0066",
+    "split": "test",
+    "budget": "19.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 21
+  },
+  {
+    "task_id": "batch-20261110-0070",
+    "split": "test",
+    "budget": "69.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 39
+  },
+  {
+    "task_id": "batch-20261110-0071",
+    "split": "held_out_category",
+    "budget": "24.99",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 91
+  },
+  {
+    "task_id": "batch-20261110-0072",
+    "split": "held_out_category",
+    "budget": "3.98",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0073",
+    "split": "test",
+    "budget": "28.35",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 32
+  },
+  {
+    "task_id": "batch-20261110-0074",
+    "split": "held_out_category",
+    "budget": "34.95",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 118
+  },
+  {
+    "task_id": "batch-20261110-0075",
+    "split": "test",
+    "budget": "12.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 10
+  },
+  {
+    "task_id": "batch-20261110-0078",
+    "split": "held_out_category",
+    "budget": "12.33",
+    "minimum_price": "3.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 26
+  },
+  {
+    "task_id": "batch-20261110-0000",
+    "split": "train",
+    "budget": "7.98",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0001",
+    "split": "train",
+    "budget": "4.49",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 2
+  },
+  {
+    "task_id": "batch-20261110-0004",
+    "split": "train",
+    "budget": "7.18",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 12
+  },
+  {
+    "task_id": "batch-20261110-0006",
+    "split": "train",
+    "budget": "11.42",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 30
+  },
+  {
+    "task_id": "batch-20261110-0007",
+    "split": "train",
+    "budget": "7.98",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0011",
+    "split": "train",
+    "budget": "7.98",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0012",
+    "split": "train",
+    "budget": "37.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 63
+  },
+  {
+    "task_id": "batch-20261110-0015",
+    "split": "train",
+    "budget": "32.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 53
+  },
+  {
+    "task_id": "batch-20261110-0017",
+    "split": "train",
+    "budget": "16.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 20
+  },
+  {
+    "task_id": "batch-20261110-0018",
+    "split": "val",
+    "budget": "3.57",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0021",
+    "split": "train",
+    "budget": "13.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 28
+  },
+  {
+    "task_id": "batch-20261110-0030",
+    "split": "train",
+    "budget": "32.99",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 66
+  },
+  {
+    "task_id": "batch-20261110-0031",
+    "split": "train",
+    "budget": "7.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 9
+  },
+  {
+    "task_id": "batch-20261110-0037",
+    "split": "train",
+    "budget": "5.98",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0042",
+    "split": "train",
+    "budget": "11.89",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 31
+  },
+  {
+    "task_id": "batch-20261110-0043",
+    "split": "train",
+    "budget": "32.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 55
+  },
+  {
+    "task_id": "batch-20261110-0047",
+    "split": "train",
+    "budget": "164.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 75
+  },
+  {
+    "task_id": "batch-20261110-0048",
+    "split": "train",
+    "budget": "37.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 63
+  },
+  {
+    "task_id": "batch-20261110-0053",
+    "split": "train",
+    "budget": "8.49",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 17
+  },
+  {
+    "task_id": "batch-20261110-0055",
+    "split": "val",
+    "budget": "28.99",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 9
+  },
+  {
+    "task_id": "batch-20261110-0056",
+    "split": "train",
+    "budget": "16.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 35
+  },
+  {
+    "task_id": "batch-20261110-0060",
+    "split": "train",
+    "budget": "6.84",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 7
+  },
+  {
+    "task_id": "batch-20261110-0061",
+    "split": "train",
+    "budget": "24.99",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 64
+  },
+  {
+    "task_id": "batch-20261110-0067",
+    "split": "val",
+    "budget": "14.99",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 9
+  },
+  {
+    "task_id": "batch-20261110-0069",
+    "split": "val",
+    "budget": "12.98",
+    "minimum_price": "7.99",
+    "budget_below_all_prices": false,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0076",
+    "split": "train",
+    "budget": "5.98",
+    "minimum_price": "5.99",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0077",
+    "split": "train",
+    "budget": "2.39",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": true,
+    "is_impossible": true,
+    "feasible_count": 0
+  },
+  {
+    "task_id": "batch-20261110-0079",
+    "split": "train",
+    "budget": "7.44",
+    "minimum_price": "2.4",
+    "budget_below_all_prices": false,
+    "is_impossible": false,
+    "feasible_count": 13
+  }
+]
