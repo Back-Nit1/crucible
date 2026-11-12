@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from catalog.router import ProductResult, ProviderRouter, ProviderUnavailable, ReviewsResult, SearchResult
 from api.masking import demo_mode, mask_product  # noqa: F401  (demo_mode re-exported)
 from api.buyer import AgentRunFailed, BuyerService, ModelNotConfigured, buyer_router, to_agent_run_result
+from api.observatory import observatory_router
 from api.world import ModelUnavailable, WorldDataUnavailable, world_router
 from payments.errors import PaymentError, PaymentUnavailable
 from payments.ledger import PaymentLedger
@@ -27,6 +28,7 @@ from payments.sandbox import SandboxPayments
 from payments.guards import (BudgetViolation, GuardedPayments, GuardViolation, NotConfirmed, OutOfStock,
                              PriceMismatch, QuoteChanged, QuoteIncomplete, QuoteStale)
 from payments.mock import MockPayments
+from training.live import source_from_env
 
 log = logging.getLogger("crucible.api")
 APP_VERSION = "0.2.0"
@@ -411,6 +413,7 @@ def create_app(router: ProviderRouter | None = None, backend=None, reader=None, 
 
     app.include_router(world_router(_LazyReader(reader), runner or _BuyerBackedRunner(get_buyer), ledger_source=lambda: (get_payments(), state["ledger"])[1]))
     app.include_router(buyer_router(_Lazy()))
+    app.include_router(observatory_router(_LazyReader(reader), source_from_env()))
     return app
 
 

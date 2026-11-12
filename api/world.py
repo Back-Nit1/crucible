@@ -230,18 +230,42 @@ def _detail(t: TraceRecord) -> EpisodeDetail:
         payment_events=t.payment_events, genome={k: v for k, v in t.genome.items() if k != "id"} | {"id": t.genome.get("id")})
 
 
+def gen_out(d: dict) -> GenerationOut:
+    c = d.get("config") or {}
+    return GenerationOut(generation_id=d["gen_id"], status=d["status"], population_size=d.get("population_size", 0),
+                         survivors=d.get("survivors", 0), kills=d.get("kills", 0), seed=c.get("seed"), tasks=c.get("tasks"),
+                         catalog_hash=c.get("catalog_hash"), runner=d.get("runner"), error=d.get("error"))
+
+
+def leaderboard_rows(generations: list[dict], traces: list[TraceRecord]) -> list[LeaderboardRow]:
+    gens = {d["gen_id"]: d for d in generations}
+    by: dict[tuple[str, str], list[TraceRecord]] = defaultdict(list)
+    for t in traces:
+        by[(t.generation_id, t.agent_id)].append(t)
+    rows = []
+    for (gid, agent), ts in by.items():
+        fit = [t.fitness if t.scored else 0.0 for t in ts]  # an unscored/killed-early episode counts as 0, never skipped
+        surv = set(((gens.get(gid) or {}).get("summary") or {}).get("survivors", []))
+        rows.append(dict(agent_id=agent, variant=str(ts[0].genome.get("system_prompt_variant", "unknown")), generation_id=gid,
+                         episodes=len(ts), mean_fitness=round(sum(fit) / len(fit), 6) if fit else 0.0,
+                         killed_episodes=sum(t.killed for t in ts), kill_rules=sorted({t.kill_reason for t in ts if t.kill_reason}),
+                         survivor=agent in surv))
+    rows.sort(key=lambda x: (x["killed_episodes"] > 0, -x["mean_fitness"], x["agent_id"]))  # agents with any kill rank below clean ones
+    return [LeaderboardRow(rank=i + 1, **x) for i, x in enumerate(rows)]
+
+
+def kill_rule_rows(traces: list[TraceRecord]) -> list[KillRuleOut]:
+    counts = Counter(k["rule_id"] for t in traces for k in t.kills)
+    return [KillRuleOut(rule_id=x.id, version=x.version, description=x.description, added_on=x.added_on, enabled=x.enabled,
+                        kills=counts.get(x.id, 0)) for x in INITIAL_RULES]
+
+
 def _page(items: list, total: int, offset: int, limit: int) -> dict:
     return {"items": items, "total": total, "offset": offset, "limit": limit}
 
 
 def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_source=lambda: None) -> APIRouter:
     r, runner = APIRouter(), runner or UnconfiguredRunner()
-
-    def gen_out(d: dict) -> GenerationOut:
-        c = d.get("config") or {}
-        return GenerationOut(generation_id=d["gen_id"], status=d["status"], population_size=d.get("population_size", 0),
-                             survivors=d.get("survivors", 0), kills=d.get("kills", 0), seed=c.get("seed"), tasks=c.get("tasks"),
-                             catalog_hash=c.get("catalog_hash"), runner=d.get("runner"), error=d.get("error"))
 
     @r.post("/agent/run", response_model=AgentRunResult, tags=["agent"])
     def agent_run(req: AgentRunRequest, request: Request):
@@ -283,20 +307,8 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_
 
     @r.get("/world/leaderboard", response_model=Page[LeaderboardRow], tags=["world"])
     def leaderboard(generation_id: str | None = None, offset: Offset = 0, limit: Limit = 50):
-        gens = {d["gen_id"]: d for d in reader.generations()}
-        by: dict[tuple[str, str], list[TraceRecord]] = defaultdict(list)
-        for t in reader.all_traces(generation_id):
-            by[(t.generation_id, t.agent_id)].append(t)
-        rows = []
-        for (gid, agent), ts in by.items():
-            fit = [t.fitness if t.scored else 0.0 for t in ts]  # an unscored/killed-early episode counts as 0, never skipped
-            surv = set(((gens.get(gid) or {}).get("summary") or {}).get("survivors", []))
-            rows.append(dict(agent_id=agent, variant=str(ts[0].genome.get("system_prompt_variant", "unknown")), generation_id=gid,
-                             episodes=len(ts), mean_fitness=round(sum(fit) / len(fit), 6) if fit else 0.0,
-                             killed_episodes=sum(t.killed for t in ts), kill_rules=sorted({t.kill_reason for t in ts if t.kill_reason}),
-                             survivor=agent in surv))
-        rows.sort(key=lambda x: (x["killed_episodes"] > 0, -x["mean_fitness"], x["agent_id"]))  # agents with any kill rank below clean ones
-        return _page([LeaderboardRow(rank=i + 1, **x) for i, x in enumerate(rows)][offset:offset + limit], len(rows), offset, limit)
+        rows = leaderboard_rows(reader.generations(), reader.all_traces(generation_id))
+        return _page(rows[offset:offset + limit], len(rows), offset, limit)
 
     @r.get("/world/kills", response_model=Page[KillLogRow], tags=["world"])
     def kills(generation_id: str | None = None, rule_id: str | None = None, offset: Offset = 0, limit: Limit = 50):
@@ -308,9 +320,7 @@ def world_router(reader: WorldReader, runner: AgentRunner | None = None, ledger_
 
     @r.get("/world/kill-rules", response_model=list[KillRuleOut], tags=["world"])
     def kill_rules():
-        counts = Counter(k["rule_id"] for t in reader.all_traces() for k in t.kills)
-        return [KillRuleOut(rule_id=x.id, version=x.version, description=x.description, added_on=x.added_on, enabled=x.enabled,
-                            kills=counts.get(x.id, 0)) for x in INITIAL_RULES]
+        return kill_rule_rows(reader.all_traces())
 
     def docs(kind: str, offset: int, limit: int):
         rows, total = reader.documents(kind, offset, limit)

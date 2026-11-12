@@ -1,6 +1,7 @@
 """WorldReader implementations: Elastic (production) and in-memory (tests, sample data)."""
 from __future__ import annotations
 
+from collections import Counter
 from itertools import islice
 from pydantic import ValidationError
 
@@ -43,6 +44,9 @@ class InMemoryReader:
 
     def all_traces(self, generation_id=None):
         return sorted((t for t in self._traces if generation_id in (None, t.generation_id)), key=lambda t: t.episode_id)
+
+    def trace_generations(self):
+        return dict(Counter(t.generation_id for t in self._traces if t.generation_id))
 
     def documents(self, kind, offset, limit):
         rows = self._docs.get(kind, [])
@@ -90,6 +94,12 @@ class ElasticReader:
     def all_traces(self, generation_id=None):
         q = {"term": {"generation_id": generation_id}} if generation_id else {"match_all": {}}
         return self._parse(src for src, _ in islice(self.es.scan("traces", q, "episode_id"), MAX_SCAN))
+
+    def trace_generations(self):
+        """generation id -> episode count, straight from the traces index (includes runs not yet published)."""
+        body = {"size": 0, "aggs": {"g": {"terms": {"field": "generation_id", "size": 1000}}}}
+        out = self.es.call("POST", f"/{self.es.ix('traces')}/_search", body)
+        return {b["key"]: b["doc_count"] for b in out["aggregations"]["g"]["buckets"] if b["key"]}
 
     def documents(self, kind, offset, limit):
         try:
