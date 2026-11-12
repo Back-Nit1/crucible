@@ -117,29 +117,29 @@ Everything here is the PayPal **sandbox** (no real money). Credentials are suppl
 
 |                        |                                                                             |
 | ---------------------- | --------------------------------------------------------------------------- |
-| Web app                | `<<LIVE_URL>>`                                                              |
-| API                    | `<<LIVE_API_URL>>` (`/docs` for Swagger, `/ready` shows what is configured) |
+| Web app                | `https://crucible-2rcx.onrender.com`                                                              |
+| API                    | `https://crucible-api-t6pn.onrender.com` (`/docs` for Swagger, `/ready` shows what is configured) |
 | Sandbox buyer email    | `<<JUDGE_BUYER_EMAIL>>`                                                     |
 | Sandbox buyer password | `<<JUDGE_BUYER_PASSWORD>>`                                                  |
 | Demo video             | `<<YOUTUBE_URL>>`                                                           |
 
-The free host sleeps when idle: the first request can take 30 to 60 seconds. `GET <<LIVE_API_URL>>/ready` returns `model_configured`; it decides which path below applies.
+The free host sleeps when idle: the first request can take 30 to 60 seconds. `GET https://crucible-api-t6pn.onrender.com/ready` returns `model_configured`; it decides which path below applies.
 
 **Path A: checkout without a model (works whenever the API is up).** This drives the same guarded Orders v2 flow the chat uses.
 
-1. Find a product: `curl "<<LIVE_API_URL>>/catalog/search?q=running%20shoes&max_price=100"`. Copy a product `id` and its `price`. (Demo mode hides brand names as `[brand hidden]`.)
-2. Propose: `curl -X POST <<LIVE_API_URL>>/purchase/propose -H 'content-type: application/json' -d '{"task_id":"judge","agent_id":"judge","product_id":"<id>","variant":"","expected_total":"<price>","budget_cap":"100.00"}'`. The response has `pending_order_id`, the verified `total`, `quote_basis` and an `approval_url`. Nothing is charged yet. Each call gets its own order; add `"request_id"` (16 to 64 chars of letters, digits, `_` or `-`) to make retries reuse it.
+1. Find a product: `curl "https://crucible-api-t6pn.onrender.com/catalog/search?q=running%20shoes&max_price=100"`. Copy a product `id` and its `price`. (Demo mode hides brand names as `[brand hidden]`.)
+2. Propose: `curl -X POST https://crucible-api-t6pn.onrender.com/purchase/propose -H 'content-type: application/json' -d '{"task_id":"judge","agent_id":"judge","product_id":"<id>","variant":"","expected_total":"<price>","budget_cap":"100.00"}'`. The response has `pending_order_id`, the verified `total`, `quote_basis` and an `approval_url`. Nothing is charged yet. Each call gets its own order; add `"request_id"` (16 to 64 chars of letters, digits, `_` or `-`) to make retries reuse it.
 3. Open `approval_url` in a browser, log in with the sandbox buyer above and approve the payment on PayPal's page. PayPal returns you to the web app.
-4. Confirm: `curl -X POST <<LIVE_API_URL>>/purchase/confirm -H 'content-type: application/json' -d '{"pending_order_id":"<pending_order_id>","user_confirmed":true}'`. The response is the receipt (`order_id`, `capture_id`, `amount`, `status: COMPLETED`). Repeat step 4 with `"user_confirmed":false` first to see the refusal (HTTP 428), and before approving to see HTTP 402.
-5. Look at `<<LIVE_URL>>/payments` and, if you wish, the same order in the PayPal sandbox dashboard. The Postman collection ([`postman/`](postman)) runs this flow with tests.
+4. Confirm: `curl -X POST https://crucible-api-t6pn.onrender.com/purchase/confirm -H 'content-type: application/json' -d '{"pending_order_id":"<pending_order_id>","user_confirmed":true}'`. The response is the receipt (`order_id`, `capture_id`, `amount`, `status: COMPLETED`). Repeat step 4 with `"user_confirmed":false` first to see the refusal (HTTP 428), and before approving to see HTTP 402.
+5. Look at `https://crucible-2rcx.onrender.com/payments` and, if you wish, the same order in the PayPal sandbox dashboard. The Postman collection ([`postman/`](postman)) runs this flow with tests.
 
 **Path B: the shopping chat (needs `model_configured: true`; if it is `false`, the chat answers `model_unavailable` by design).**
 
-1. Open `<<LIVE_URL>>/`, type: `I need comfortable over-ear headphones for long study sessions, under $120 all-in. I wear glasses, so pressure matters.` and press **Run grounded research**.
+1. Open `https://crucible-2rcx.onrender.com/`, type: `I need comfortable over-ear headphones for long study sessions, under $120 all-in. I wear glasses, so pressure matters.` and press **Run grounded research**.
 2. Read the cards: parsed intent and assumptions, research timeline, product cards with source and `as_of`, review evidence cited by review id, verified quote and its freshness. A request with no feasible product ends in a "no realistic match" card instead.
 3. Select the quoted item and press confirm only when the total looks right. The page shows the PayPal approval link; approve as the sandbox buyer; the receipt appears after capture.
 
-**Also open (read-only, real data):** `<<LIVE_URL>>/world` (generation metrics, kills by rule), `/episodes` (AG Grid, open any row for the ordered replay), `/models` (shows **Not run** where nothing was measured), `/system`.
+**Also open (read-only, real data):** `https://crucible-2rcx.onrender.com/world` (generation metrics, kills by rule), `/episodes` (AG Grid, open any row for the ordered replay), `/models` (shows **Not run** where nothing was measured), `/system`.
 
 ## Web app
 

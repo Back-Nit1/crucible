@@ -44,4 +44,4 @@ PayPal sandbox (Orders v2), Elastic Serverless, Kernel, Modal, Render, AG Grid C
 The repository's first commit is 2026-10-30, inside the submission period (from 2026-10-01); all code was written in the period and history is unmodified (`git log`). Details: [README](../../README.md#how-this-was-significantly-updated-during-the-submission-period).
 
 ## Testing instructions
-Hosted demo `<<LIVE_URL>>`, API `<<LIVE_API_URL>>`, sandbox buyer `<<JUDGE_BUYER_EMAIL>>` / `<<JUDGE_BUYER_PASSWORD>>`, video `<<YOUTUBE_URL>>`, repo https://github.com/Back-Nit1/crucible (MIT). Step by step, including a path that works without a model: README section "Judge testing". Free to use through the judging period; sandbox only, no real money.
+Hosted demo `https://crucible-2rcx.onrender.com`, API `https://crucible-api-t6pn.onrender.com`, sandbox buyer `<<JUDGE_BUYER_EMAIL>>` / `<<JUDGE_BUYER_PASSWORD>>`, video `<<YOUTUBE_URL>>`, repo https://github.com/Back-Nit1/crucible (MIT). Step by step, including a path that works without a model: README section "Judge testing". Free to use through the judging period; sandbox only, no real money.
