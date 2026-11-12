@@ -1,13 +1,13 @@
 # Pre-submit checklist
 
-State as of 2026-11-03 (deadline 2026-11-12 12:00 PM PT). Items are `prompt.md` section 17 first, then the official-rules items from section 2 and the milestone items from section 16. **PASS** = verified now with the evidence shown. **FAIL** = not met. **OWNER** = only the repository owner can do it. Re-check with `uv run python -m scripts.check_submission` (it fails while any `placeholder` remains).
+State as of 2026-11-12 (deadline 2026-11-12 12:00 PM PT). Items are `prompt.md` section 17 first, then the official-rules items from section 2 and the milestone items from section 16. **PASS** = verified now with the evidence shown. **FAIL** = not met. **OWNER** = only the repository owner can do it. Re-check with `uv run python -m scripts.check_submission` (it fails while any `placeholder` remains).
 
 ## Definition of done (prompt.md section 17)
 | # | Item | Result | Evidence / what is missing |
 |---|---|---|---|
-| 1 | A judge opens the hosted URL, types a raw message, sees grounded picks, completes a PayPal sandbox checkout after confirming | **FAIL** | Nothing is deployed (`render` CLI absent; runbook in [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md), OWNER). The chat also needs a model: it returns `model_unavailable` (no Qwen run; Modal spend gates unset, OWNER). Checkout **without** a model works through the purchase API ([README Judge testing, Path A](../../README.md#judge-testing)); sandbox flow evidence [`paypal_live_check.json`](../payments/paypal_live_check.json) |
+| 1 | A judge opens the hosted URL, types a raw message, sees grounded picks, completes a PayPal sandbox checkout after confirming | **FAIL** | Nothing is deployed (`render` CLI absent; runbook in [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md), OWNER). The chat also needs a model: with no model endpoint it answers 503 `model_unavailable` (or `transport_error` when the Modal inference app is stopped, as now); the chat page says so and points to the purchase API. Checkout **without** a model works through the purchase API ([README Judge testing, Path A](../../README.md#judge-testing)); sandbox flow evidence [`paypal_live_check.json`](../payments/paypal_live_check.json) |
 | 2 | World Dashboard: real generations, kills by reason, Loophole Hunter rules, lineage, replays (AG Grid) | **PASS** (local live mode) | [`docs/screenshots/world.png`](../screenshots/world.png), [`episodes.png`](../screenshots/episodes.png); data [`rc-real-20261102`](../runs/rc-real-20261102/summary.md). AG Grid is used on `/episodes` and `/payments` only. Hosted version: FAIL until deployed |
-| 3 | Model Dashboard: base vs memory vs fine-tuned (vs ceiling), held-out tasks/categories, pass^k, WebShop, review metrics | **FAIL** | Nothing measured; the page shows **Not run** ([`models.png`](../screenshots/models.png), [`STATUS.md`](../evaluations/eval-20261110-base/STATUS.md)). Needs OWNER to authorize Modal spend, then the evaluation commands in [`measured-evaluation.md`](../handoffs/measured-evaluation.md) |
+| 3 | Model Dashboard: base vs memory vs fine-tuned (vs ceiling), held-out tasks/categories, pass^k, WebShop, review metrics | **FAIL** | No complete evaluation: base eval is partial (86/141, 0 successes, harness fixes pending, [`STATUS.md`](../evaluations/eval-20261110-base/STATUS.md)); the page shows **Not run** where nothing was measured ([`models.png`](../screenshots/models.png)). Needs OWNER to raise the Modal ceiling (billed about $2.70 of $3.00), then [`measured-evaluation.md`](../handoffs/measured-evaluation.md) |
 | 4 | Zero budget violations and zero hallucinated purchases for the shipped model on the test set, or true numbers | **FAIL** (no shipped model) | Only scripted-shopper pipeline numbers exist: 0 charged violations, 0 hallucinated purchases ([`summary.json`](../runs/rc-real-20261102/summary.json)); they are not model results and are labelled so |
 | 5a | Public repo | **PASS** | `gh repo view Back-Nit1/crucible --json visibility` = PUBLIC (checked by `scripts.check_submission`) |
 | 5b | MIT license visible in About | **PASS** | `gh repo view --json licenseInfo` key `mit`; [`LICENSE`](../../LICENSE) |
@@ -22,7 +22,7 @@ State as of 2026-11-03 (deadline 2026-11-12 12:00 PM PT). Items are `prompt.md` 
 | Item | Result | Evidence / what is missing |
 |---|---|---|
 | PayPal integration central, free sandbox | **PASS** | [README "Why PayPal is central"](../../README.md#why-paypal-is-central), [`payments/`](../../payments), live check |
-| Works as described; setup instructions in repo | **PASS** | README Setup; `uv run pytest -q` 548 passed, 1 skipped |
+| Works as described; setup instructions in repo | **PASS** | README Setup; `uv run pytest -q`: 648 passed, 1 failed, 3 skipped, 6 deselected on 2026-11-12 (the failure, `test_malformed_output_is_retried_boundedly_then_fails_closed_without_keeping_raw_text`, comes from the uncommitted `raw_output` audit change in `agents/model.py`) |
 | Text description | **PASS (draft)** | [`devpost.md`](devpost.md); OWNER pastes it and fills placeholders |
 | Demo video under 3 min, public YouTube, English, no third-party marks or music | **FAIL / OWNER** | Not recorded. Script and recording list: [`video-script.md`](video-script.md) |
 | Existing project significantly updated, explained | **PASS** | First commit 2026-10-30, in period; statement in README and Devpost |
@@ -35,13 +35,13 @@ State as of 2026-11-03 (deadline 2026-11-12 12:00 PM PT). Items are `prompt.md` 
 | Item | Result | Evidence |
 |---|---|---|
 | Tags `m1-day1-checks`, `m2-catalog-tasks`, `m3-episode` | **PASS** | `git tag -n1`; placement in [`DECISIONS.md`](../../DECISIONS.md) |
-| Tags `m4-world`, `m5-train-eval` | **FAIL** | Not created: the milestones are not met (no Modal-trained or evaluated model); belongs to the model-pipeline owner |
+| Tags `m4-world`, `m5-train-eval` | **FAIL** | Not created on purpose: no trained adapter (3 real SFT smoke runs failed) and no complete evaluation exist. `check_submission` is 14/18: these two, `m8-submission`, and the placeholders |
 | Tags `m6-product`, `m7-polish` | **CREATED, caveat** | Created at the submission-package commits on request. Their listed contents are not all met (no Render deploy, no Astropods, no final evals); this checklist is the honest account |
 | Tag `m8-submission` | **PENDING** | Due 2026-11-12 morning (buffer) |
 | `/ponytail-audit` run | **PASS** | [`ponytail-audit.md`](ponytail-audit.md) (findings listed, none applied) |
 | `/graphify .` refreshed | **PASS (code only)** | [`docs/graph/GRAPH_REPORT.md`](../graph/GRAPH_REPORT.md): 3536 nodes, 11228 edges from an AST-only update; docs were not re-extracted semantically |
 | `docs/ARCHITECTURE.md` updated | **PASS** | Checkout sequence rewritten, status section updated, all 10 diagrams export to SVG |
-| Tests green on `main` | **PASS** | `uv run pytest -q`: 548 passed, 1 skipped; web: lint, typecheck, 23 unit tests, build, e2e 6 passed (2 skipped) |
+| Tests green on `main` | **PARTIAL** (green at the last commit; 1 failing test in the working tree) | see the row above; web 2026-11-12: typecheck clean, 29 vitest passed. `npm run build` and Playwright e2e **not re-run** today (last run 2026-11-03) |
 | `scripts.verify_deploy` against hosted URLs | **NOT RUN** | Nothing deployed; passed 11 of 11 against a local live-mode stack |
 
 ## What only the owner can do (in order)
