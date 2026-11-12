@@ -53,21 +53,38 @@ image = (modal.Image.debian_slim(python_version="3.12")
          .env({"CRUCIBLE_QWEN_MODEL": QWEN_MODEL_KEY})  # train the same base the inference server serves
          .add_local_python_source("modal_app", "training", copy=True)
          .run_function(_download_model, timeout=30 * 60)
-         .env({"CRUCIBLE_TRAIN_ALGORITHMS": ALGORITHMS}))  # last layer: flipping a flag never re-downloads the model
+         .env({"CRUCIBLE_TRAIN_ALGORITHMS": ALGORITHMS,  # last layer: flipping a flag never re-downloads the model
+               "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}))  # first L4 run: 3 GiB reserved but unusable (fragmentation)
 app = modal.App(APP_NAME)
 volume = modal.Volume.from_name(VOLUME_NAME, create_if_missing=True, version=2)
+
+
+def _live_store():
+    """Progress for the Observatory (training.live). Best-effort: no Dict means no live view, never a failed run."""
+    try:
+        from training.live import modal_store
+        return modal_store()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 @app.function(image=image, gpu="L4" if ENABLED else None, cpu=2.0, memory=32_768, timeout=TIMEOUT_SECONDS,
               volumes={VOLUME_ROOT: volume}, max_containers=1, retries=0)
 def train(payload: dict) -> dict:
     """One launch of a (possibly resumed) run. Returns a TrainResponse; status "final" only with a verified artifact."""
-    from training.service import execute, policy_adapter_dir
+    from training.service import check_request, execute, policy_adapter_dir
     from training.torch_backend import TorchLoraBackend, backend_signature, load_base_model
     request = TrainRequest.model_validate(payload)
+    check_request(request, frozenset(filter(None, os.environ.get("CRUCIBLE_TRAIN_ALGORITHMS", "").split(","))))
     volume.reload()
     hp = request.plan.hyperparameters
+    import time
+    import torch
+    t0 = time.monotonic()
     model, tokenizer = load_base_model(MODEL_PATH, hp, device="cuda")  # raises (no CPU fallback) without CUDA
+    # First-run measurements (GPU_READINESS.md estimates): read with `modal app logs crucible-qwen-training`.
+    print(f"[train] load_seconds={time.monotonic() - t0:.1f} gpu={torch.cuda.get_device_name(0)} cuda={torch.version.cuda} "
+          f"loaded_gb={torch.cuda.memory_allocated() / 2**30:.2f}", flush=True)
 
     def backend_factory(shard, hyperparameters, total_steps):
         return TorchLoraBackend(model=model, tokenizer=tokenizer, shard=shard, hp=hyperparameters, total_steps=total_steps,
@@ -76,5 +93,8 @@ def train(payload: dict) -> dict:
     Path(RUNS_ROOT).mkdir(parents=True, exist_ok=True)
     response: TrainResponse = execute(request, runs_root=Path(RUNS_ROOT), backend_factory=backend_factory,
                                       signature=backend_signature(), volume_commit=volume.commit,
-                                      algorithms=frozenset(filter(None, os.environ.get("CRUCIBLE_TRAIN_ALGORITHMS", "").split(","))))
+                                      algorithms=frozenset(filter(None, os.environ.get("CRUCIBLE_TRAIN_ALGORITHMS", "").split(","))),
+                                      live_store=_live_store())
+    print(f"[train] status={response.status} step={response.step}/{response.total_steps} "
+          f"total_seconds={time.monotonic() - t0:.1f} peak_gb={torch.cuda.max_memory_allocated() / 2**30:.2f}", flush=True)
     return response.model_dump(mode="json")

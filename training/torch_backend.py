@@ -107,11 +107,16 @@ class TorchLoraBackend:
 
     # -- GRPO helpers -----------------------------------------------------------------------------------------------
     def _token_logprobs(self, input_ids, labels, mask):
+        """Log-prob of labels[:, 1:] as [B, L-1], 0 where unlabeled. Logits are computed only at positions that predict a
+        labeled token (`logits_to_keep`): a full 8192 x 152064 fp32 matrix, its bf16 copy and its grad are ~12 GB on a 24 GB L4."""
         torch = self.torch
+        target = labels[:, 1:]
+        keep = (target != IGNORE_INDEX).any(0).nonzero().squeeze(1)  # union over the micro-batch rows
         with torch.autocast(device_type=self.device.split(":")[0], dtype=torch.bfloat16, enabled=self.device != "cpu"):
-            logits = self.model(input_ids=input_ids, attention_mask=mask).logits
-        return -torch.nn.functional.cross_entropy(logits[:, :-1].float().transpose(1, 2), labels[:, 1:],
+            logits = self.model(input_ids=input_ids, attention_mask=mask, logits_to_keep=keep).logits
+        logp = -torch.nn.functional.cross_entropy(logits.float().transpose(1, 2), target[:, keep],
                                                   ignore_index=IGNORE_INDEX, reduction="none")
+        return torch.zeros(target.shape, device=logp.device, dtype=logp.dtype).index_copy(1, keep, logp)
 
     def _frozen_logprobs(self, *, adapter: bool) -> list[list[float]]:
         import contextlib
@@ -146,11 +151,7 @@ class TorchLoraBackend:
             labels = torch.tensor([lab + [IGNORE_INDEX] * (width - len(lab)) for _, lab in chunk], device=self.device)
             mask = torch.tensor([[1] * len(ids) + [0] * (width - len(ids)) for ids, _ in chunk], device=self.device)
             if hp.grpo is None:
-                with torch.autocast(device_type=self.device.split(":")[0], dtype=torch.bfloat16, enabled=self.device != "cpu"):
-                    logits = self.model(input_ids=input_ids, attention_mask=mask).logits
-                loss = torch.nn.functional.cross_entropy(
-                    logits[:, :-1].float().reshape(-1, logits.size(-1)), labels[:, 1:].reshape(-1),
-                    ignore_index=IGNORE_INDEX, reduction="sum") / targets
+                loss = -self._token_logprobs(input_ids, labels, mask).sum() / targets
             else:
                 from training.rl.loss import grpo_token_loss
                 idx = example_indices[start:start + hp.micro_batch_size]
@@ -202,7 +203,9 @@ def load_base_model(model_path: str, hp: LoRAHyperparameters, *, device: str, re
     if device != "cpu" and not torch.cuda.is_available():
         raise BackendError("no_cuda", "CUDA requested but unavailable; no CPU fallback")
     tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
-    kwargs: dict = {"local_files_only": True, "torch_dtype": torch.bfloat16 if device != "cpu" else torch.float32}
+    # sdpa (never eager): eager materialises fp32 [heads, L, L] scores, 2.7 GiB per layer at 5k tokens and an OOM on the first L4 run.
+    kwargs: dict = {"local_files_only": True, "dtype": torch.bfloat16 if device != "cpu" else torch.float32,
+                    "attn_implementation": "sdpa"}
     if hp.quantization == "nf4":
         kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True,
@@ -211,10 +214,7 @@ def load_base_model(model_path: str, hp: LoRAHyperparameters, *, device: str, re
     elif device != "cpu":
         kwargs["device_map"] = {"": 0}
     model = AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
-    if hp.quantization == "nf4":
-        from peft import prepare_model_for_kbit_training
-        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
-    else:
-        model.gradient_checkpointing_enable()
-        model.enable_input_require_grads()
+    # Not prepare_model_for_kbit_training: it upcasts embed_tokens + lm_head to fp32 (+4.4 GB on a 7B) for no benefit under bf16 autocast.
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    model.enable_input_require_grads()
     return model, tokenizer

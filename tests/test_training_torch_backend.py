@@ -28,7 +28,7 @@ from training.trainer import run_training  # noqa: E402
 NOW = dt.datetime(2026, 11, 1, tzinfo=dt.timezone.utc)
 HP = LoRAHyperparameters(method="lora_sft", quantization="none", epochs=2, lora_rank=4, lora_alpha=8, lora_dropout=Decimal("0.1"),
                          learning_rate=Decimal("0.01"), micro_batch_size=1, gradient_accumulation_steps=2, warmup_steps=1,
-                         checkpoint_every_steps=1, target_modules=("q_proj", "v_proj"), max_sequence_length=4096, seed=3)
+                         checkpoint_every_steps=1, target_modules=("q_proj", "v_proj"), max_sequence_length=8192, seed=3)
 
 
 @pytest.fixture(scope="module")
@@ -37,7 +37,7 @@ def tiny_model_dir(tmp_path_factory):
     tok = transformers.AutoTokenizer.from_pretrained(TOK)
     torch.manual_seed(0)
     config = transformers.Qwen2Config(vocab_size=len(tok), hidden_size=32, intermediate_size=64, num_hidden_layers=2,
-                                      num_attention_heads=4, num_key_value_heads=2, max_position_embeddings=4096,
+                                      num_attention_heads=4, num_key_value_heads=2, max_position_embeddings=8192,
                                       tie_word_embeddings=True)
     transformers.Qwen2ForCausalLM(config).save_pretrained(path)
     tok.save_pretrained(path)

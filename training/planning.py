@@ -56,7 +56,7 @@ class LoRAHyperparameters(PlanModel):
     lora_rank: int = Field(default=16, ge=1, le=256)
     lora_alpha: int = Field(default=32, ge=1, le=512)
     lora_dropout: Decimal = Field(default=Decimal("0.05"), ge=0, lt=1)
-    max_sequence_length: int = Field(default=2048, ge=128, le=32768)
+    max_sequence_length: int = Field(default=8192, ge=128, le=32768)  # = serving MAX_INPUT_TOKENS; real episodes are 4k+ tokens
     micro_batch_size: int = Field(default=1, ge=1)
     gradient_accumulation_steps: int = Field(default=8, ge=1)
     # Added with the real trainer; all defaulted so existing plans/tests keep their meaning.
