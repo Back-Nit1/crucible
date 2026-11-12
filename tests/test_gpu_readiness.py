@@ -18,6 +18,11 @@ def test_inference_image_pins_match_the_documented_pins():
     assert sorted(PIN.findall(src[src.index(".pip_install("):src.index(".add_local_python_source")])) == documented("pins-inference")
 
 
+def test_concurrent_inference_generate_is_published_as_a_modal_method():
+    src = Path("modal_app/qwen_inference.py").read_text()
+    assert "@modal.method()\n    async def generate" in src
+
+
 def test_training_image_pins_match_the_documented_pins():
     src = Path("modal_app/qwen_training.py").read_text()
     assert sorted(PIN.findall(src[src.index("TRAIN_PINS = ("):src.index("def _download_model")])) == documented("pins-training")

@@ -27,7 +27,7 @@ from pathlib import Path
 
 from agents.model import (InferenceError, MalformedModelOutput, Message, ModelAdapter, ModelRequest, QwenModelAdapter,
                           action_tools)
-from agents.qwen_client import LAUNCH_FLAGS, CEILING_VAR, qwen_tools
+from agents.qwen_client import BILLED_SPEND_VAR, LAUNCH_FLAGS, CEILING_VAR, qwen_tools
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION, SEED, SYSTEM_PROMPT, prompt_manifest, representative_prompts
 
 SCHEMA_VERSION = 2
@@ -41,7 +41,7 @@ METRIC_DEFINITIONS = {
     "schema_valid_arguments": "of those structured calls, how many passed the typed action schema",
     "parse_intent_first": "cases (of 20) whose first tool call is parse_intent with schema-valid arguments",
 }
-KEYS = {*LAUNCH_FLAGS, CEILING_VAR}
+KEYS = {*LAUNCH_FLAGS, CEILING_VAR, BILLED_SPEND_VAR}
 
 
 def _rate(n: int, d: int) -> dict:
@@ -188,14 +188,19 @@ def main(argv=None, *, client_factory=None) -> int:
     try:
         make = client_factory or ModalQwenClient.from_environment
         client = make(adapter=selection) if selection else make()
+        if client_factory is None:
+            from agents.qwen_client import warm_up_modal
+            warm_up_modal()
     except InferenceError as exc:
         write(blocked_report(str(exc), checkpoint=checkpoint, adapter_hash=adapter_hash, training_manifest_hash=tm_hash), a.out)
         print(json.dumps({"status": "blocked_not_run", "detail": str(exc)}))
         return 3
     report = run_probe(QwenModelAdapter(client, max_retries=1), checkpoint=checkpoint, adapter_hash=adapter_hash,
-                       training_manifest_hash=tm_hash, spent=lambda: client.spent, ceiling=client.cost_ceiling)
+                       training_manifest_hash=tm_hash, spent=lambda: client.budget.total_spent,
+                       ceiling=client.cost_ceiling)
     write(report, a.out)
-    print(json.dumps({"status": report["status"], "spent_estimate_usd": str(client.spent)}))
+    print(json.dumps({"status": report["status"], "session_spent_estimate_usd": str(client.spent),
+                      "cumulative_spent_estimate_usd": str(client.budget.total_spent)}))
     return {"passed": 0, "failed": 1}[report["status"]]
 
 

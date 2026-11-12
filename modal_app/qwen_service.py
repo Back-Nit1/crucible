@@ -9,7 +9,9 @@ Adapter rule: if a request names an adapter, the response is that adapter's outp
 path that answers an adapter request from the base model."""
 from __future__ import annotations
 
+import asyncio
 import time
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +38,7 @@ class EngineOutput:
     output_tokens: int
     finish_reason: str
     generation_seconds: float
+    billable_generation_seconds: float | None = None
 
 
 class Engine(Protocol):
@@ -139,7 +142,8 @@ class QwenService:
         self._load_reported = True
         fields = dict(raw_output=out.raw_output, input_tokens=out.input_tokens, output_tokens=out.output_tokens,
                       finish_reason=out.finish_reason, model=MODEL_ID, revision=MODEL_REVISION, seed_applied=True,
-                      generation_seconds=out.generation_seconds, batch_size=batch_size, container_load_seconds=load)
+                      generation_seconds=out.generation_seconds, batch_size=batch_size,
+                      billable_generation_seconds=out.billable_generation_seconds, container_load_seconds=load)
         if manifest is not None:
             fields |= dict(adapter_run_id=manifest.run_id, adapter_hash=manifest.adapter_hash,
                            training_manifest_hash=manifest.training_manifest_hash, adapter_load_seconds=adapter_seconds)
@@ -151,10 +155,87 @@ class QwenService:
         return QwenRejection(error_code=code, detail=detail[:200]).model_dump(mode="json")
 
 
+class AsyncQwenService:
+    """Cancellation-safe service for Modal input concurrency.
+
+    Each Modal input owns one asyncio task and one AsyncLLM request. Cancelling an input therefore aborts only that
+    request inside vLLM; it does not interrupt other requests sharing the GPU. Adapter loads and the one-time container
+    load charge are serialized because inputs can arrive concurrently.
+    """
+
+    def __init__(self, engine, resolver: AdapterResolver, *, container_load_seconds: float = 0.0,
+                 monotonic: Callable[[], float] = time.perf_counter):
+        self.engine, self.resolver, self.monotonic = engine, resolver, monotonic
+        self.container_load_seconds, self._load_reported = container_load_seconds, False
+        self.loaded: list[str] = []
+        self._adapter_lock = asyncio.Lock()
+        self._response_lock = asyncio.Lock()
+
+    async def _ensure_adapter(self, manifest: ArtifactManifest, directory: Path) -> float:
+        name = manifest.checkpoint_id
+        async with self._adapter_lock:
+            if name in self.loaded:
+                return 0.0
+            if len(self.loaded) >= MAX_LOADED_ADAPTERS:
+                await self.engine.unload_adapter(self.loaded.pop(0))
+            started = self.monotonic()
+            await self.engine.load_adapter(name, directory)
+            self.loaded.append(name)
+            return self.monotonic() - started
+
+    async def handle(self, payload: dict) -> dict:
+        try:
+            request = QwenRequest.model_validate(payload)
+        except ValidationError as exc:
+            return QwenService._reject("invalid_request", f"{len(exc.errors())} validation error(s)")
+        if (request.model, request.revision) != (MODEL_ID, MODEL_REVISION):
+            return QwenService._reject("model_revision_mismatch", "requested model/revision is not the pinned checkpoint")
+        manifest, adapter_seconds, adapter = None, 0.0, None
+        if request.adapter is not None:
+            try:
+                manifest, directory = self.resolver.resolve(request.adapter)
+                adapter_seconds = await self._ensure_adapter(manifest, directory)
+                adapter = manifest.checkpoint_id
+            except ArtifactError as exc:
+                return QwenService._reject(exc.code, str(exc))
+            except Exception as exc:  # load failure: never answer from the base model instead
+                return QwenService._reject("adapter_load_failed", type(exc).__name__)
+        try:
+            result = await self.engine.generate(request, adapter)
+        except InputTooLong:
+            return QwenService._reject("input_too_long", f"input exceeds {MAX_INPUT_TOKENS} tokens")
+        async with self._response_lock:
+            load = 0.0 if self._load_reported else self.container_load_seconds
+            self._load_reported = True
+        fields = dict(raw_output=result.raw_output, input_tokens=result.input_tokens, output_tokens=result.output_tokens,
+                      finish_reason=result.finish_reason, model=MODEL_ID, revision=MODEL_REVISION, seed_applied=True,
+                      generation_seconds=result.generation_seconds, batch_size=1,
+                      billable_generation_seconds=result.billable_generation_seconds,
+                      container_load_seconds=load)
+        if manifest is not None:
+            fields |= dict(adapter_run_id=manifest.run_id, adapter_hash=manifest.adapter_hash,
+                           training_manifest_hash=manifest.training_manifest_hash, adapter_load_seconds=adapter_seconds)
+        return QwenResult(**fields).model_dump(mode="json", exclude_none=True,
+                                               exclude={"adapter_load_seconds"} if manifest is None else set())
+
+
 def render_prompt(tokenizer, request: QwenRequest) -> str:
     """The one chat-template rendering every engine uses (and the trainer's data goes through the same template)."""
     messages = [{"role": "system", "content": request.system}, *request.messages]
-    return tokenizer.apply_chat_template(messages, tools=request.tools, add_generation_prompt=True, tokenize=False)
+    def render():
+        return tokenizer.apply_chat_template(messages, tools=request.tools, add_generation_prompt=True, tokenize=False)
+    prompt = render()
+    # Retain the buyer request and the latest complete tool exchanges. Drop oldest
+    # assistant/tool pairs together, never leaving an orphan tool response.
+    while len(tokenizer(prompt)["input_ids"]) > MAX_INPUT_TOKENS:
+        index = next((i for i in range(1, len(messages) - 2)
+                      if messages[i].get("role") == "assistant"
+                      and messages[i + 1].get("role") == "tool"), None)
+        if index is None:
+            break  # engines reject an oversized irreducible request
+        del messages[index:index + 2]
+        prompt = render()
+    return prompt
 
 
 class TransformersEngine:
@@ -275,13 +356,108 @@ class VLLMEngine:
                                   finish_reason="stop" if choice.finish_reason == "stop" else "length",
                                   generation_seconds=seconds)
         return out
-        started = time.perf_counter()
-        results = self.llm.generate(prompts, params, lora_request=loras, use_tqdm=False)
-        seconds = time.perf_counter() - started
-        for i, result in zip(live, results):
-            choice = result.outputs[0]
-            out[i] = EngineOutput(raw_output=choice.text, input_tokens=len(result.prompt_token_ids),
-                                  output_tokens=len(choice.token_ids),
-                                  finish_reason="stop" if choice.finish_reason == "stop" else "length",
-                                  generation_seconds=seconds)
-        return out
+
+
+class GenerationCostMeter:
+    """Split every GPU-busy interval evenly across the requests active during that interval.
+
+    Unlike a fixed batch-size estimate, this remains additive when vLLM continuously admits and completes requests:
+    summing the returned shares produces the exact union of metered busy wall time.
+    """
+
+    def __init__(self, monotonic: Callable[[], float] = time.perf_counter):
+        self.monotonic = monotonic
+        self._lock = asyncio.Lock()
+        self._active: dict[str, float] = {}
+        self._last = monotonic()
+
+    def _accrue(self, now: float) -> None:
+        if self._active:
+            share = max(0.0, now - self._last) / len(self._active)
+            for request_id in self._active:
+                self._active[request_id] += share
+        self._last = now
+
+    async def start(self, request_id: str) -> None:
+        async with self._lock:
+            self._accrue(self.monotonic())
+            if request_id in self._active:
+                raise RuntimeError("duplicate generation request id")
+            self._active[request_id] = 0.0
+
+    async def finish(self, request_id: str) -> float:
+        async with self._lock:
+            self._accrue(self.monotonic())
+            try:
+                return self._active.pop(request_id)
+            except KeyError:
+                raise RuntimeError("generation request id was not active") from None
+
+
+class AsyncVLLMEngine:
+    """Online vLLM engine: asyncio request isolation plus native continuous batching.
+
+    Modal runs each input as a separate asyncio task. If one input is cancelled, vLLM's async generator aborts only
+    that request while all other tasks keep using the same engine and container.
+    """
+
+    def __init__(self, model_path: str, *, max_lora_rank: int = 64,
+                 monotonic: Callable[[], float] = time.perf_counter):
+        from transformers import AutoTokenizer
+        from vllm.engine.arg_utils import AsyncEngineArgs
+        from vllm.v1.engine.async_llm import AsyncLLM
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
+        args = AsyncEngineArgs(model=model_path, dtype="bfloat16", enable_prefix_caching=True, enable_lora=True,
+                               max_loras=MAX_LOADED_ADAPTERS, max_lora_rank=max_lora_rank,
+                               max_model_len=MAX_INPUT_TOKENS + MAX_NEW_TOKENS_CEILING)
+        self.llm = AsyncLLM.from_engine_args(args)
+        self.loras: dict[str, object] = {}
+        self._next_lora_id = 1
+        self.monotonic = monotonic
+        self.cost_meter = GenerationCostMeter(monotonic)
+
+    async def load_adapter(self, name: str, directory: Path) -> None:
+        from vllm.lora.request import LoRARequest
+        if name in self.loras:
+            return
+        lora = LoRARequest(name, self._next_lora_id, str(directory))
+        self._next_lora_id += 1
+        await self.llm.add_lora(lora)
+        self.loras[name] = lora
+
+    async def unload_adapter(self, name: str) -> None:
+        lora = self.loras.pop(name, None)
+        if lora is not None:
+            await self.llm.remove_lora(lora.lora_int_id)
+
+    async def generate(self, request: QwenRequest, adapter: str | None) -> EngineOutput:
+        from vllm import SamplingParams
+        ids = self.tokenizer(render_prompt(self.tokenizer, request))["input_ids"]
+        if len(ids) > MAX_INPUT_TOKENS:
+            raise InputTooLong
+        params = SamplingParams(temperature=request.temperature, seed=request.seed, max_tokens=request.max_new_tokens,
+                                skip_special_tokens=False)
+        request_id = uuid.uuid4().hex
+        started = self.monotonic()
+        await self.cost_meter.start(request_id)
+        final = None
+        try:
+            async for result in self.llm.generate({"prompt_token_ids": ids}, params, request_id,
+                                                  lora_request=self.loras.get(adapter)):
+                final = result
+        except asyncio.CancelledError:
+            print(f"[request] id={request_id} status=cancelled", flush=True)
+            raise
+        finally:
+            billable = await self.cost_meter.finish(request_id)
+        if final is None or not final.outputs:
+            raise RuntimeError("vLLM completed without an output")
+        choice = final.outputs[0]
+        return EngineOutput(raw_output=choice.text, input_tokens=len(final.prompt_token_ids),
+                            output_tokens=len(choice.token_ids),
+                            finish_reason="stop" if choice.finish_reason == "stop" else "length",
+                            generation_seconds=self.monotonic() - started,
+                            billable_generation_seconds=billable)
+
+    def shutdown(self) -> None:
+        self.llm.shutdown()

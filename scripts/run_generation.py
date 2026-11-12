@@ -19,7 +19,9 @@ from pathlib import Path
 
 from scripts._env import load
 
-KEYS = {"ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID"}
+KEYS = {"ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID", "CRUCIBLE_MODAL_TOKEN_ROTATED",
+        "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD",
+        "CRUCIBLE_MODAL_INFERENCE_BILLED_SPEND_USD"}
 
 
 def load_audited_taskset(taskset: Path, manifests: dict[str, str], limit: int):

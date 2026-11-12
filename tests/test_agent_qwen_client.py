@@ -7,7 +7,8 @@ import pytest
 
 from agents.model import (InferenceError, MalformedModelOutput, Message, ModelRequest, QwenInferenceResponse,
                           QwenModelAdapter, action_tools)
-from agents.qwen_client import ModalQwenClient, require_launch_authorization
+from agents.qwen_client import (BILLED_SPEND_VAR, InferenceSpendBudget, ModalQwenClient,
+                                require_launch_authorization, warm_up_modal)
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
 
 GOOD = '<tool_call>{"name": "parse_intent", "arguments": {"raw_message": "need shoes", "category": "shoes", ' \
@@ -58,14 +59,15 @@ def test_valid_call_returns_every_required_field_and_sends_pinned_payload():
     assert p["messages"] == [{"role": "user", "content": "need shoes"}]
 
 
-def test_malformed_output_is_retried_boundedly_then_fails_closed_without_keeping_raw_text():
+def test_malformed_output_is_retried_boundedly_then_fails_closed_and_keeps_raw_text_for_debugging():
     raw = "I would love to help! <tool_call>{not json</tool_call> SECRET-RAW"
     t = Fake(result(raw), result(raw))
     adapter = QwenModelAdapter(client(t), max_retries=1)
     with pytest.raises(MalformedModelOutput):
         adapter.generate(request())
     assert len(t.payloads) == 2 and [p["seed"] for p in t.payloads] == [7, 8]       # retried once, new seed
-    assert "SECRET-RAW" not in json.dumps(adapter.audit) and all(len(a["raw_output_hash"]) == 64 for a in adapter.audit)
+    # raw text is kept on purpose (DECISIONS.md 2026-11-12): malformed actions cannot be debugged from a hash alone
+    assert all(a["raw_output"] == raw and len(a["raw_output_hash"]) == 64 for a in adapter.audit)
 
 
 def test_unoffered_unknown_or_overriding_tools_are_rejected():
@@ -77,7 +79,7 @@ def test_unoffered_unknown_or_overriding_tools_are_rejected():
             QwenModelAdapter(client(Fake(result(raw))), max_retries=0).generate(only_search)
 
 
-def test_timeout_cancels_and_is_a_structured_retryable_error_then_bounded():
+def test_timeout_never_cancels_remote_input_and_is_a_structured_retryable_error_then_bounded():
     gate = threading.Event()
 
     class Slow(Fake):
@@ -92,7 +94,7 @@ def test_timeout_cancels_and_is_a_structured_retryable_error_then_bounded():
             QwenModelAdapter(c, max_retries=1).generate(request())
     finally:
         gate.set()
-    assert e.value.code == "timeout" and e.value.retryable and t.cancelled == 2 and len(t.payloads) == 2
+    assert e.value.code == "timeout" and e.value.retryable and t.cancelled == 0 and len(t.payloads) == 2
 
 
 def test_transport_errors_never_leak_their_message():
@@ -134,6 +136,20 @@ def test_cost_ceiling_stops_further_calls_and_unknown_cost_is_not_free():
     assert out.cost_known is False and out.cost == 0
 
 
+def test_billed_spend_and_all_clients_share_one_cumulative_ceiling(monkeypatch):
+    env = {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1",
+           "CRUCIBLE_MODAL_APPROVED_CEILING_USD": "4", BILLED_SPEND_VAR: "3.9"}
+    budget = InferenceSpendBudget(Decimal("4"), billed_spend=Decimal("3.9"))
+    monkeypatch.setattr("agents.qwen_client.modal_transport", lambda: Fake(result(generation_seconds=1000), result()))
+    first = ModalQwenClient.from_environment(env, budget=budget, timeout_seconds=1)
+    second = ModalQwenClient.from_environment(env, budget=budget, timeout_seconds=1)
+    assert first.invoke(request(), 0).cost > Decimal("0.1")
+    with pytest.raises(InferenceError) as exc:
+        second.invoke(request(), 0)
+    assert exc.value.code == "cost_ceiling_reached"
+    assert budget.total_spent == Decimal("3.9") + first.spent
+
+
 def test_gpu_cannot_be_reached_without_explicit_authorization():
     with pytest.raises(InferenceError) as e:
         require_launch_authorization({})
@@ -147,6 +163,28 @@ def test_gpu_cannot_be_reached_without_explicit_authorization():
     ok = {"CRUCIBLE_MODAL_TOKEN_ROTATED": "1", "CRUCIBLE_MODAL_BILLING_CONFIRMED": "1",
           "CRUCIBLE_MODAL_APPROVED_CEILING_USD": "0.861948"}
     assert require_launch_authorization(ok) == Decimal("0.861948")
+    with pytest.raises(InferenceError):
+        ModalQwenClient.from_environment({**ok, BILLED_SPEND_VAR: "not-money"})
+
+
+def test_warm_up_waits_for_the_durable_call_and_validates_server_identity(monkeypatch):
+    seen = []
+
+    def factory():
+        def transport(payload, timeout):
+            seen.append((payload, timeout))
+            return result(raw="ok", output_tokens=1)
+        return transport
+
+    monkeypatch.setattr("agents.qwen_client.modal_transport", factory)
+    assert warm_up_modal(777).revision == MODEL_REVISION
+    assert seen[0][1] == 777 and seen[0][0]["max_new_tokens"] == 1
+
+    monkeypatch.setattr("agents.qwen_client.modal_transport",
+                        lambda: lambda payload, timeout: result(revision="f" * 40))
+    with pytest.raises(InferenceError) as exc:
+        warm_up_modal()
+    assert exc.value.code == "model_identity_mismatch"
 
 
 def test_tool_history_is_rendered_in_qwen_message_format():

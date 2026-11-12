@@ -49,6 +49,10 @@ class QwenResult(BaseModel):
     seed_applied: bool
     generation_seconds: float = Field(ge=0)  # wall time of the engine call that produced this output (true latency)
     batch_size: int = Field(default=1, ge=1)  # requests sharing that call: GPU cost is generation_seconds / batch_size each
+    # Async continuous batching has no fixed batch size: requests join/leave at token boundaries. The server meters
+    # every busy interval across the active requests, so their shares sum to actual GPU-busy wall time exactly.
+    # Absent on responses from the legacy synchronous engine, where generation_seconds / batch_size remains correct.
+    billable_generation_seconds: float | None = Field(default=None, ge=0)
     container_load_seconds: float = Field(default=0, ge=0)  # >0 only for the first request a container serves
     # Identity of the adapter that produced this output; all None for the base model (and omitted on the wire).
     adapter_run_id: str | None = Field(default=None, pattern=RUN_ID_PATTERN)

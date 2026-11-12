@@ -97,11 +97,13 @@ def _catalog(a):
     return FrozenCache(ElasticCatalogProvider(es)), es
 
 
-def _client(adapter=None):
+def _client(adapter=None, budget=None):
     from agents.model import InferenceError
     from agents.qwen_client import ModalQwenClient
     try:
-        return ModalQwenClient.from_environment(adapter=adapter, timeout_seconds=600.0)
+        # Longer than the server's 900 s input timeout: the server resolves or cancels one async request first, so the
+        # client never abandons a still-running request and submits duplicate paid work on retry.
+        return ModalQwenClient.from_environment(adapter=adapter, timeout_seconds=960.0, budget=budget)
     except InferenceError as exc:
         print(f"BLOCKED: {exc}\nNo model call was made and no result was produced.", file=sys.stderr)
         raise SystemExit(BLOCKED)
@@ -122,14 +124,24 @@ def cmd_run(a) -> int:
         pool = tuple(TraceRecord.model_validate_json(l) for l in Path(arts["memory_pool"]).read_text().splitlines() if l.strip())
         memory = FrozenEvalMemory(pool, tuple(tasks.values()))
     if a.env_file:
-        load(a.env_file, ELASTIC | {"CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD"})
+        load(a.env_file, ELASTIC | {"CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED",
+                                   "CRUCIBLE_MODAL_APPROVED_CEILING_USD", "CRUCIBLE_MODAL_INFERENCE_BILLED_SPEND_USD"})
     from training.checkpoints import selection_from_ref
-    clients, adapters = {}, {}
+    clients, adapters, budget = {}, {}, None
     for contender in manifest.contenders:
         selection = (selection_from_ref(contender.adapter_ref, training_manifest_hash=contender.training_manifest_hash)
                      if contender.kind == "finetuned" else None)
-        clients[contender.id] = _client(selection)
+        clients[contender.id] = _client(selection, budget)
+        budget = clients[contender.id].budget
         adapters[contender.id] = QwenModelAdapter(clients[contender.id], max_retries=1)
+    # A cold start can spend most of the old 600 s client timeout in the L4 queue and vLLM initialization. Warm exactly
+    # once, before workers consume any episode, and validate the deployed model/revision at the same time.
+    from agents.qwen_client import warm_up_modal
+    try:
+        warm_up_modal()
+    except Exception as exc:  # secret-free: never print a transport message
+        print(f"BLOCKED: inference warm-up failed ({type(exc).__name__})\nNo episode was consumed.", file=sys.stderr)
+        raise SystemExit(BLOCKED)
     catalog, _ = _catalog(a)
     out = run_evaluation(manifest, tasks, catalog=catalog, model_factory=lambda c: adapters[c.id], store=_paths(a), memory=memory,
                          max_workers=a.max_workers, max_episodes=a.max_episodes, log=lambda m: print(m, file=sys.stderr))
@@ -150,13 +162,15 @@ def cmd_webshop(a) -> int:
     unmet = list(check_setup(home, python))
     base = _paths(a).dir / "webshop"
     results = {}
+    budget = None
     for c in manifest.contenders:
         unmet_c = list(unmet)
         if unmet_c:
             results[c.id] = blocked(c, unmet_c, now)
             continue
         if a.env_file:
-            load(a.env_file, {"CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD"})
+            load(a.env_file, {"CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED",
+                              "CRUCIBLE_MODAL_APPROVED_CEILING_USD", "CRUCIBLE_MODAL_INFERENCE_BILLED_SPEND_USD"})
         env = SubprocessWebShopEnv(home, python)
         try:
             done = {}
@@ -166,7 +180,9 @@ def cmd_webshop(a) -> int:
             from training.checkpoints import selection_from_ref
             selection = (selection_from_ref(c.adapter_ref, training_manifest_hash=c.training_manifest_hash)
                          if c.kind == "finetuned" else None)
-            results[c.id] = run_webshop(c, ModelWebShopAgent(_client(selection), c), env,
+            client = _client(selection, budget)
+            budget = client.budget
+            results[c.id] = run_webshop(c, ModelWebShopAgent(client, c), env,
                                         sessions=parse_sessions(a.webshop_sessions), seeds=manifest.seeds,
                                         now=now, raw_dir=base / c.id / "raw", done=done)
         finally:
@@ -225,7 +241,7 @@ def main(argv=None) -> int:
         p.add_argument("--root", default="checkpoints/evaluations", help="working store (git-ignored)")
         p.add_argument("--env-file")
     sub.choices["plan"].add_argument("--taskset", required=True)
-    sub.choices["plan"].add_argument("--seeds", default="20261201,20261202,20261203")
+    sub.choices["plan"].add_argument("--seeds", default="20261201")
     sub.choices["plan"].add_argument("--pass-k", type=int, default=1)
     sub.choices["plan"].add_argument("--memory-k", type=int, default=2)
     sub.choices["plan"].add_argument("--memory-pool")

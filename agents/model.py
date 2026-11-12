@@ -73,6 +73,7 @@ class ModelOutput(ModelContract):
     cost: Decimal = Field(default=Decimal("0"), ge=0)
     cost_known: bool = True  # False: `cost` is a placeholder 0 and the real spend is unknown
     raw_output_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    raw_output: str | None = None
     retry_count: int = Field(default=0, ge=0)
 
     def metadata(self) -> dict[str, object]:
@@ -111,6 +112,60 @@ def action_tools() -> tuple[ToolDefinition, ...]:
             )
         )
     return tuple(tools)
+
+
+def available_action_tools(history: tuple) -> tuple[ToolDefinition, ...]:
+    """Offer only actions whose state-machine prerequisites are visible in ``history``.
+
+    The executor remains the authority and validates every action. This narrower surface keeps a small model from
+    selecting a syntactically valid but impossible next action (for example reviews before opening product detail).
+    """
+    tools = {tool.name: tool for tool in action_tools()}
+    if not history:
+        return (tools["parse_intent"],)
+
+    discovered: set[str] = set()
+    opened: set[str] = set()
+    compared: set[str] = set()
+    reviewed: set[str] = set()
+    summarized: set[str] = set()
+    pending = False
+    searched = False
+    for record in history:
+        action = record.action
+        if isinstance(action, SearchCatalog):
+            searched = True
+            discovered.update(record.result_references)
+        elif isinstance(action, GetProduct) and record.result_references:
+            discovered.update(record.result_references)
+            opened.add(action.product_id)
+        elif isinstance(action, Compare):
+            compared.update(action.product_ids)
+        elif isinstance(action, GetReviews) and record.result_references:
+            reviewed.add(action.product_id)
+        elif isinstance(action, SummarizeReviewEvidence):
+            summarized.add(action.product_id)
+        elif isinstance(action, ProposePurchase) and record.result_references:
+            pending = True
+
+    if pending:
+        return (tools["confirm_and_pay"],)
+
+    names = ["search_catalog"]
+    if discovered:
+        names.append("get_product")
+    if len(opened) >= 2:
+        names.append("compare")
+    if opened:
+        names.append("get_reviews")
+    if reviewed:
+        names.append("summarize_review_evidence")
+    ready = opened & compared & reviewed & summarized
+    if ready:
+        names.append("propose_purchase")
+    if searched and discovered:
+        names.append("report_no_match")
+    return tuple(tools[name] for name in names)
 
 
 def parse_action(call: StructuredToolCall) -> Action:
@@ -227,6 +282,7 @@ class QwenModelAdapter:
                 "sequence": request.sequence,
                 "retry": retry,
                 "raw_output_hash": raw_hash,
+                "raw_output": response.raw_output,
                 "latency_ms": response.latency_ms,
                 "model": response.model,
                 "checkpoint": response.checkpoint,
@@ -254,6 +310,7 @@ class QwenModelAdapter:
                 cost=response.cost or Decimal(0),
                 cost_known=response.cost is not None,
                 raw_output_hash=raw_hash,
+                raw_output=response.raw_output,
                 retry_count=retry,
             )
         raise MalformedModelOutput(tuple(attempts))
@@ -324,7 +381,7 @@ class AdapterPolicy(ActionPolicy):
             sequence=len(history),
             system_prompt=self.system_prompt,
             messages=messages,
-            tools=action_tools(),
+            tools=available_action_tools(history),
             seed=self.seed,
             temperature=self.temperature,
             checkpoint=self.checkpoint,

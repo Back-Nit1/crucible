@@ -4,8 +4,8 @@ Security/reliability properties (all tested with an injected transport; no netwo
   * pinned model + revision, checked on the request AND on every response; mismatch fails closed;
   * the GPU cannot be reached without explicit launch authorization (rotated token, billing, approved cost ceiling);
   * spend is capped by the approved ceiling; unknown cost is reported as unknown, never as free;
-  * bounded timeout with cancellation; every failure is a structured InferenceError carrying no message text from
-    the transport (which could contain URLs or credentials);
+  * bounded local wait without remote cancellation (a timed-out spawned input finishes durably server-side); every
+    failure is a structured InferenceError carrying no message text from the transport (which could contain URLs or credentials);
   * nothing is ever executed from model output; the client returns raw text for agents.model to parse and validate;
   * no fallback: any failure raises, the caller never receives a substituted answer;
   * thread-safe (concurrent episodes share one client); optional on-disk response cache keyed by the exact request
@@ -19,13 +19,13 @@ import os
 import threading
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Protocol
 
 from pydantic import ValidationError
 
-from agents.model import InferenceError, ModelRequest, QwenInferenceResponse
+from agents.model import InferenceError, ModelRequest, QwenInferenceResponse, action_tools
 from modal_app.adapter_artifact import AdapterSelection
 from modal_app.qwen_protocol import MAX_NEW_TOKENS_CEILING, QwenRejection, QwenRequest, QwenResult
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION, estimate_modal_cost
@@ -33,11 +33,11 @@ from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION, estimate_modal_co
 PROBE_CEILING_USD = Decimal("0.861948")  # the previously approved 45-minute L4 ceiling; never raised in code
 LAUNCH_FLAGS = ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED")
 CEILING_VAR = "CRUCIBLE_MODAL_APPROVED_CEILING_USD"
+BILLED_SPEND_VAR = "CRUCIBLE_MODAL_INFERENCE_BILLED_SPEND_USD"
 
 
 class Transport(Protocol):
     def __call__(self, payload: dict, timeout: float) -> dict: ...
-    # optional: def cancel(self) -> None
 
 
 def require_launch_authorization(env: Mapping[str, str] | None = None) -> Decimal:
@@ -47,13 +47,59 @@ def require_launch_authorization(env: Mapping[str, str] | None = None) -> Decima
     missing = [name for name in LAUNCH_FLAGS if env.get(name) != "1"]
     try:
         ceiling = Decimal(env.get(CEILING_VAR, ""))
-    except Exception:
+    except (InvalidOperation, ValueError):
         ceiling = Decimal(0)
-    if ceiling <= 0:
+    if not ceiling.is_finite() or ceiling <= 0:
         missing.append(CEILING_VAR)
     if missing:
         raise InferenceError("gpu_launch_not_authorized", "missing confirmations: " + ", ".join(missing))
     return ceiling
+
+
+def billed_inference_spend(env: Mapping[str, str] | None = None) -> Decimal:
+    """Return Modal's billed baseline for a cumulative ceiling (zero for a new approval).
+
+    Modal billing, not the local duration estimate, is authoritative.  Recording the latest billed amount prevents a
+    fresh client process (or each contender in one evaluation) from treating the whole lifetime ceiling as new money.
+    """
+    env = os.environ if env is None else env
+    raw = env.get(BILLED_SPEND_VAR)
+    if raw in (None, ""):
+        return Decimal(0)
+    try:
+        spent = Decimal(raw)
+    except (InvalidOperation, ValueError):
+        spent = Decimal(-1)
+    if not spent.is_finite() or spent < 0:
+        raise InferenceError("gpu_launch_not_authorized", f"invalid value: {BILLED_SPEND_VAR}")
+    return spent
+
+
+class InferenceSpendBudget:
+    """One process-wide cumulative budget, shareable by every model/checkpoint client."""
+
+    def __init__(self, cost_ceiling: Decimal, *, billed_spend: Decimal = Decimal(0)):
+        if (not cost_ceiling.is_finite() or cost_ceiling <= 0 or not billed_spend.is_finite()
+                or billed_spend < 0):
+            raise ValueError("cost ceiling and billed spend must be finite and non-negative")
+        self.cost_ceiling, self.billed_spend = cost_ceiling, billed_spend
+        self.session_spent = Decimal(0)
+        self._lock = threading.Lock()
+
+    @property
+    def total_spent(self) -> Decimal:
+        with self._lock:
+            return self.billed_spend + self.session_spent
+
+    def require_available(self) -> None:
+        with self._lock:
+            total = self.billed_spend + self.session_spent
+            if total >= self.cost_ceiling:
+                raise InferenceError("cost_ceiling_reached", f"spent {total} of approved {self.cost_ceiling}")
+
+    def charge(self, cost: Decimal) -> None:
+        with self._lock:
+            self.session_spent += cost
 
 
 def modal_transport(app_name: str = "crucible-qwen-inference", cls_name: str = "Qwen") -> Transport:
@@ -74,6 +120,36 @@ def qwen_tools(tools) -> list[dict[str, object]]:
             for t in tools]
 
 
+def warm_up_modal(timeout_seconds: float = 1800.0) -> QwenResult:
+    """Wait out GPU scheduling, container startup, and one token before concurrent work is submitted.
+
+    This uses the same durable spawn transport as normal calls. A rejection or wrong server identity fails before any
+    episode/probe record is consumed; exception messages from the transport are never exposed.
+    """
+    payload = QwenRequest(system="Warm-up.", messages=[{"role": "user", "content": "ok"}],
+                          tools=qwen_tools(action_tools()), seed=0, temperature=0.0,
+                          max_new_tokens=1).model_dump(mode="json", exclude_none=True)
+    try:
+        raw = modal_transport()(payload, timeout_seconds)
+    except TimeoutError:
+        raise InferenceError("timeout", f"warm-up did not finish within {timeout_seconds:.0f}s") from None
+    except Exception as exc:
+        raise InferenceError("transport_error", type(exc).__name__) from None
+    if isinstance(raw, dict) and "error_code" in raw:
+        try:
+            refusal = QwenRejection.model_validate(raw)
+        except ValidationError:
+            raise InferenceError("invalid_refusal", "warm-up refusal failed schema validation") from None
+        raise InferenceError(refusal.error_code, refusal.detail)
+    try:
+        result = QwenResult.model_validate(raw)
+    except ValidationError:
+        raise InferenceError("invalid_response", "warm-up response failed schema validation") from None
+    if (result.model, result.revision) != (MODEL_ID, MODEL_REVISION) or result.adapter_run_id is not None:
+        raise InferenceError("model_identity_mismatch", "warm-up server has the wrong model, revision, or adapter")
+    return result
+
+
 def to_qwen_messages(messages) -> list[dict[str, object]]:
     """Runtime Message history -> Qwen chat messages. The trainer renders its data through this same function, so
     what the adapter is trained on is byte-for-byte the format the inference client sends."""
@@ -92,17 +168,21 @@ def to_qwen_messages(messages) -> list[dict[str, object]]:
 class ModalQwenClient:
     def __init__(self, transport: Transport, *, cost_ceiling: Decimal, timeout_seconds: float = 120.0,
                  max_new_tokens: int = 256, checkpoint_label: str | None = None, grace_seconds: float = 5.0,
-                 adapter: AdapterSelection | None = None, cache_dir: str | Path | None = None):
+                 adapter: AdapterSelection | None = None, cache_dir: str | Path | None = None,
+                 budget: InferenceSpendBudget | None = None):
         """`adapter` pins this client to ONE trained checkpoint: every request carries its identity, the server must
         answer with the same identity, and anything else fails closed. Without it the client serves the pinned base."""
         if not 0 < max_new_tokens <= MAX_NEW_TOKENS_CEILING or timeout_seconds <= 0 or cost_ceiling <= 0:
             raise ValueError("max_new_tokens, timeout and cost ceiling must be positive and bounded")
+        if budget is not None and budget.cost_ceiling != cost_ceiling:
+            raise ValueError("shared budget and client must use the same approved ceiling")
         self.transport, self.cost_ceiling, self.adapter = transport, cost_ceiling, adapter
+        self.budget = budget or InferenceSpendBudget(cost_ceiling)
         checkpoint_label = checkpoint_label or (adapter.checkpoint_id if adapter else "qwen-base")
         if adapter and checkpoint_label != adapter.checkpoint_id:
             raise ValueError("an adapter client's checkpoint label is its adapter checkpoint id")
         self.timeout_seconds, self.max_new_tokens, self.checkpoint_label = timeout_seconds, max_new_tokens, checkpoint_label
-        self.grace_seconds = grace_seconds  # extra wait beyond the transport's own timeout before we cancel
+        self.grace_seconds = grace_seconds  # let the transport surface its own timeout before the local hard bound
         self.spent, self.calls, self.cache_hits = Decimal(0), 0, 0
         self.cache_dir = Path(cache_dir) if cache_dir else None
         # ponytail: the ceiling check and the charge are separate, so N concurrent calls can overshoot by < N calls' cost
@@ -112,15 +192,16 @@ class ModalQwenClient:
     def from_environment(cls, env: Mapping[str, str] | None = None, **kwargs) -> "ModalQwenClient":
         """The only path that builds the real transport, and only after launch authorization."""
         ceiling = require_launch_authorization(env)  # first: no import of modal, no transport, without authorization
-        return cls(modal_transport(), cost_ceiling=ceiling, **kwargs)
+        budget = kwargs.pop("budget", None) or InferenceSpendBudget(
+            ceiling, billed_spend=billed_inference_spend(env))
+        budget.require_available()
+        return cls(modal_transport(), cost_ceiling=ceiling, budget=budget, **kwargs)
 
     def invoke(self, request: ModelRequest, retry: int) -> QwenInferenceResponse:
         allowed = (None, self.checkpoint_label) if self.adapter else (None, self.checkpoint_label, MODEL_REVISION)
         if request.checkpoint not in allowed:  # e.g. a base-model request on an adapter client is NOT answered from base
             raise InferenceError("checkpoint_mismatch", "request pins a checkpoint this client does not serve")
-        with self._lock:
-            if self.spent >= self.cost_ceiling:
-                raise InferenceError("cost_ceiling_reached", f"spent {self.spent} of approved {self.cost_ceiling}")
+        self.budget.require_available()
         try:
             payload = QwenRequest(
                 system=request.system_prompt, messages=to_qwen_messages(request.messages),
@@ -146,9 +227,12 @@ class ModalQwenClient:
         except ValidationError:
             raise InferenceError("invalid_response", "server response failed schema validation") from None
         self._check_identity(parsed)
-        # the GPU served `batch_size` requests in one generation call: each pays its share, not the whole wall time
-        seconds = parsed.generation_seconds / parsed.batch_size + parsed.container_load_seconds + parsed.adapter_load_seconds
+        # Async vLLM reports an exact concurrency-weighted share; legacy fixed batches divide their engine call.
+        generation_share = (parsed.billable_generation_seconds if parsed.billable_generation_seconds is not None
+                            else parsed.generation_seconds / parsed.batch_size)
+        seconds = generation_share + parsed.container_load_seconds + parsed.adapter_load_seconds
         cost = Decimal(str(estimate_modal_cost(seconds)["total_usd"]))  # list-rate estimate; Modal billing is the truth
+        self.budget.charge(cost)
         with self._lock:
             self.spent += cost
             self.calls += 1
@@ -197,12 +281,8 @@ class ModalQwenClient:
         try:
             return future.result(timeout=self.timeout_seconds + self.grace_seconds)
         except (FutureTimeout, TimeoutError):
-            cancel = getattr(self.transport, "cancel", None)
-            if callable(cancel):
-                try:
-                    cancel()
-                except Exception:
-                    pass
+            # Never cancel a remote Modal input. The call was submitted with spawn(), so it safely finishes even if
+            # this caller exits; cancelling a synchronous/concurrent GPU input can terminate its shared container.
             raise InferenceError("timeout", f"no response within {self.timeout_seconds:.0f}s") from None
         except InferenceError:
             raise

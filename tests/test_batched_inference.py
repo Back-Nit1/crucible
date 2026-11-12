@@ -1,10 +1,12 @@
-"""Batched serving, batch-shared cost, response cache and concurrent episodes: offline, no GPU, no Modal."""
+"""Continuous/batched serving, shared cost, response cache and concurrent episodes: offline, no GPU, no Modal."""
+import asyncio
 from decimal import Decimal
 
 from agents.model import QwenModelAdapter, ScriptedModelAdapter
 from agents.qwen_client import ModalQwenClient
 from memory import InMemoryTraceRepository
-from modal_app.qwen_service import AdapterResolver, EngineOutput, InputTooLong, QwenService
+from modal_app.qwen_service import (AdapterResolver, AsyncQwenService, EngineOutput, GenerationCostMeter, InputTooLong,
+                                    QwenService)
 from modal_app.qwen_toolcalls import estimate_modal_cost
 from tests.test_agent_qwen_client import GOOD, request, result
 from tests.test_qwen_adapter_inference import base_request
@@ -54,6 +56,67 @@ def test_batched_cost_is_shared_and_cache_replays_for_free(tmp_path):
     assert len(calls) == 1 and again.cache_hits == 1 and replay.cost == 0 and replay.tool_calls == out.tool_calls
     QwenModelAdapter(again).generate(request(seed=8))  # a different request is never answered from the cache
     assert len(calls) == 2
+
+
+def test_async_server_cost_uses_its_metered_share_not_full_request_latency():
+    transport = lambda payload, timeout: result(generation_seconds=10.0, batch_size=1,
+                                                billable_generation_seconds=2.0)
+    client = ModalQwenClient(transport, cost_ceiling=Decimal(1), timeout_seconds=1)
+    QwenModelAdapter(client).generate(request())
+    assert client.spent == Decimal(str(estimate_modal_cost(2.0)["total_usd"]))
+
+
+def test_async_continuous_batch_cost_shares_sum_to_gpu_busy_time():
+    now = [0.0]
+    meter = GenerationCostMeter(lambda: now[0])
+
+    async def scenario():
+        await meter.start("a")
+        now[0] = 2.0
+        await meter.start("b")           # a alone: 2 s
+        now[0] = 6.0
+        a = await meter.finish("a")      # a+b share 4 s: 2 s each
+        now[0] = 8.0
+        b = await meter.finish("b")      # b alone: 2 s
+        return a, b
+
+    a, b = asyncio.run(scenario())
+    assert (a, b) == (4.0, 4.0) and a + b == 8.0
+
+
+def test_async_request_cancellation_does_not_cancel_an_inflight_peer(tmp_path):
+    entered = {1: asyncio.Event(), 2: asyncio.Event()}
+    release = {1: asyncio.Event(), 2: asyncio.Event()}
+    cancelled = []
+
+    class AsyncEngine:
+        async def generate(self, req, adapter):
+            entered[req.seed].set()
+            try:
+                await release[req.seed].wait()
+            except asyncio.CancelledError:
+                cancelled.append(req.seed)
+                raise
+            return EngineOutput(raw_output=f"out-{req.seed}", input_tokens=3, output_tokens=1,
+                                finish_reason="stop", generation_seconds=1.0,
+                                billable_generation_seconds=0.5)
+
+    async def scenario():
+        service = AsyncQwenService(AsyncEngine(), AdapterResolver(tmp_path))
+        first = asyncio.create_task(service.handle(base_request(seed=1)))
+        second = asyncio.create_task(service.handle(base_request(seed=2)))
+        await asyncio.gather(entered[1].wait(), entered[2].wait())
+        first.cancel()
+        try:
+            await first
+        except asyncio.CancelledError:
+            pass
+        release[2].set()
+        return await second
+
+    out = asyncio.run(scenario())
+    assert cancelled == [1]
+    assert out["raw_output"] == "out-2" and out["billable_generation_seconds"] == 0.5
 
 
 def test_concurrent_episodes_record_the_same_outcomes_as_serial(world):  # noqa: F811

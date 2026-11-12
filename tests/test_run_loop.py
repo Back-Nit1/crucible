@@ -164,3 +164,31 @@ def test_next_command_keeps_the_iteration_settings_and_increments_the_id(tmp_pat
     assert main(["--iteration-id", "it-1", "--root", str(tmp_path), *DRY, "--samples-per-task", "2"]) == 0
     nxt = status(tmp_path)["reenter"]["next_command"]
     assert "--iteration-id it-2 " in nxt and "--samples-per-task 2" in nxt and "--algorithm sft" in nxt
+
+
+def test_a_cold_inference_server_pauses_the_round_before_any_episode(tmp_path, monkeypatch):
+    import agents.qwen_client
+    for name, value in (("CRUCIBLE_MODAL_TOKEN_ROTATED", "1"), ("CRUCIBLE_MODAL_BILLING_CONFIRMED", "1"),
+                        ("CRUCIBLE_MODAL_APPROVED_CEILING_USD", "2")):
+        monkeypatch.setenv(name, value)
+
+    def never_answers():
+        def transport(payload, timeout):
+            assert timeout >= 600  # the warm-up waits out a cold start; agent calls keep their short timeout
+            raise TimeoutError
+        return transport
+    monkeypatch.setattr(agents.qwen_client, "modal_transport", never_answers)
+    assert main(["--iteration-id", "it-1", "--root", str(tmp_path)]) == 0
+    st = status(tmp_path)["generate"]
+    assert st["status"] == "paused" and "warm-up" in st["detail"] and not (tmp_path / "it-1" / "generation").exists()
+
+
+def test_stop_after_ends_the_run_at_that_stage_and_a_rerun_continues(tmp_path, capsys):
+    args = ["--iteration-id", "it-1", "--root", str(tmp_path), *DRY]
+    assert main([*args, "--stop-after", "audit"]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "stopped_after"
+    assert list(status(tmp_path)) == ["generate", "curate", "audit"]
+    assert main([*args, "--stop-after", "audit"]) == 0  # already done: no re-run
+    assert json.loads(capsys.readouterr().out)["ran"] == []
+    assert main(args) == 0
+    assert json.loads(capsys.readouterr().out)["ran"] == ["plan", "train", "evaluate", "reenter"]

@@ -28,9 +28,10 @@ ITERATION_SETTINGS = ("algorithm", "adapter_manifest", "taskset", "seed", "popul
                       "max_train_cost", "max_steps", "eval_seeds", "dry_run")
 STAGES = ("generate", "curate", "audit", "plan", "train", "evaluate", "reenter")
 INFERENCE_VARS = ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD")
+INFERENCE_OPTIONAL_VARS = ("CRUCIBLE_MODAL_INFERENCE_BILLED_SPEND_USD",)
 TRAIN_VARS = (TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR)
 RL_VARS = (RL_CEILING_VAR, RL_ROLLOUTS_VAR)
-GATE_VARS = INFERENCE_VARS + TRAIN_VARS + RL_VARS
+GATE_VARS = INFERENCE_VARS + INFERENCE_OPTIONAL_VARS + TRAIN_VARS + RL_VARS
 ELASTIC_VARS = ("ELASTIC_API_KEY", "ELASTIC_ENDPOINT", "ELASTIC_CLOUD_ID")
 DRY_EVIDENCE, MODEL_EVIDENCE = "pipeline_evidence_scripted_dry_run", "model_rollouts"
 NOW = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)  # dry-run clock: identical inputs, identical artifacts
@@ -62,6 +63,16 @@ def require_inference_gate() -> None:
         raise _blocked(exc) from None
 
 
+def warm_up_inference(timeout: float = 1800.0) -> None:
+    """One tiny call with a long timeout before the agents start. A cold vLLM start (image, weights, CUDA graphs) takes
+    minutes; without this the first agent calls hit their 120 s timeout and the circuit breaker stops the round."""
+    from agents.qwen_client import warm_up_modal
+    try:
+        warm_up_modal(timeout)
+    except Exception as exc:  # noqa: BLE001 - surfaced as a resumable pause, never a crash
+        raise Stop(0, "paused", f"inference server did not answer the warm-up call: {type(exc).__name__}") from None
+
+
 def _write(path: Path, body: dict) -> None:
     """Atomic: /loop/status may read a stage file while the loop writes it."""
     tmp = path.with_suffix(".tmp")
@@ -86,7 +97,8 @@ def generate(a, d: Path, done: dict) -> dict:
     argv = ["--seed", str(a.seed), "--population", str(a.population), "--tasks", str(a.tasks), "--generation-id", gen,
             "--iteration-id", a.iteration_id, "--samples-per-task", str(a.samples_per_task),
             "--checkpoint-dir", str(d / "checkpoints"), "--out-dir", str(d / "generation"),
-            "--memory", "off"]  # rollout prompts must be exact: retrieved memory is not stored on episodes
+            "--memory", "off",  # rollout prompts must be exact: retrieved memory is not stored on episodes
+            "--concurrency", str(a.concurrency)]  # parallel episodes share GPU batches; outcomes match serial
     if a.dry_run:
         argv += ["--provider", "synthetic", "--traces", "memory", "--model", "scripted"]
     else:
@@ -95,6 +107,7 @@ def generate(a, d: Path, done: dict) -> dict:
             if load_manifest(a.adapter_manifest).data_source_model_version.startswith("scripted"):
                 raise Stop(2, "refused", "adapter was trained on scripted oracle traces (a dry run): never re-enters a real run")
         require_inference_gate()
+        warm_up_inference()
         argv += ["--provider", "elastic_snapshot", "--taskset", str(a.taskset), "--model", "qwen",
                  "--traces", "elastic", *(["--env-file", a.env_file] if a.env_file else []),
                  *(["--adapter-manifest", str(a.adapter_manifest)] if a.adapter_manifest else [])]
@@ -277,7 +290,7 @@ def reenter(a, d: Path, done: dict) -> dict:
     stem, _, n = a.iteration_id.rpartition("-")
     nxt = f"{stem}-{int(n) + 1}" if stem and n.isdigit() else f"{a.iteration_id}-2"
     keep = (f"--algorithm {a.algorithm} --taskset {a.taskset} --population {a.population} --tasks {a.tasks} "
-            f"--samples-per-task {a.samples_per_task} --max-train-cost {a.max_train_cost}")
+            f"--samples-per-task {a.samples_per_task} --max-train-cost {a.max_train_cost} --concurrency {a.concurrency}")
     return {"checkpoint": label, "adapter_manifest": str(path),
             "next_command": f"uv run python -m scripts.run_loop --iteration-id {nxt} --adapter-manifest {path} {keep}"
                             + (" --dry-run" if a.dry_run else " --env-file <ENV_FILE>")}
@@ -351,6 +364,10 @@ def main(argv=None) -> int:
     ap.add_argument("--seconds-per-call", type=int, default=120,
                     help="billable seconds bound per model call (default: the client's hard 120 s timeout)")
     ap.add_argument("--eval-seeds", type=int, default=3)
+    ap.add_argument("--concurrency", type=int, default=1,
+                    help="episodes run at once in the generate stage (lets the inference server batch them)")
+    ap.add_argument("--stop-after", choices=STAGES, help="exit 0 once this stage is done. The model (CRUCIBLE_QWEN_MODEL) is "
+                    "fixed per process, so run generate..audit under the generator (3b) and plan.. under the trainee (7b)")
     ap.add_argument("--kill-switch", type=Path, help="file whose existence stops the loop before the next stage "
                                                      "(default <root>/STOP)")
     a = ap.parse_args(argv)
@@ -383,6 +400,8 @@ def main(argv=None) -> int:
         prior = json.loads(path.read_text()) if path.is_file() else {}
         if prior.get("status") == "done":
             done[name] = prior
+            if name == a.stop_after:
+                break
             continue
         if a.kill_switch.exists():  # operator stop: checked before every stage; delete the file and rerun to resume
             print(f"STOPPED before {name}: kill switch {a.kill_switch} exists", file=sys.stderr)
@@ -405,6 +424,11 @@ def main(argv=None) -> int:
         _write(path, body)
         done[name] = body
         ran.append(name)
+        if name == a.stop_after:
+            break
+    if a.stop_after and "reenter" not in done:
+        print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "status": "stopped_after", "stage": a.stop_after}))
+        return 0
     print(json.dumps({"iteration_id": a.iteration_id, "ran": ran, "status": "done", "evidence": evidence,
                       "next_command": done["reenter"]["next_command"]}))
     return 0

@@ -25,6 +25,7 @@ from agents.model import (
     QwenModelAdapter,
     ScriptedModelAdapter,
     action_tools,
+    available_action_tools,
     parse_action,
     StructuredToolCall,
 )
@@ -85,13 +86,13 @@ def parse_arguments():
     }
 
 
-def test_qwen_adapter_parses_native_calls_and_records_only_raw_hash():
+def test_qwen_adapter_preserves_raw_output_and_hash():
     client = Client([block("parse_intent", parse_arguments())])
     output = QwenModelAdapter(client).generate(request())
     assert output.tool_calls[0].name == "parse_intent"
     assert output.prompt_tokens == 10 and output.completion_tokens == 4
     assert len(output.raw_output_hash) == 64
-    assert "need shoes" not in json.dumps(output.metadata())
+    assert output.metadata()["raw_output"] == block("parse_intent", parse_arguments())
 
 
 def test_tool_name_cannot_be_overridden_inside_arguments():
@@ -102,6 +103,28 @@ def test_tool_name_cannot_be_overridden_inside_arguments():
             name="parse_intent",
             arguments={"type": "search_catalog", **parse_arguments()},
         ))
+
+
+def test_policy_offers_only_actions_whose_prerequisites_are_satisfied():
+    task = feasible_task(seed=4)
+    _, tool_executor = executor(task)
+
+    assert [t.name for t in available_action_tools(())] == ["parse_intent"]
+    tool_executor.execute(purchase_script(task)[0])
+    assert [t.name for t in available_action_tools(tuple(tool_executor.records))] == ["search_catalog"]
+
+    tool_executor.execute(purchase_script(task)[1])
+    names = {t.name for t in available_action_tools(tuple(tool_executor.records))}
+    assert names == {"search_catalog", "get_product", "report_no_match"}
+    assert "get_reviews" not in names and "propose_purchase" not in names
+
+    for action in purchase_script(task)[2:6]:
+        tool_executor.execute(action)
+    names = {t.name for t in available_action_tools(tuple(tool_executor.records))}
+    assert "propose_purchase" in names and "confirm_and_pay" not in names
+
+    tool_executor.execute(purchase_script(task)[6])
+    assert [t.name for t in available_action_tools(tuple(tool_executor.records))] == ["confirm_and_pay"]
 
 
 def test_qwen_adapter_retries_once_then_succeeds_deterministically():
@@ -233,3 +256,9 @@ def test_scripted_adapter_can_deliberately_exercise_safety_and_research_failures
     )
     episode, backend, _ = play(task, poor, "ep-poor")
     assert episode.termination == "malformed_action" and backend.ledger == []
+
+
+def test_empty_search_does_not_offer_refusal_with_fake_closest_product():
+    from types import SimpleNamespace
+    history = (SimpleNamespace(action=SearchCatalog(query='unmatched'), result_references=()),)
+    assert [tool.name for tool in available_action_tools(history)] == ['search_catalog']
