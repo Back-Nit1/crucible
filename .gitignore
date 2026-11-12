@@ -28,3 +28,8 @@ secrets/
 /runs/
 docs/runs/*/sft.jsonl
 docs/model-runs/*/dataset.jsonl
+
+# scratch planning/session notes (untracked on purpose; tracked docs live in README.md, DECISIONS.md, docs/)
+/outline.md
+/readmeoutlined.md
+/session*.md
