@@ -55,7 +55,8 @@ app = modal.App(APP_NAME)
 adapters = modal.Volume.from_name(ADAPTER_VOLUME, create_if_missing=True, version=2)
 
 
-@app.cls(image=image, gpu=["L4", "A10G"] if ENABLED else None,  # A10G (24 GB) when L4 capacity is short cpu=2.0, memory=32_768, timeout=REQUEST_TIMEOUT_SECONDS,
+@app.cls(image=image, gpu=["L4", "A10G"] if ENABLED else None,  # A10G (24 GB) when L4 capacity is short
+         cpu=2.0, memory=32_768, timeout=REQUEST_TIMEOUT_SECONDS,
          startup_timeout=STARTUP_TIMEOUT_SECONDS,
          max_containers=1, scaledown_window=int(os.environ.get("CRUCIBLE_QWEN_SCALEDOWN_SECONDS", "60")),
          min_containers=int(os.environ.get("CRUCIBLE_QWEN_MIN_CONTAINERS", "0")), volumes={ADAPTER_MOUNT: adapters})
