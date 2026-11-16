@@ -122,6 +122,10 @@ def test_policy_offers_only_actions_whose_prerequisites_are_satisfied():
         tool_executor.execute(action)
     names = {t.name for t in available_action_tools(tuple(tool_executor.records))}
     assert "propose_purchase" in names and "confirm_and_pay" not in names
+    offered = {tool.name: tool for tool in available_action_tools(tuple(tool_executor.records))}
+    opened = {record.action.product_id for record in tool_executor.records
+              if isinstance(record.action, GetProduct)}
+    assert set(offered["get_reviews"].parameters["properties"]["product_id"]["enum"]) == opened
 
     tool_executor.execute(purchase_script(task)[6])
     assert [t.name for t in available_action_tools(tuple(tool_executor.records))] == ["confirm_and_pay"]
@@ -134,6 +138,12 @@ def test_qwen_adapter_retries_once_then_succeeds_deterministically():
     assert output.retry_count == 1
     assert [retry for _, retry in client.calls] == [0, 1]
     assert len(adapter.audit) == 2 and "error" in adapter.audit[0]
+    first, second = (req for req, _ in client.calls)
+    assert second.messages[:-2] == first.messages == request().messages  # history itself is never altered
+    assert second.temperature == Decimal("0.3") and first.temperature == 0  # the retry samples; the first try is greedy
+    assert second.tools == first.tools and second.system_prompt == first.system_prompt  # full schemas on every attempt
+    assert second.messages[-2].content == "<tool_call>{broken}</tool_call>" and "rejected" in second.messages[-1].content
+    assert "Tools available now: " in second.messages[-1].content and "parse_intent" in second.messages[-1].content
 
 
 @pytest.mark.parametrize(
@@ -262,3 +272,30 @@ def test_empty_search_does_not_offer_refusal_with_fake_closest_product():
     from types import SimpleNamespace
     history = (SimpleNamespace(action=SearchCatalog(query='unmatched'), result_references=()),)
     assert [tool.name for tool in available_action_tools(history)] == ['search_catalog']
+
+
+def test_review_summary_schema_requires_a_concern_and_lists_only_the_review_ids_that_were_read():
+    task = feasible_task(seed=4)
+    _, tool_executor = executor(task)
+    for action in purchase_script(task)[:4]:
+        tool_executor.execute(action)
+    tool = {t.name: t for t in available_action_tools(tuple(tool_executor.records))}["summarize_review_evidence"]
+    claim = tool.parameters["$defs"]["ReviewClaim"]
+    read = sorted(tool_executor.records[3].result_references)
+    assert claim["required"] == ["concern", "claim", "review_ids"] and claim["properties"]["concern"]["type"] == "string"
+    assert claim["properties"]["review_ids"]["items"]["enum"] == read
+
+
+def test_a_repeated_review_id_inside_one_claim_is_collapsed_not_rejected():
+    ids = ["review-a-positive", "review-a-positive", "review-a-critical"]
+    action = parse_action(StructuredToolCall(name="summarize_review_evidence", arguments={
+        "product_id": "shoe-a", "user_context": "x", "claims": [{"concern": "fit", "claim": "snug", "review_ids": ids}]}))
+    assert action.claims[0].review_ids == ("review-a-positive", "review-a-critical")
+
+
+def test_a_complete_tool_call_without_the_closing_tag_is_accepted_but_a_cut_off_one_is_not():
+    body = '<tool_call>\n{"name": "parse_intent", "arguments": ' + json.dumps(parse_arguments()) + "}"
+    adapter = QwenModelAdapter(Client([body]), max_retries=0)
+    assert adapter.generate(request()).tool_calls[0].name == "parse_intent"
+    with pytest.raises(MalformedModelOutput):
+        QwenModelAdapter(Client([body[:-40]]), max_retries=0).generate(request())

@@ -130,6 +130,6 @@ def test_metrics_are_deterministic_and_use_clear_denominators() -> None:
 
 def test_cost_estimate_includes_gpu_cpu_and_memory() -> None:
     estimate = estimate_modal_cost(3_600)
-    assert estimate["gpu_usd"] == pytest.approx(0.7992)
+    assert estimate["gpu_usd"] == pytest.approx(1.1016)  # A10G rate: the dearer GPU inference may land on
     assert estimate["total_usd"] > estimate["gpu_usd"]
     assert estimate["total_usd"] < 5

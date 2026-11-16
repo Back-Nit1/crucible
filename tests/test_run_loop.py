@@ -154,7 +154,7 @@ def test_stage_errors_are_recorded_not_raised(tmp_path, monkeypatch, capsys):
     # a refused launch writes no training_run.json: the stage is refused, not a FileNotFoundError
     monkeypatch.setattr(scripts.train_lora, "main", lambda argv: 2)
     a = SimpleNamespace(dry_run=False, env_file=None, algorithm="sft", taskset=tmp_path, iteration_id="it-9",
-                        max_train_cost="0.5", dir=tmp_path / "it-9", max_steps=None, adapter_manifest=None)
+                        max_train_cost="0.5", epochs=1, dir=tmp_path / "it-9", max_steps=None, adapter_manifest=None)
     with pytest.raises(loop.Stop) as stop:
         loop.train(a, tmp_path / "it-9", {"generate": {"generation_dir": str(tmp_path)}, "plan": {}})
     assert stop.value.status == "refused"

@@ -62,8 +62,15 @@ def test_pick_crowd_round_robins_agents():
 
 
 def test_live_stream_emits_status_training_and_new_episodes(monkeypatch):
-    monkeypatch.setattr(obs, "POLL_SECONDS", 0.01)
-    monkeypatch.setattr(obs, "STREAM_SECONDS", 0.2)
+    class Clock:  # api.observatory reads only time.monotonic; fake ticks make the stream length deterministic
+        t = 0.0
+
+        def monotonic(self):
+            self.t += 0.05
+            return self.t
+    monkeypatch.setattr(obs, "time", Clock())
+    monkeypatch.setattr(obs, "POLL_SECONDS", 0)
+    monkeypatch.setattr(obs, "STREAM_SECONDS", 1.0)
     reader = InMemoryReader(traces()[:1], [GEN])
     later = traces()[1:]
     calls = {"n": 0}
