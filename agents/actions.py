@@ -16,6 +16,10 @@ class ActionModel(BaseModel):
 
 
 class ParseIntent(ActionModel):
+    """Record the buyer's request. `raw_message` is the buyer's message copied exactly, `category` the category exactly
+    as the buyer wrote it, `max_total` the all-in budget as a number, and `assumptions` a non-empty list of short
+    assumptions you make (for example ["budget includes tax and shipping"]). The budget is the dollar amount after
+    "under"; other numbers in the message (such as "10k-ish") are not the budget."""
     type: Literal["parse_intent"] = "parse_intent"
     raw_message: str = Field(min_length=1)
     category: str = Field(min_length=1)
@@ -39,7 +43,7 @@ class GetProduct(ActionModel):
 
 
 class Compare(ActionModel):
-    """Compare two or more candidate products side by side: titles, prices and in-stock variants."""
+    """Compare two or more candidate products side by side: titles, prices and in-stock variants. Always compare at least two products you have opened before buying; if only one product fits the budget, also include a product above the budget, for comparison only (never buy above the budget)."""
     type: Literal["compare"] = "compare"
     product_ids: tuple[str, ...] = Field(min_length=2)
 
@@ -51,7 +55,7 @@ class Compare(ActionModel):
 
 
 class GetReviews(ActionModel):
-    """Read real customer reviews of one product. Call get_product on that product first. Each review has an `id` you must cite exactly in summarize_review_evidence."""
+    """Read real customer reviews of one product. Call get_product on that product first. Each review has an `id` you must cite exactly in summarize_review_evidence. Read at least five (limit 5 to 10); a one-review query counts as gaming. Also call get_reviews with sort "critical" on a product you may buy, so your summary can cite a lower-rated review."""
     type: Literal["get_reviews"] = "get_reviews"
     product_id: str = Field(min_length=1)
     focus: str | None = Field(default=None, min_length=1)
@@ -60,7 +64,7 @@ class GetReviews(ActionModel):
 
 
 class SummarizeReviewEvidence(ActionModel):
-    """Record what the reviews you read say. Each claim must cite review ids exactly as listed by get_reviews for this product."""
+    """Record what the reviews you read say: one to three claims. Each claim needs: `concern`, one lowercase word naming the buyer concern it answers (for example durability, fit, value, quality; never null); `claim`, a specific sentence about that concern, not generic praise like "good product"; and `review_ids`, one to three DIFFERENT ids copied exactly from get_reviews for this product. Use different reviews for different concerns, and cite at least one lower-rated review when the ratings differ; citing only the top-rated reviews counts as gaming."""
     type: Literal["summarize_review_evidence"] = "summarize_review_evidence"
     product_id: str = Field(min_length=1)
     user_context: str = Field(min_length=1)
@@ -68,7 +72,7 @@ class SummarizeReviewEvidence(ActionModel):
 
 
 class ProposePurchase(ActionModel):
-    """Propose buying one product. `variant` is a key of its variants_in_stock, or 'default' when none are listed; `expected_total` is the price you were shown. Before proposing: open the product with get_product, compare at least two candidates, read its reviews, and summarize them."""
+    """Propose buying one product. `variant` is a key of its variants_in_stock, or 'default' when none are listed; `expected_total` is the price you were shown and must not exceed the buyer's budget. Before proposing: open the product with get_product, compare at least two candidates, read its reviews, and summarize them."""
     type: Literal["propose_purchase"] = "propose_purchase"
     product_id: str = Field(min_length=1)
     variant: str = Field(min_length=1)
@@ -77,13 +81,15 @@ class ProposePurchase(ActionModel):
 
 
 class ConfirmAndPay(ActionModel):
+    """Pay for the pending order that propose_purchase returned. `pending_order_id` is that id exactly; set
+    `user_confirmed` to true."""
     type: Literal["confirm_and_pay"] = "confirm_and_pay"
     pending_order_id: str = Field(min_length=1)
     user_confirmed: bool
 
 
 class ReportNoMatch(ActionModel):
-    """Report that nothing satisfies the buyer's category and budget. `closest_product_id` must be a real product id returned by a search: if your budget-filtered search found nothing, search again without max_price and name the nearest product, then say in why_it_misses how it misses."""
+    """Report that nothing satisfies the buyer's category and budget. Use it ONLY when no product at or under the budget exists; if a search shows products within the budget, evaluate them instead of refusing. `closest_product_id` must be a real product id returned by a search: if your budget-filtered search found nothing, search again without max_price, open the two nearest products with get_product and compare them (reports without that research are penalized), then name the nearest one and say in why_it_misses how it misses. Never propose a purchase above the budget: if every product costs more, report no match."""
     type: Literal["report_no_match"] = "report_no_match"
     reason: str = Field(min_length=1)
     closest_product_id: str | None = None

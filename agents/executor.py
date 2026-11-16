@@ -110,6 +110,8 @@ class InMemoryToolExecutor:
                 raise
             references = (pending.id, pending.order_id)
             summary = "pending order created"
+            # Two bare references were ambiguous: a model paid with the provider order id. Name the one confirm_and_pay takes.
+            content = {"pending_order_id": pending.id}
         elif isinstance(action, ConfirmAndPay):
             capture = self.payments.confirm_and_pay(action.pending_order_id, action.user_confirmed)
             references = (capture.order_id, capture.capture_id)

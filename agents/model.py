@@ -104,6 +104,10 @@ def action_tools() -> tuple[ToolDefinition, ...]:
         parameters = model.model_json_schema()
         parameters.get("properties", {}).pop("type", None)
         parameters["required"] = [field for field in parameters.get("required", []) if field != "type"]
+        if name == "summarize_review_evidence":  # the kill rules treat a null concern as a generic claim: never offer it
+            claim = parameters["$defs"]["ReviewClaim"]
+            claim["properties"]["concern"] = {"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"}
+            claim["required"] = ["concern", "claim", "review_ids"]
         tools.append(
             ToolDefinition(
                 name=name,
@@ -165,7 +169,22 @@ def available_action_tools(history: tuple) -> tuple[ToolDefinition, ...]:
         names.append("propose_purchase")
     if searched and discovered:
         names.append("report_no_match")
-    return tuple(tools[name] for name in names)
+    # A tool name alone is insufficient: reviews for a different, unopened
+    # product would still violate the executor's state machine.
+    read_ids = sorted({i for record in history if isinstance(record.action, GetReviews) for i in record.result_references})
+    eligible_products = {"get_product": discovered, "get_reviews": opened,
+                         "summarize_review_evidence": reviewed, "propose_purchase": ready}
+    offered = []
+    for name in names:
+        tool = tools[name]
+        if name in eligible_products:
+            parameters = json.loads(json.dumps(tool.parameters))
+            parameters["properties"]["product_id"]["enum"] = sorted(eligible_products[name])
+            if name == "summarize_review_evidence" and read_ids:  # only ids that get_reviews actually returned
+                parameters["$defs"]["ReviewClaim"]["properties"]["review_ids"]["items"] = {"type": "string", "enum": read_ids}
+            tool = tool.model_copy(update={"parameters": parameters})
+        offered.append(tool)
+    return tuple(offered)
 
 
 def parse_action(call: StructuredToolCall) -> Action:
@@ -173,7 +192,14 @@ def parse_action(call: StructuredToolCall) -> Action:
         raise ValueError(f"unknown tool {call.name!r}")
     if "type" in call.arguments:
         raise ValueError("tool arguments cannot override the action discriminator")
-    return _ACTION_BY_NAME[call.name].model_validate({"type": call.name, **call.arguments})
+    arguments = dict(call.arguments)
+    claims = arguments.get("claims")
+    if call.name == "summarize_review_evidence" and isinstance(claims, list):
+        # A repeated review id inside one claim is a copy slip, not gaming: keep first occurrences, in order.
+        arguments["claims"] = [{**c, "review_ids": list(dict.fromkeys(c["review_ids"]))}
+                               if isinstance(c, dict) and isinstance(c.get("review_ids"), list)
+                               and all(isinstance(i, str) for i in c["review_ids"]) else c for c in claims]
+    return _ACTION_BY_NAME[call.name].model_validate({"type": call.name, **arguments})
 
 
 class ScriptedModelAdapter:
@@ -231,19 +257,24 @@ class QwenInferenceClient(Protocol):
     def invoke(self, request: ModelRequest, retry: int) -> QwenInferenceResponse: ...
 
 
+RETRY_TEMPERATURE = Decimal("0.3")
+
+
 class MalformedModelOutput(ValueError):
     def __init__(self, attempts: tuple[dict[str, object], ...]):
         super().__init__("model output failed closed after bounded retries")
         self.attempts = attempts
 
 
-_TOOL_BLOCK = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL)
+# Qwen sometimes ends its turn right after the JSON, without `</tool_call>`. A complete JSON object is a complete call;
+# a truncated one still fails json.loads below, so accepting the missing closing tag cannot admit a cut-off call.
+_TOOL_BLOCK = re.compile(r"<tool_call>\s*(.*?)\s*(?:</tool_call>|$)", re.DOTALL)
 
 
 def _native_calls(raw_output: str) -> tuple[StructuredToolCall, ...]:
     blocks = _TOOL_BLOCK.findall(raw_output)
     if raw_output.count("<tool_call>") != len(blocks) or len(blocks) != 1:
-        raise ValueError("response must contain exactly one closed tool call")
+        raise ValueError("response must contain exactly one tool call")
     payload = json.loads(blocks[0])
     if not isinstance(payload, dict) or not isinstance(payload.get("name"), str):
         raise ValueError("invalid tool-call envelope")
@@ -266,9 +297,10 @@ class QwenModelAdapter:
     def generate(self, request: ModelRequest) -> ModelOutput:
         attempts: list[dict[str, object]] = []
         offered = {tool.name for tool in request.tools}
+        sent = request
         for retry in range(self.max_retries + 1):
             try:
-                response = self.client.invoke(request, retry)
+                response = self.client.invoke(sent, retry)
             except InferenceError as exc:
                 audit = {"request_id": request.request_id, "sequence": request.sequence, "retry": retry, "error": exc.code}
                 attempts.append(audit)
@@ -296,6 +328,14 @@ class QwenModelAdapter:
                 audit["error"] = type(exc).__name__
                 attempts.append(audit)
                 self.audit.append(audit)
+                # Greedy decoding repeats an identical prompt's mistake, so the retry shows the model its rejected call
+                # and why. Only the corrected call enters history: rollout/training prompts never carry the correction.
+                why = str(exc).split("\n    For further information")[0][:400]
+                # greedy decoding repeats an empty or malformed answer, so the retry samples a little (the seed is recorded)
+                sent = request.model_copy(update={"temperature": max(request.temperature, RETRY_TEMPERATURE), "messages": (*request.messages,
+                    Message(role="assistant", content=response.raw_output[:2000]),
+                    Message(role="user", content=f"That tool call was rejected: {why}. Tools available now: {', '.join(sorted(offered))}. "
+                                                "Reply with one corrected tool call."))})
                 continue
             self.audit.append(audit)
             return ModelOutput(
@@ -348,7 +388,8 @@ def render_messages(task: TaskSpec, history: tuple, memory_examples: tuple = ())
                 role="tool",
                 tool_name=record.action.type,
                 tool_result={
-                    "references": record.result_references,
+                    # propose_purchase also records the provider's order id; the model only ever needs the pending id
+                    "references": record.result_references[:1] if isinstance(record.action, ProposePurchase) else record.result_references,
                     "summary": record.result_summary,
                     "error_code": record.error_code,
                     **({"content": record.result_content} if record.result_content else {}),

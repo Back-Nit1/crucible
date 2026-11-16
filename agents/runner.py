@@ -161,6 +161,9 @@ def run_episode(
             except Exception as exc:  # model boundary: bounded and recorded; only transient errors are retried
                 code = getattr(exc, "code", None)
                 failure = f"model failure: {type(exc).__name__}" + (f"[{code}]" if code else "")
+                if attempts := getattr(exc, "attempts", None):  # keep what the model said, so a malformed call can be debugged
+                    model_metadata.append({"malformed_attempts": [{"error": a.get("error"), "raw_output": str(a.get("raw_output"))[:1500]}
+                                                                  for a in attempts]})
                 if not getattr(exc, "retryable", False):
                     break
                 retry += 1

@@ -10,8 +10,8 @@ cost ceiling. See docs/handoffs/release-convergence.md and docs/handoffs/modal-t
 
 All request handling lives in modal_app.qwen_service (pure, tested offline); this file is only the Modal wiring.
 Engine: vLLM AsyncLLM (modal_app.qwen_service.AsyncVLLMEngine). `@modal.concurrent` gives every input its own asyncio
-task and vLLM continuously batches them on the GPU. Cancelling one input aborts only its vLLM request; it cannot kill
-the container or the other in-flight inputs. The prefix cache reuses the shared system prompt + tool schemas.
+task and vLLM continuously batches them on the GPU. Request cancellation is handled through vLLM abort;
+container stability still requires live lifecycle validation. The prefix cache reuses the shared system prompt + tool schemas.
 Model: CRUCIBLE_QWEN_MODEL (7b default, 1.5b for cheap world generations) is read at deploy time and baked into the
 image, so the container serves exactly the pin the deploying client uses. Capacity: one L4 (24 GB); 7B bf16 is 15.2 GB,
 1.5B is ~3 GB, the rest is KV cache. `min_containers` is deploy-configurable: use 1 for a bounded evaluation and stop
@@ -55,7 +55,7 @@ app = modal.App(APP_NAME)
 adapters = modal.Volume.from_name(ADAPTER_VOLUME, create_if_missing=True, version=2)
 
 
-@app.cls(image=image, gpu="L4" if ENABLED else None, cpu=2.0, memory=32_768, timeout=REQUEST_TIMEOUT_SECONDS,
+@app.cls(image=image, gpu=["L4", "A10G"] if ENABLED else None,  # A10G (24 GB) when L4 capacity is short cpu=2.0, memory=32_768, timeout=REQUEST_TIMEOUT_SECONDS,
          startup_timeout=STARTUP_TIMEOUT_SECONDS,
          max_containers=1, scaledown_window=int(os.environ.get("CRUCIBLE_QWEN_SCALEDOWN_SECONDS", "60")),
          min_containers=int(os.environ.get("CRUCIBLE_QWEN_MIN_CONTAINERS", "0")), volumes={ADAPTER_MOUNT: adapters})
@@ -64,6 +64,7 @@ class Qwen:
     @modal.enter()
     async def load(self) -> None:
         from modal_app.qwen_service import AdapterResolver, AsyncQwenService, AsyncVLLMEngine
+        self.engine = self.service = None
         started = time.perf_counter()
         print("[lifecycle] status=starting", flush=True)
         engine = AsyncVLLMEngine(MODEL_PATH)  # vLLM refuses to start without a GPU: no CPU fallback
@@ -76,7 +77,7 @@ class Qwen:
     @modal.exit()
     def release(self) -> None:
         print("[lifecycle] status=stopping", flush=True)
-        if self.engine is not None:
+        if getattr(self, "engine", None) is not None:
             self.engine.shutdown()
         self.engine = self.service = None  # drop the vLLM engine so its GPU memory is released with the process
 

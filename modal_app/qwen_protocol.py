@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from modal_app.adapter_artifact import HEX64, RUN_ID_PATTERN, AdapterSelection
 from modal_app.qwen_toolcalls import MODEL_ID, MODEL_REVISION
 
-MAX_NEW_TOKENS_CEILING = 512
+MAX_NEW_TOKENS_CEILING = 2048  # a review summary citing several ~45-token review ids overran 512/256 (user asked for 2000-2500)
 MAX_MESSAGES = 200
 MAX_INPUT_CHARS = 200_000   # cheap pre-tokenization bound on system + messages + tools
 MAX_INPUT_TOKENS = 8192     # enforced after tokenization; 7B bf16 weights (15.2 GB) + this KV cache fit an L4 (24 GB)

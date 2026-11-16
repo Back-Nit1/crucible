@@ -167,7 +167,7 @@ def to_qwen_messages(messages) -> list[dict[str, object]]:
 
 class ModalQwenClient:
     def __init__(self, transport: Transport, *, cost_ceiling: Decimal, timeout_seconds: float = 120.0,
-                 max_new_tokens: int = 256, checkpoint_label: str | None = None, grace_seconds: float = 5.0,
+                 max_new_tokens: int = 2048, checkpoint_label: str | None = None, grace_seconds: float = 5.0,
                  adapter: AdapterSelection | None = None, cache_dir: str | Path | None = None,
                  budget: InferenceSpendBudget | None = None):
         """`adapter` pins this client to ONE trained checkpoint: every request carries its identity, the server must

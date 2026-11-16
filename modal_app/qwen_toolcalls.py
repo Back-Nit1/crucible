@@ -33,7 +33,8 @@ if QWEN_MODEL_KEY not in QWEN_MODELS:
     raise RuntimeError(f"CRUCIBLE_QWEN_MODEL must be one of {sorted(QWEN_MODELS)}")
 MODEL_ID, MODEL_REVISION = QWEN_MODELS[QWEN_MODEL_KEY]
 GPU_TYPE = "L4"
-GPU_RATE_USD_PER_SECOND = 0.000222
+GPU_RATE_USD_PER_SECOND = 0.000222  # L4 list rate (training runs only on L4)
+INFERENCE_GPU_RATE_USD_PER_SECOND = 0.000306  # A10G: inference falls back from L4 to A10G, so estimate the dearer
 CPU_CORES = 2.0
 MEMORY_GIB = 32.0
 CPU_RATE_USD_PER_CORE_SECOND = 0.0000131
@@ -313,7 +314,7 @@ def percentile(values: list[float], fraction: float) -> float:
 
 
 def estimate_modal_cost(function_runtime_seconds: float) -> dict[str, float]:
-    gpu = function_runtime_seconds * GPU_RATE_USD_PER_SECOND
+    gpu = function_runtime_seconds * INFERENCE_GPU_RATE_USD_PER_SECOND
     cpu = function_runtime_seconds * CPU_CORES * CPU_RATE_USD_PER_CORE_SECOND
     memory = function_runtime_seconds * MEMORY_GIB * MEMORY_RATE_USD_PER_GIB_SECOND
     return {
