@@ -53,6 +53,13 @@ SCRIPTED_POLICY_ID = "scripted-v1"
 PolicyFactory = Callable[[TaskSpec, Genome, str, int], ActionPolicy]
 
 
+def is_backend_failure(episode: EpisodeRecord) -> bool:
+    """Model call failed at the transport/backend boundary (not a malformed-but-delivered answer)."""
+    return (episode.termination == "model_failure" and episode.final_answer.startswith("model failure:")
+            and "MalformedModelOutput" not in episode.final_answer
+            and "[input_too_long]" not in episode.final_answer)  # the agent outgrew the context: a result, and a rerun repeats it
+
+
 class ModelUnavailable(RuntimeError):
     """Consecutive model failures reached the circuit breaker: the model backend is down, not the agent bad."""
 
@@ -115,7 +122,8 @@ def run_one(task: TaskSpec, genome: Genome, *, catalog: FrozenCatalogProvider, g
     policy = (policy_factory(task, genome, agent_id, episode_seed(seed, key)) if policy_factory
               else scripted_policy(task, catalog, genome, agent_id))
     backend = MockPayments()  # world runs NEVER touch PayPal sandbox
-    executor = InMemoryToolExecutor(catalog, GuardedPayments(backend, catalog, clock=clock), task_id=task.id,
+    tools_catalog = catalog.for_task(task) if hasattr(catalog, "for_task") else catalog  # tasks.scope: the task's own product pool
+    executor = InMemoryToolExecutor(tools_catalog, GuardedPayments(backend, catalog, clock=clock), task_id=task.id,
                                     agent_id=agent_id, budget_cap=task.hard_constraints.max_total,
                                     min_candidates=task.research_requirements.min_candidates_compared, clock=clock)
     return run_episode(episode_id=f"{generation_id}:{key}", task=task, agent_id=agent_id,
@@ -194,7 +202,7 @@ def run_generation(*, generation_id: str, seed: int, genomes: tuple[Genome, ...]
                     result.inert_fixtures.append(key)
                 gid, tid = key.split("#")[0].split(":", 1)
                 memory.record(episode, by_task[tid], by_genome[gid], generation=0)  # durable trace first, then the checkpoint
-                streak = streak + 1 if episode.termination == "model_failure" else 0
+                streak = streak + 1 if is_backend_failure(episode) else 0  # a malformed answer is the model's result, not an outage
                 sc = episode.score_components
                 state = store.record_episode(generation_id, key, EpisodeOutcome(
                     episode_id=episode.episode_id, fitness=Decimal(str(sc.get("fitness", "0"))), killed=episode.killed,

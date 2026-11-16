@@ -19,6 +19,7 @@ from tasks.schemas import TaskSpec, TaskSplit
 from world.taskgen import MIN_REVIEWS, _signal, durability_reviews
 
 PROTECTED = {TaskSplit.TEST, TaskSplit.HELD_OUT_CATEGORY}
+EVAL_SPLIT = SplitConfig(50, 10, 40)  # product split of the evaluation task set; tasks.scope must use the same one
 
 
 def trap_plans(catalog: FrozenCatalogProvider, manifests: Mapping[str, str], categories) -> dict[str, tuple[ReviewTrapPlan, ...]]:
@@ -39,7 +40,7 @@ def trap_plans(catalog: FrozenCatalogProvider, manifests: Mapping[str, str], cat
 
 
 def build_eval_taskset(catalog: FrozenCatalogProvider, manifests: Mapping[str, str], *, seed: int, size: int,
-                       held_out_categories: frozenset[str] = frozenset(), split: SplitConfig = SplitConfig(50, 10, 40),
+                       held_out_categories: frozenset[str] = frozenset(), split: SplitConfig = EVAL_SPLIT,
                        review_trap_percent: int = 10, snapshot_id: str = "amazon2023-frozen") -> TaskBatch:
     cats = tuple(sorted(manifests))
     config = BatchConfig(size=size, categories=cats, held_out_categories=held_out_categories, split=split,

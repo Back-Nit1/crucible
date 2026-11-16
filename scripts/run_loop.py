@@ -23,10 +23,10 @@ from decimal import Decimal
 from pathlib import Path
 
 from training.gates import RL_CEILING_VAR, RL_ROLLOUTS_VAR, TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR
+from training.stages import STAGES
 
 ITERATION_SETTINGS = ("algorithm", "adapter_manifest", "taskset", "seed", "population", "tasks", "samples_per_task",
-                      "max_train_cost", "max_steps", "eval_seeds", "dry_run")
-STAGES = ("generate", "curate", "audit", "plan", "train", "evaluate", "reenter")
+                      "max_train_cost", "max_steps", "epochs", "eval_seeds", "dry_run")
 INFERENCE_VARS = ("CRUCIBLE_MODAL_TOKEN_ROTATED", "CRUCIBLE_MODAL_BILLING_CONFIRMED", "CRUCIBLE_MODAL_APPROVED_CEILING_USD")
 INFERENCE_OPTIONAL_VARS = ("CRUCIBLE_MODAL_INFERENCE_BILLED_SPEND_USD",)
 TRAIN_VARS = (TRAIN_CEILING_VAR, TRAIN_MANIFEST_VAR)
@@ -155,7 +155,7 @@ def _train_argv(a, done: dict) -> list[str]:
     data = (["--algorithm", "grpo", "--rollouts", str(out / "rollouts.jsonl"),
              *(["--policy-adapter-manifest", str(a.adapter_manifest)] if a.adapter_manifest and not a.dry_run else [])]
             if a.algorithm == "grpo" else ["--records", str(out / "sft.jsonl"), "--manifest", str(out / "training_manifest.json")])
-    return [*data, "--taskset", str(a.taskset), "--run-id", f"{a.iteration_id}-{a.algorithm}", "--max-cost", str(a.max_train_cost), "--out", str(a.dir / "train"),
+    return [*data, "--taskset", str(a.taskset), "--run-id", f"{a.iteration_id}-{a.algorithm}", "--max-cost", str(a.max_train_cost), "--epochs", str(a.epochs), "--out", str(a.dir / "train"),
             *(["--max-steps", str(a.max_steps)] if a.max_steps else []),
             *(["--allow-scripted-traces"] if a.dry_run else [])]
 
@@ -359,6 +359,7 @@ def main(argv=None) -> int:
     ap.add_argument("--samples-per-task", type=int, default=1)
     ap.add_argument("--max-train-cost", type=Decimal, default=Decimal("0.50"))
     ap.add_argument("--max-steps", type=int)
+    ap.add_argument("--epochs", type=int, default=1, help="SFT/GRPO passes over the data (a few dozen records need several to move the adapter)")
     ap.add_argument("--dry-run", action="store_true", help="offline scripted chain: pipeline evidence only, $0")
     ap.add_argument("--plan", action="store_true", help="print per-stage maximum cost and the gate values to set; runs nothing")
     ap.add_argument("--seconds-per-call", type=int, default=120,

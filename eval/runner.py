@@ -26,7 +26,7 @@ from eval.manifest import EvaluationManifest, RunStatus, assert_same_manifest
 from eval.memory import FrozenEvalMemory
 from tasks.schemas import TaskSpec
 from world.evolution import Genome, MemorySettings, ReviewStrategy, SearchParameters
-from world.runtime import episode_seed, run_one
+from world.runtime import episode_seed, is_backend_failure, run_one
 
 ARTIFACT_VERSION = "1.0"
 ModelFactory = Callable[[ContenderConfig], ModelAdapter]
@@ -124,13 +124,6 @@ def contender_genome(c: ContenderConfig) -> Genome:
     return Genome(id=c.id, system_prompt_variant=c.system_prompt_variant, search=SearchParameters(), reviews=ReviewStrategy(),
                   memory=MemorySettings(enabled=c.memory_enabled, k=c.memory_k), temperature=c.temperature,
                   model_checkpoint=c.request_checkpoint)
-
-
-def is_backend_failure(episode: EpisodeRecord) -> bool:
-    """Model call failed at the transport/backend boundary (not a malformed-but-delivered answer)."""
-    return (episode.termination == "model_failure" and episode.final_answer.startswith("model failure:")
-            and "MalformedModelOutput" not in episode.final_answer
-            and "[input_too_long]" not in episode.final_answer)  # the agent outgrew the context: a result, and a rerun repeats it
 
 
 def _now() -> dt.datetime:

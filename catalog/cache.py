@@ -32,10 +32,11 @@ class FrozenCache:
                     self._c.popitem(last=False)
         return value
 
-    def search(self, query, filters=None):
+    def search(self, query, filters=None, size=None):
         # filters come from the model and may nest (e.g. a price range dict), so key on canonical JSON, not items()
         key = json.dumps(filters or {}, sort_keys=True, default=str)
-        return list(self._memo(("s", query, key), lambda: tuple(self.inner.search(query, filters))))
+        extra = {} if size is None else {"size": size}  # tasks.scope over-fetches, then narrows to a split's pool
+        return list(self._memo(("s", query, key, size), lambda: tuple(self.inner.search(query, filters, **extra))))
 
     def get_product(self, product_id):
         return self._memo(("p", product_id), lambda: self.inner.get_product(product_id))

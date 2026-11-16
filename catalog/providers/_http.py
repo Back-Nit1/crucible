@@ -1,8 +1,12 @@
 """Tiny stdlib JSON-over-HTTP helper shared by the Channel3 and Elastic clients."""
 import json
+import time
 import urllib.error
 import urllib.request
 from decimal import Decimal
+
+
+RETRIES, RETRY_STATUS = 3, {429, 502, 503, 504}  # every caller sends idempotent requests (reads, keyed bulk writes)
 
 
 class HttpError(RuntimeError):
@@ -26,9 +30,14 @@ def request_json(method: str, url: str, headers: dict, body=None, timeout: float
     else:
         data = body
     req = urllib.request.Request(url, data=data, method=method, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            raw = r.read()
-    except urllib.error.HTTPError as e:
-        raise HttpError(e.code, e.read().decode(errors="replace"), url) from None
+    for attempt in range(RETRIES + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                raw = r.read()
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in RETRY_STATUS and attempt < RETRIES:  # rate limit / gateway hiccup under many parallel episodes
+                time.sleep(2 ** attempt)
+                continue
+            raise HttpError(e.code, e.read().decode(errors="replace"), url) from None
     return json.loads(raw) if raw else {}

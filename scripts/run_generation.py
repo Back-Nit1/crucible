@@ -116,6 +116,10 @@ def main(argv=None) -> int:
     if a.taskset:
         try:
             tasks, taskset_audit_hash = load_audited_taskset(a.taskset, manifests, a.tasks)
+            meta = json.loads((Path(a.taskset) / "taskset.json").read_text())
+            if meta.get("provider") == "elastic_snapshot":  # tasks were built from per-split product pools: show the same pool
+                from tasks.scope import SplitScopedCatalog
+                catalog = SplitScopedCatalog.from_taskset(catalog, meta)
         except (KeyError, OSError, ValueError, json.JSONDecodeError) as exc:
             ap.error(str(exc))
     else:

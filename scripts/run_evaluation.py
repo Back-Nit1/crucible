@@ -143,6 +143,10 @@ def cmd_run(a) -> int:
         print(f"BLOCKED: inference warm-up failed ({type(exc).__name__})\nNo episode was consumed.", file=sys.stderr)
         raise SystemExit(BLOCKED)
     catalog, _ = _catalog(a)
+    meta = json.loads((Path(arts["taskset"]) / "taskset.json").read_text())
+    if meta.get("provider") == "elastic_snapshot":  # tasks were built from per-split product pools: show the same pool
+        from tasks.scope import SplitScopedCatalog
+        catalog = SplitScopedCatalog.from_taskset(catalog, meta)
     out = run_evaluation(manifest, tasks, catalog=catalog, model_factory=lambda c: adapters[c.id], store=_paths(a), memory=memory,
                          max_workers=a.max_workers, max_episodes=a.max_episodes, log=lambda m: print(m, file=sys.stderr))
     print(json.dumps({"status": out.status.value, "complete": out.complete, "executed": out.executed, "skipped_done": out.skipped_done,
